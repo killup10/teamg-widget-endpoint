@@ -2,10 +2,11 @@
   "name": "teamg-widget-endpoint",
   "version": "1.0.0",
   "description": "JSON endpoint for TeamG Play NetCast widget via Media Station X",
-  "main": "api/index.js",
+  "main": "server.js",
   "scripts": {
-    "dev": "vercel dev",
-    "build": "echo 'No build step required for Edge Functions'",
+    "start": "node server.js",
+    "dev": "node server.js",
+    "build": "echo 'No build step required'",
     "deploy": "vercel --prod"
   },
   "keywords": [
@@ -13,9 +14,12 @@
     "netcast",
     "lg-tv",
     "media-station-x",
-    "vercel",
-    "edge-function"
+    "http-server",
+    "railway"
   ],
   "author": "TeamG",
-  "license": "MIT"
+  "license": "MIT",
+  "engines": {
+    "node": ">=14.0.0"
+  }
 }
