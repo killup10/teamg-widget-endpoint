@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Cache-Control" content="no-cache" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>TeamG Play Widget</title>
+    <script>
+        var locations = [
+            "http://widget.teamg.store/",
+            "https://teamg-widget-endpoint-production.up.railway.app/",
+            ""
+        ];
+        
+        function l(li, t, n) {
+            t = document.createElement('script');
+            t.type = "text/javascript";
+            t.async = false;
+            t.onerror = function() {
+                n.parentNode.removeChild(t);
+                li++;
+                if (li < locations.length) {
+                    if (typeof onLoad === "undefined") {
+                        onLoad = function() {
+                            l(li);
+                        };
+                    } else {
+                        l(li);
+                    }
+                } else {
+                    document.body.style.background = "#000000";
+                    var eb = document.createElement("div");
+                    eb.style.cssText = "color:red;width:94%;height:1.2em;top:12%;left:3%;position:absolute;background:transparent;z-index:100;font-size:1.6em;text-align:center;border-radius:0.2em;";  
+                    document.body.appendChild(eb);
+                    eb.innerHTML = "TeamG Play load failed";
+                }
+            };
+
+            window.loaderLocation = locations[li];
+            t.src = locations[li] + "js/loader.js?rcid=" + (new Date()).getTime();
+            n = document.getElementsByTagName('script')[0];
+            n.parentNode.insertBefore(t, n);
+        };
+        
+        // Fallback directo para MSX
+        function directLoad() {
+            window.location.href = "https://play.teamg.store/netcast/index.html";
+        }
+        
+        // Timeout fallback
+        setTimeout(directLoad, 5000);
+        
+        l(0);
+    </script>
+</head>
+<body onload="onLoad();" onunload="onUnload();">
+    <div id="objects">
+        <!-- LG NetCast Objects -->
+        <object id="pluginSef" border=0 classid="clsid:SAMSUNG-INFOLINK-SEF"></object>        
+        <object id="pluginPlayer" border=0 classid="clsid:SAMSUNG-INFOLINK-PLAYER"></object>   
+        <object id="pluginAudio" border=0 classid="clsid:SAMSUNG-INFOLINK-AUDIO"></object>   
+        <object id="pluginObjectTVMW" border=0 classid="clsid:SAMSUNG-INFOLINK-TVMW"></object> 
+        <object id="pluginObjectNNavi" border=0 classid="clsid:SAMSUNG-INFOLINK-NNAVI"></object>
+        <object id="pluginObjectNetwork" border=0 classid="clsid:SAMSUNG-INFOLINK-NETWORK"></object>
+        <object id="pluginObjectTV" border=0 classid="clsid:SAMSUNG-INFOLINK-TV"></object>     
+    </div>
+    
+    <div style="color:white;text-align:center;margin-top:50px;">
+        <h2>TeamG Play</h2>
+        <p>Loading widget for LG NetCast...</p>
+    </div>
+</body>
+</html>

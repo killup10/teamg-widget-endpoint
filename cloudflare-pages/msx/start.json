@@ -1,0 +1,11 @@
+{
+  "name": "TeamG Play",
+  "version": "1.0.0",
+  "parameter": "menu:http://widget.teamg.store/msx/menu.json",
+  "welcome": "start",
+  "meta": {
+    "platform": "LG NetCast",
+    "via": "Media Station X",
+    "maintainer": "TeamG"
+  }
+}

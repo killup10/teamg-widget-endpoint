@@ -1,0 +1,25 @@
+{
+  "type": "list",
+  "title": "TeamG Play",
+  "version": "1.0.0",
+  "items": [
+    {
+      "type": "link",
+      "title": "Abrir TeamG Play (NetCast)",
+      "url": "https://play.teamg.store/netcast/index.html",
+      "icon": "https://play.teamg.store/netcast/TeamG%20Play.png",
+      "description": "Lanzar la aplicación principal de TeamG Play para LG NetCast"
+    },
+    {
+      "type": "link",
+      "title": "Soporte / Ayuda",
+      "url": "https://play.teamg.store/netcast/help.html",
+      "description": "Información y ayuda para configuración"
+    }
+  ],
+  "meta": {
+    "platform": "LG NetCast",
+    "via": "Media Station X",
+    "maintainer": "TeamG"
+  }
+}
