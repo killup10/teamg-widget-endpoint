@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>TeamG Play — App</title>
+  <meta http-equiv="Cache-Control" content="no-cache" />
+  <style>
+    :root{--bg:#000;--card:#0f0f0f;--muted:#9aa0a6;--accent:#ff3b3b}
+    html,body{height:100%;margin:0;background:var(--bg);color:#fff;font-family:Inter,Arial,Helvetica,sans-serif}
+    .app{max-width:1400px;margin:0 auto;padding:24px}
+    header{display:flex;align-items:center;gap:16px}
+    .logo{font-weight:700;font-size:1.6rem;color:var(--accent)}
+    .search{margin-left:auto}
+    input[type=search]{background:#121212;border:1px solid #222;padding:8px 12px;border-radius:6px;color:#fff;width:320px}
+    .section{margin-top:18px}
+    .section h2{margin:0 0 8px 0;color:var(--muted);font-weight:600}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
+    .card{background:linear-gradient(180deg,#101010,#0b0b0b);border-radius:8px;overflow:hidden;padding:8px;cursor:pointer;outline:2px solid transparent}
+    .card:focus{outline-color:var(--accent)}
+    .thumb{width:100%;height:110px;object-fit:cover;border-radius:6px}
+    .title{font-size:0.95rem;margin-top:8px}
+    .meta{font-size:0.8rem;color:var(--muted);margin-top:4px}
+    .footer{margin-top:28px;color:var(--muted);font-size:0.85rem}
+    .loading{opacity:0.7}
+    /* TV-friendly focus ring for remote navigation */
+    .focus-ring{box-shadow:0 0 0 4px rgba(255,59,59,0.12);border-radius:8px}
+  </style>
+</head>
+<body>
+  <div class="app" id="app">
+    <header>
+      <div class="logo">TeamG Play</div>
+      <div class="search">
+        <input id="q" type="search" placeholder="Buscar películas o series..." />
+      </div>
+    </header>
+
+    <div class="section">
+      <h2>Últimos agregados</h2>
+      <div id="latest" class="grid" tabindex="0">
+        <!-- Cards cargadas dinámicamente -->
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Recomendados</h2>
+      <div id="recommended" class="grid">
+        <!-- Cards cargadas dinámicamente -->
+      </div>
+    </div>
+
+    <div class="footer">Versión de desarrollo — empieza a construir la app dentro de este archivo. Consumo de API: <code>/api/videos?view=widget</code></div>
+  </div>
+
+  <script>
+    // Small app shell: fetch sample videos and render cards.
+    // Replace endpoints with your backend routes.
+    const apiBase = location.origin.replace(/^https:/, 'http:'); // prefer HTTP for legacy TVs
+
+    async function fetchVideos({ view='widget', limit=24 } = {}){
+      try{
+        const res = await fetch(apiBase + '/api/videos?view=' + view + '&limit=' + limit);
+        if(!res.ok) throw new Error('HTTP ' + res.status);
+        return await res.json();
+      }catch(err){
+        console.warn('fetchVideos error', err);
+        return { items: [] };
+      }
+    }
+
+    function createCard(v){
+      const btn = document.createElement('div');
+      btn.className = 'card';
+      btn.tabIndex = 0;
+      btn.setAttribute('data-id', v._id || v.id || '');
+
+      const img = document.createElement('img');
+      img.className = 'thumb';
+      img.src = v.thumbnail || v.tmdbThumbnail || '/placeholder.jpg';
+      img.alt = v.title || 'Video';
+
+      const t = document.createElement('div');
+      t.className = 'title';
+      t.textContent = v.title || 'Sin título';
+
+      const m = document.createElement('div');
+      m.className = 'meta';
+      m.textContent = (v.tipo || v.type || '') + (v.duration ? (' • ' + v.duration) : '');
+
+      btn.appendChild(img);
+      btn.appendChild(t);
+      btn.appendChild(m);
+
+      // Basic remote/keyboard interaction
+      btn.addEventListener('keydown', (e)=>{
+        if(e.key === 'Enter' || e.key === 'OK') playVideo(v);
+      });
+      btn.addEventListener('click', ()=>playVideo(v));
+      btn.addEventListener('focus', ()=>btn.classList.add('focus-ring'));
+      btn.addEventListener('blur', ()=>btn.classList.remove('focus-ring'));
+
+      return btn;
+    }
+
+    function renderGrid(container, items){
+      container.innerHTML = '';
+      if(!items || items.length === 0){
+        container.innerHTML = '<div class="loading">No se encontraron elementos.</div>';
+        return;
+      }
+      const fragment = document.createDocumentFragment();
+      items.forEach(i=>fragment.appendChild(createCard(i)));
+      container.appendChild(fragment);
+    }
+
+    async function load(){
+      const latest = document.getElementById('latest');
+      const recommended = document.getElementById('recommended');
+
+      // Fetch latest for the home screen
+      const res1 = await fetchVideos({ view: 'widget', limit: 24 });
+      renderGrid(latest, res1.items || res1);
+
+      // Fetch recommended (example: same endpoint with different params)
+      const res2 = await fetchVideos({ view: 'recommended', limit: 12 });
+      renderGrid(recommended, res2.items || res2);
+    }
+
+    function playVideo(v){
+      // Minimal player action: redirect to netcast player page or open stream URL.
+      // Replace with your real player integration later.
+      if(v && v.url){
+        window.location.href = '/netcast/player.html?stream=' + encodeURIComponent(v.url);
+      }else{
+        alert('Reproducir: ' + (v.title || 'video'));
+      }
+    }
+
+    // Keyboard navigation: simple left/right on focused grid
+    document.addEventListener('keydown', (e)=>{
+      const active = document.activeElement;
+      if(active && active.classList && active.classList.contains('card')){
+        if(e.key === 'ArrowLeft'){
+          const prev = active.previousElementSibling; if(prev) prev.focus();
+        }else if(e.key === 'ArrowRight'){
+          const next = active.nextElementSibling; if(next) next.focus();
+        }else if(e.key === 'ArrowUp' || e.key === 'ArrowDown'){
+          // jump by row: approximate by moving focus by 4 items
+          const offset = (e.key === 'ArrowUp') ? -4 : 4;
+          let node = active;
+          for(let i=0;i<Math.abs(offset);i++){
+            node = (offset>0) ? (node.nextElementSibling || node) : (node.previousElementSibling || node);
+          }
+          node && node.focus();
+        }
+      }
+    });
+
+    // Start app
+    load().catch(err=>console.error(err));
+
+    // Expose for debugging in devtools
+    window.teamg = { load, fetchVideos };
+  </script>
+
+  <!--
+    NOTAS:
+    - Este archivo es una plantilla de inicio para construir la app TeamG Play.
+    - Conectar rutas a tu backend real, añadir lazy-loading, paginación, gestión de sesión y reproducción nativa.
+    - Para servir localmente: usar un servidor HTTP (python -m http.server o npx http-server).
+  -->
+</body>
+</html>
