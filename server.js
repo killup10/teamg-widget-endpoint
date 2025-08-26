@@ -5,16 +5,16 @@ const widgetJson = {
   "id": "com.teamg.play.netcast",
   "name": "TeamG Play TV",
   "description": "TeamG Play optimizado para LG NetCast vía Media Station X.",
-  "icon": "https://play.teamg.store/netcast/TeamG%20Play.png",
-  "homepage": "https://play.teamg.store/netcast/index.html",
+  "icon": "http://teamgplay.online/TeamG%20Play.png",
+  "homepage": "http://teamgplay.online/index.html",
   "app": {
     "type": "web",
     "title": "TeamG Play TV",
-    "url": "https://play.teamg.store/netcast/index.html",
-    "icon": "https://play.teamg.store/netcast/TeamG%20Play.png"
+    "url": "http://teamgplay.online/index.html",
+    "icon": "http://teamgplay.online/TeamG%20Play.png"
   },
   "startup": {
-    "url": "https://play.teamg.store/netcast/index.html"
+    "url": "http://teamgplay.online/index.html"
   },
   "meta": {
     "platform": "LG NetCast",

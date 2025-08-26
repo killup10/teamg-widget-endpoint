@@ -16,14 +16,14 @@ Location: https://widget.teamg.store/
 
 ## 🚀 Solución: Servidor HTTP puro
 
-### Opción A: Railway Deploy (Recomendado)
+### Opción A: Render Deploy (Recomendado)
 
-Railway permite HTTP sin redirects forzados:
+Render permite HTTP sin redirects forzados, lo cual es ideal para este caso de uso.
 
-1. **Crear cuenta en Railway.app**
-2. **Conectar repositorio GitHub**
-3. **Deploy automático**
-4. **Configurar dominio personalizado** (opcional)
+1. **Crear cuenta en Render.com**
+2. **Conectar repositorio GitHub como "New Web Service"**
+3. **Deploy automático** (Render detecta Node.js)
+4. **Configurar dominio personalizado** (asegúrate de seguir la guía para usar el modo "DNS Only" en Cloudflare)
 
 ```bash
 # Servidor HTTP simple
@@ -132,23 +132,16 @@ TeamG Play App → play.teamg.store/netcast/
 
 ## 📝 Alternativas probadas
 
-- ❌ **Vercel**: Fuerza HTTPS con redirect 308
-- ❌ **Netlify**: Fuerza HTTPS con redirect 301
-- ❌ **Cloudflare Pages**: Fuerza HTTPS
-- ✅ **Railway**: Permite HTTP puro
-- ✅ **Render**: Permite HTTP puro
-- ✅ **VPS propio**: Control total
+- ❌ **Vercel**: Fuerza HTTPS con redirect 308.
+- ❌ **Netlify**: Fuerza HTTPS con redirect 301.
+- ❌ **Cloudflare Pages**: Fuerza HTTPS.
+- ❌ **Railway**: **Actualización (Ago 2025):** Ahora fuerza un redirect 301 a HTTPS en dominios personalizados, por lo que ya no es compatible.
+- ✅ **Render**: Permite HTTP puro. **(Recomendado)**
+- ✅ **VPS propio**: Control total.
 
-## 🚀 Deploy en Railway
+## 🚀 Despliegue
 
-1. **Crear cuenta**: https://railway.app
-2. **New Project** → **Deploy from GitHub repo**
-3. **Seleccionar**: `teamg-widget-endpoint`
-4. **Variables de entorno**: No requeridas
-5. **Deploy automático**: ✅
-
-**URL generada**: `https://teamg-widget-endpoint.up.railway.app`
-**Para HTTP**: Configurar dominio personalizado sin SSL
+Se recomienda usar **Render** para el despliegue. Por favor, consulta el archivo `DEPLOY_GUIDE.md` en este repositorio para una guía paso a paso detallada sobre cómo desplegar en Render y configurar un dominio de Cloudflare.
 
 ---
 
