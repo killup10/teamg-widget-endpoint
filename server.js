@@ -37,14 +37,7 @@ const mimeTypes = {
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
   '.gif': 'image/gif',
-  '.svg': 'image/svg+xml',
-  '.wav': 'audio/wav',
-  '.mp4': 'video/mp4',
-  '.woff': 'application/font-woff',
-  '.ttf': 'application/font-ttf',
-  '.eot': 'application/vnd.ms-fontobject',
-  '.otf': 'application/font-otf',
-  '.wasm': 'application/wasm'
+  '.svg': 'image/svg+xml'
 };
 
 const server = http.createServer((req, res) => {
@@ -61,10 +54,10 @@ const server = http.createServer((req, res) => {
   }
 
   const parsedUrl = url.parse(req.url);
-  let pathname = parsedUrl.pathname;
+  const pathname = parsedUrl.pathname;
 
-  // Route for the MSX JSON manifest
-  if (pathname === '/msx/start.json') {
+  // If the root is requested, serve the MSX JSON manifest.
+  if (pathname === '/') {
     const widgetJson = createWidgetJson();
     res.writeHead(200, {
       'Content-Type': 'application/json; charset=utf-8',
@@ -74,27 +67,24 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // Logic for serving static files from the 'public' directory
-  // If root is requested, serve index.html from public
-  if (pathname === '/') {
-    pathname = '/index.html';
-  }
-  let filePath = path.join(__dirname, 'public', pathname);
+  // For all other requests, try to serve a static file from the 'public' directory.
+  const filePath = path.join(__dirname, 'public', pathname);
 
   fs.exists(filePath, (exist) => {
     if (!exist) {
-      // If file doesn't exist, return 404
+      // If the file doesn't exist, return 404 Not Found
       res.writeHead(404, { 'Content-Type': 'text/plain' });
       res.end('404 Not Found');
       return;
     }
 
-    // If it's a directory, try to serve index.html from it
+    // If path is a directory, deny access for security reasons
     if (fs.statSync(filePath).isDirectory()) {
-      filePath = path.join(filePath, 'index.html');
+        res.writeHead(403, { 'Content-Type': 'text/plain' });
+        res.end('403 Forbidden - Directory listing not allowed.');
+        return;
     }
 
-    // Read file and serve
     fs.readFile(filePath, (err, data) => {
       if (err) {
         res.writeHead(500, { 'Content-Type': 'text/plain' });
