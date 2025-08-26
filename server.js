@@ -64,7 +64,7 @@ const server = http.createServer((req, res) => {
   let pathname = parsedUrl.pathname;
 
   // Route for the MSX JSON manifest
-  if (pathname === '/') {
+  if (pathname === '/msx/start.json') {
     const widgetJson = createWidgetJson();
     res.writeHead(200, {
       'Content-Type': 'application/json; charset=utf-8',
@@ -75,6 +75,10 @@ const server = http.createServer((req, res) => {
   }
 
   // Logic for serving static files from the 'public' directory
+  // If root is requested, serve index.html from public
+  if (pathname === '/') {
+    pathname = '/index.html';
+  }
   let filePath = path.join(__dirname, 'public', pathname);
 
   fs.exists(filePath, (exist) => {
