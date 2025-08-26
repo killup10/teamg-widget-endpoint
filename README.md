@@ -68,10 +68,25 @@ URL: http://widget.teamg.store
 
 - **Servidor HTTP puro** (Node.js nativo)
 - **Sin dependencias externas**
-- **JSON estático optimizado** para LG NetCast
+- **JSON dinámico** para Media Station X.
+- **Servidor de archivos estáticos** para la aplicación web.
 - **Headers CORS correctos**
 - **Sin redirects HTTPS**
 - **Compatible con dispositivos antiguos**
+
+## 🏗️ Arquitectura y Uso
+
+Este proyecto ahora funciona como un **servidor autocontenido**. No solo provee el archivo JSON de arranque para Media Station X, sino que también sirve los archivos de tu aplicación web (HTML, imágenes, etc.).
+
+**¿Cómo funciona?**
+1.  Cuando Media Station X solicita la URL raíz (`http://tu-dominio.com/`), el servidor genera y devuelve el archivo JSON dinámicamente.
+2.  Las URLs dentro de ese JSON (ej. `http://tu-dominio.com/index.html`) apuntan al mismo servidor.
+3.  Cuando el navegador de la TV solicita `http://tu-dominio.com/index.html`, el servidor busca el archivo `index.html` dentro de la carpeta `/public` y lo sirve.
+
+**Tu única tarea:**
+- **Coloca todos los archivos de tu aplicación web (`index.html`, `TeamG Play.png`, tus archivos de CSS, JavaScript, etc.) directamente dentro de la carpeta `public` de este repositorio.**
+
+Una vez que subas tus archivos a esa carpeta, el servidor se encargará de todo lo demás.
 
 ## 📱 Uso en Media Station X
 
@@ -81,53 +96,24 @@ URL: http://widget.teamg.store
 3. Introducir: `tu-dominio-http.com` (SIN https://)
 4. Confirmar configuración
 
-## 🎮 Respuesta JSON
-
-```json
-{
-  "version": "1.0.0",
-  "id": "com.teamg.play.netcast",
-  "name": "TeamG Play TV",
-  "description": "TeamG Play optimizado para LG NetCast vía Media Station X.",
-  "icon": "https://play.teamg.store/netcast/TeamG%20Play.png",
-  "homepage": "https://play.teamg.store/netcast/index.html",
-  "app": {
-    "type": "web",
-    "title": "TeamG Play TV",
-    "url": "https://play.teamg.store/netcast/index.html",
-    "icon": "https://play.teamg.store/netcast/TeamG%20Play.png"
-  },
-  "startup": {
-    "url": "https://play.teamg.store/netcast/index.html"
-  },
-  "meta": {
-    "platform": "LG NetCast",
-    "via": "Media Station X",
-    "maintainer": "TeamG",
-    "timestamp": "2025-08-08T18:30:00.000Z"
-  }
-}
-```
-
 ## ✅ Verificación
 
 ```bash
-# Verificar que NO hay redirect 308
-curl -v http://tu-servidor.com
+# 1. Verificar que el servidor JSON funciona
+curl -v http://tu-dominio.com
 
 # Debe devolver:
-# HTTP/1.1 200 OK (NO 308!)
-# Content-Type: application/json
-```
+# HTTP/1.1 200 OK
+# Content-Type: application/json; charset=utf-8
+# ... y el contenido del JSON ...
 
-## 🏗️ Arquitectura
+# 2. Verificar que un archivo estático funciona
+curl -v http://tu-dominio.com/index.html
 
-```
-Media Station X (LG NetCast)
-    ↓ HTTP (sin HTTPS)
-Servidor HTTP puro (Railway/VPS)
-    ↓ JSON directo
-TeamG Play App → play.teamg.store/netcast/
+# Debe devolver:
+# HTTP/1.1 200 OK
+# Content-Type: text/html
+# ... y el contenido de tu index.html ...
 ```
 
 ## 📝 Alternativas probadas
