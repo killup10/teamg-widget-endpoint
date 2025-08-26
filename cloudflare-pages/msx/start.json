@@ -1,7 +1,7 @@
 {
   "name": "TeamG Play",
   "version": "1.0.0",
-  "parameter": "menu:http://widget.teamg.store/msx/menu.json",
+  "parameter": "content:http://widget.teamg.store/msx/boot.html?v=20250811-01",
   "welcome": "start",
   "meta": {
     "platform": "LG NetCast",

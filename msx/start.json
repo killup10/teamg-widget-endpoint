@@ -1,0 +1,13 @@
+{
+  "type": "list",
+  "headline": "Загрузчик TeamG Play (1/1)",
+  "template": { "type": "default", "layout": "0,0,3,2", "imageFiller": "width-center" },
+  "items": [
+    {
+      "title": "TeamG Play",
+      "image": "https://widget.teamg.store/msx/icon.png",
+      "description": "Abrir TeamG Play",
+      "action": "content:https://widget.teamg.store/msx/app.content.json"
+    }
+  ]
+}

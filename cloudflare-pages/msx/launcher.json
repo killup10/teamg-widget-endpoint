@@ -1,0 +1,12 @@
+{
+  "type": "list",
+  "headline": "TeamG Play",
+  "info": "Cargando TeamG Play...",
+  "template": { "type": "default" },
+  "items": [
+    {
+      "title": "Entrar",
+      "action": "link:window:https://play.teamg.store/netcast/index.html#/login"
+    }
+  ]
+}
