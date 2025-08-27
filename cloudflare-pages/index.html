@@ -7,8 +7,8 @@
     <script>
         var locations = [
             "http://widget.teamg.store/",
-            "https://teamg-widget-endpoint-production.up.railway.app/",
-            ""
+            "http://teamg-widget-endpoint-production.up.railway.app/",
+            "http://play.teamg.store/"
         ];
         
         function l(li, t, n) {
@@ -41,9 +41,9 @@
             n.parentNode.insertBefore(t, n);
         };
         
-        // Fallback directo para MSX
+        // Fallback directo para MSX (HTTP — many smart TVs require HTTP)
         function directLoad() {
-            window.location.href = "https://play.teamg.store/netcast/index.html";
+            window.location.href = "http://play.teamg.store/netcast/index.html";
         }
         
         // Timeout fallback
