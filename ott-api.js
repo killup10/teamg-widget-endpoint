@@ -367,4 +367,121 @@ async function handle(req, res, pathname, query, body) {
   return json(res, 404, { ok: false });
 }
 
-module.exports = { handle };
+function handleStream(req, res, query) {
+  const targetUrl = String(query.url || '').trim();
+  if (!targetUrl || (targetUrl.indexOf('http://') !== 0 && targetUrl.indexOf('https://') !== 0)) {
+    res.writeHead(400, { 'Content-Type': 'text/plain', 'Access-Control-Allow-Origin': '*' });
+    return res.end('Invalid URL');
+  }
+
+  const isHttps = targetUrl.indexOf('https://') === 0;
+  const mod = isHttps ? require('https') : require('http');
+
+  const headers = {
+    'User-Agent': req.headers['user-agent'] || 'Mozilla/5.0 (SmartTV; NetCast) AppleWebKit/534.34',
+    'Accept': '*/*'
+  };
+  if (req.headers.range) {
+    headers['range'] = req.headers.range;
+  }
+
+  const clientReq = mod.get(targetUrl, {
+    headers,
+    rejectUnauthorized: false,
+    timeout: 15000
+  }, (upRes) => {
+    upRes.on('error', (err) => {
+      console.error('[StreamProxy Upstream Error]:', err.message);
+      try { res.destroy(); } catch (e) {}
+    });
+    if (upRes.statusCode >= 300 && upRes.statusCode < 400 && upRes.headers.location) {
+      try {
+        const { URL } = require('url');
+        const redirectUrl = new URL(upRes.headers.location, targetUrl).href;
+        return handleStream(req, res, { url: redirectUrl });
+      } catch (e) {}
+    }
+
+    const contentType = (upRes.headers['content-type'] || '').toLowerCase();
+    const isM3u8 = contentType.indexOf('mpegurl') !== -1 ||
+                   targetUrl.indexOf('.m3u8') !== -1 ||
+                   targetUrl.indexOf('/chunks.') !== -1 ||
+                   targetUrl.indexOf('/playlist.') !== -1;
+
+    if (isM3u8) {
+      let m3uData = '';
+      upRes.on('data', (chunk) => { m3uData += chunk; });
+      upRes.on('end', () => {
+        if (m3uData.indexOf('#EXTM3U') === -1 && m3uData.length > 0 && m3uData.charCodeAt(0) === 0x47) {
+          res.writeHead(200, {
+            'Content-Type': 'video/mp2t',
+            'Access-Control-Allow-Origin': '*'
+          });
+          return res.end(Buffer.from(m3uData, 'binary'));
+        }
+
+        const { URL } = require('url');
+        const lines = m3uData.split(/\r?\n/);
+        const rewritten = lines.map((line) => {
+          const l = line.trim();
+          if (!l) return line;
+          if (l.indexOf('#EXT-X-KEY:') === 0) {
+            return l.replace(/URI="(.*?)"/i, (match, uri) => {
+              try {
+                const absKey = new URL(uri, targetUrl).href;
+                return 'URI="/api/ott/stream?url=' + encodeURIComponent(absKey) + '"';
+              } catch (e) { return match; }
+            });
+          }
+          if (l.charAt(0) === '#') return line;
+          try {
+            const absChunk = new URL(l, targetUrl).href;
+            return '/api/ott/stream?url=' + encodeURIComponent(absChunk);
+          } catch (e) {
+            return l;
+          }
+        }).join('\n');
+
+        res.writeHead(200, {
+          'Content-Type': 'application/vnd.apple.mpegurl; charset=utf-8',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, OPTIONS',
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
+        });
+        res.end(rewritten);
+      });
+    } else {
+      const outHeaders = {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, OPTIONS',
+        'Content-Type': contentType || 'video/mp2t'
+      };
+      if (upRes.headers['content-length']) outHeaders['Content-Length'] = upRes.headers['content-length'];
+      if (upRes.headers['content-range']) outHeaders['Content-Range'] = upRes.headers['content-range'];
+      if (upRes.headers['accept-ranges']) outHeaders['Accept-Ranges'] = upRes.headers['accept-ranges'];
+
+      res.writeHead(upRes.statusCode || 200, outHeaders);
+      upRes.pipe(res);
+    }
+  });
+
+  clientReq.on('timeout', () => {
+    clientReq.destroy(new Error('Conexión expiró (timeout)'));
+  });
+
+  clientReq.on('error', (err) => {
+    console.error('[StreamProxy Error]:', err.message, targetUrl);
+    if (!res.headersSent) {
+      res.writeHead(502, { 'Content-Type': 'text/plain; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
+      res.end('Error al conectar con el stream: ' + err.message);
+    }
+  });
+
+  if (req && typeof req.on === 'function') {
+    req.on('close', () => {
+      try { clientReq.destroy(); } catch (e) {}
+    });
+  }
+}
+
+module.exports = { handle, handleStream };
