@@ -754,28 +754,46 @@ html, body {
   float: left;
   height: 52px;
   line-height: 52px;
-  padding: 0 28px;
+  padding: 0 24px;
   background: #8a2542;
   color: #ffffff;
-  font-size: 20px;
+  font-size: 16px;
   cursor: pointer;
   transform: skewX(-20deg);
   -webkit-transform: skewX(-20deg);
-  margin-left: 12px;
+  margin-left: 16px;
+  margin-right: 32px;
+}
+
+.player-tab-drawer-btn * {
+  pointer-events: none;
 }
 
 .player-tab-drawer-btn span {
   display: inline-block;
   transform: skewX(20deg);
   -webkit-transform: skewX(20deg);
+}
+
+.player-tab-drawer-btn .btn-drawer-text {
+  margin-left: 8px;
+  font-size: 15px;
+  letter-spacing: 1px;
+  vertical-align: middle;
+}
+
 .player-tab-drawer-btn.focused {
   background: #ffcc00 !important;
   color: #000000 !important;
-  outline: 2px solid #ffffff;
+  outline: 3px solid #ffffff;
 }
 
 .player-tab-drawer-btn.focused span svg line {
   stroke: #000000 !important;
+}
+
+.player-tab-drawer-btn.focused .btn-drawer-text {
+  color: #000000 !important;
 }
 
 .player-play-btn {
@@ -786,12 +804,14 @@ html, body {
   font-size: 18px;
   color: #ffffff;
   cursor: pointer;
+  margin-left: 10px;
 }
 
 .player-play-btn.focused {
   background: #ffcc00 !important;
   color: #000000 !important;
   border-radius: 4px;
+  outline: 3px solid #ffffff;
 }
 
 /* Modal / Banner SINTONIZANDO */
@@ -879,28 +899,45 @@ html, body {
 /* Drawer Lateral de Canales durante reproducción (Foto 3) */
 #player-drawer {
   position: absolute;
-  top: 68px;
+  top: 0;
   left: 0;
   bottom: 0;
-  width: 380px;
+  width: 420px;
   max-width: 85%;
-  background: rgba(22, 6, 15, 0.96);
-  border-right: 2px solid #4a1525;
+  background: #14050d;
+  background: rgba(20, 5, 13, 0.98);
+  border-right: 3px solid #ffcc00;
   display: none;
-  z-index: 110;
-  overflow-y: auto;
-  padding-bottom: 20px;
+  z-index: 120;
+  overflow: hidden;
+  box-shadow: 6px 0 25px rgba(0, 0, 0, 0.85);
+  -webkit-box-shadow: 6px 0 25px rgba(0, 0, 0, 0.85);
 }
 
 #player-drawer.open { display: block; }
 
 .drawer-nav-indicators {
-  padding: 10px 16px;
-  font-size: 14px;
+  height: 48px;
+  line-height: 48px;
+  padding: 0 16px;
+  font-size: 16px;
   font-weight: bold;
   color: #ffcc00;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: #2a0b18;
+  border-bottom: 2px solid #8a2542;
   text-align: center;
+  box-sizing: border-box;
+  cursor: pointer;
+}
+
+#player-drawer-list {
+  position: absolute;
+  top: 48px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow-y: auto;
+  padding-bottom: 25px;
 }
 
 .drawer-row {
@@ -1067,7 +1104,7 @@ html, body {
         <h3>Información</h3>
         <p id="optDescText">Usa tu usuario y contraseña otorgados por el administrador para vincular este televisor y descargar tus listas.</p>
         <div style="margin-top:22px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.3.0 [Cuadrícula 3x6 &amp; Magic Remote]
+          VERSIÓN: v2.4.0 [3x6 &amp; Player Fixes]
         </div>
       </div>
     </div>
@@ -1152,17 +1189,22 @@ html, body {
 
     <!-- Overlay Inferior (Foto 2) -->
     <div id="player-overlay-bot">
-      <div class="player-tab-drawer-btn" id="btnDrawerTrigger"><span><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" style="vertical-align:middle;"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></span></div>
-      <div class="player-play-btn" id="btnPlayPause">▶❚❚</div>
+      <div class="player-tab-drawer-btn" id="btnDrawerTrigger" title="Selector de canales">
+        <span>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" style="vertical-align:middle;"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          <strong class="btn-drawer-text">CANALES</strong>
+        </span>
+      </div>
+      <div class="player-play-btn" id="btnPlayPause" title="Pausar / Reanudar">▶❚❚</div>
       <div class="player-progress-wrap">
         <div class="player-progress-bar"><div id="player-epg-fill"></div></div>
-        <span id="player-time-text">0:37 of 1:00</span>
+        <span id="player-time-text">EN VIVO</span>
       </div>
     </div>
 
     <!-- Drawer Lateral de Canales (Foto 3) -->
     <div id="player-drawer">
-      <div class="drawer-nav-indicators" id="drawerGroupName">&lt; Canales &gt;</div>
+      <div class="drawer-nav-indicators" id="drawerGroupName" title="Cambiar categoría">&lt; Canales &gt;</div>
       <div id="player-drawer-list"></div>
     </div>
   </div>
@@ -1218,16 +1260,16 @@ function safeScrollIntoView(el) {
     }
     return;
   }
-  var d = $('player-drawer');
-  if (d && d.contains(el)) {
-    var dTop = d.scrollTop;
-    var dHeight = d.clientHeight;
+  var dList = $('player-drawer-list');
+  if (dList && dList.contains(el)) {
+    var dTop = dList.scrollTop;
+    var dHeight = dList.clientHeight;
     var dElTop = el.offsetTop;
     var dElHeight = el.offsetHeight;
     if (dElTop < dTop) {
-      d.scrollTop = dElTop;
+      dList.scrollTop = dElTop;
     } else if (dElTop + dElHeight > dTop + dHeight) {
-      d.scrollTop = dElTop + dElHeight - dHeight;
+      dList.scrollTop = dElTop + dElHeight - dHeight;
     }
     return;
   }
@@ -2146,6 +2188,12 @@ function handleMainNav(kc) {
         state.tileIdx++;
         updateMainFocus(false);
       }
+    } else if (kc === KEY.CH_UP) {
+      state.tileIdx = Math.max(0, state.tileIdx - (cols * 3));
+      updateMainFocus(true);
+    } else if (kc === KEY.CH_DOWN) {
+      state.tileIdx = Math.min(totalTiles - 1, state.tileIdx + (cols * 3));
+      updateMainFocus(true);
     } else if (kc === KEY.ENTER) {
       if (area && area.children && area.children[state.tileIdx]) {
         area.children[state.tileIdx].click();
@@ -2584,7 +2632,7 @@ function openChannelDrawer() {
   container.innerHTML = '';
   
   var groupLabel = (state.currentGroup === '__all' ? 'Todos' : (state.currentGroup === '__fav' ? 'Favoritos' : state.currentGroup));
-  $('drawerGroupName').innerHTML = '&lt; \u00A0 ' + groupLabel + ' \u00A0 &gt;';
+  $('drawerGroupName').innerHTML = '&lt; \u00A0 ' + escapeHtml(groupLabel) + ' \u00A0 &gt;';
 
   var frag = document.createDocumentFragment();
   for (var i = 0; i < list.length; i++) {
@@ -2600,7 +2648,9 @@ function openChannelDrawer() {
       '</div>';
       
     row.onclick = (function(idx) {
-      return function() {
+      return function(e) {
+        var ev = e || window.event;
+        if (ev && ev.stopPropagation) ev.stopPropagation();
         playChannelAt(idx);
         closeChannelDrawer();
       };
@@ -2610,16 +2660,21 @@ function openChannelDrawer() {
   container.appendChild(frag);
   state.drawerIdx = state.currentChannelIdx;
   state.drawerOpen = true;
-  $('player-drawer').classList.add('open');
+  var d = $('player-drawer');
+  d.classList.add('open');
+  d.style.display = 'block';
   updateDrawerFocus();
 }
 
 function closeChannelDrawer() {
-  $('player-drawer').classList.remove('open');
+  var d = $('player-drawer');
+  d.classList.remove('open');
+  d.style.display = 'none';
   state.drawerOpen = false;
   state.playerArea = 'bottom';
   state.playerBotIdx = 0;
   updatePlayerFocus();
+  showPlayerOverlay();
 }
 
 function updateDrawerFocus() {
@@ -2644,10 +2699,22 @@ function switchDrawerGroup(dir) {
 /* ==========================================================================
    LISTENER MAESTRO DE TECLADO / CONTROL REMOTO (e.keyCode)
    ========================================================================== */
+var lastKeyCode = 0;
+var lastKeyTime = 0;
+
 function onGlobalKeyDown(e) {
   var eObj = e || window.event;
   var kc = eObj.keyCode || eObj.which || 0;
-  
+  var now = (new Date()).getTime();
+
+  // Antirrebote estricto: ignorar repeticiones accidentales o duplicación de eventos de la TV dentro de 120ms
+  if (kc === lastKeyCode && (now - lastKeyTime) < 120) {
+    if (eObj && eObj.preventDefault) try { eObj.preventDefault(); } catch (pErr) {}
+    return false;
+  }
+  lastKeyCode = kc;
+  lastKeyTime = now;
+
   if (kc >= 37 && kc <= 40) {
     try { if (eObj.preventDefault) eObj.preventDefault(); } catch (err1) {}
   }
@@ -2670,10 +2737,11 @@ function onGlobalKeyDown(e) {
   }
 }
 
-window.addEventListener('keydown', onGlobalKeyDown, false);
-document.addEventListener('keydown', onGlobalKeyDown, false);
-window.onkeydown = onGlobalKeyDown;
-document.onkeydown = onGlobalKeyDown;
+if (document.addEventListener) {
+  document.addEventListener('keydown', onGlobalKeyDown, false);
+} else {
+  document.onkeydown = onGlobalKeyDown;
+}
 
 /* ==========================================================================
    INICIALIZACIÓN
@@ -2726,25 +2794,18 @@ $('btnDoSave').onclick = function() { doSaveAndLogin(); };
 var catcher = $('player-click-catcher');
 if (catcher) {
   catcher.onclick = function(e) {
-    if (e) {
-      if (e.stopPropagation) e.stopPropagation();
-      if (e.preventDefault) e.preventDefault();
+    var ev = e || window.event;
+    if (ev) {
+      if (ev.stopPropagation) ev.stopPropagation();
+      if (ev.preventDefault) ev.preventDefault();
     }
     if (state.drawerOpen) {
       closeChannelDrawer();
-      showPlayerOverlay();
       return;
     }
     if (state.playerHudVisible) {
       hidePlayerOverlay();
     } else {
-      state.playerArea = 'bottom';
-      state.playerBotIdx = 0;
-      showPlayerOverlay();
-    }
-  };
-  catcher.onmousemove = function() {
-    if (!state.playerHudVisible && !state.drawerOpen) {
       state.playerArea = 'bottom';
       state.playerBotIdx = 0;
       showPlayerOverlay();
@@ -2758,7 +2819,6 @@ $('player-container').onclick = function(e) {
   if (!t || t.id === 'player-container' || t.id === 'video-el' || t.id === 'netcast-player' || t.id === 'player-click-catcher') {
     if (state.drawerOpen) {
       closeChannelDrawer();
-      showPlayerOverlay();
       return;
     }
     if (state.playerHudVisible) {
@@ -2781,8 +2841,15 @@ $('player-overlay-bot').onclick = function(e) {
   if (ev && ev.stopPropagation) ev.stopPropagation();
   showPlayerOverlay();
 };
-$('player-overlay-top').onmousemove = function() { showPlayerOverlay(); };
-$('player-overlay-bot').onmousemove = function() { showPlayerOverlay(); };
+$('player-drawer').onclick = function(e) {
+  var ev = e || window.event;
+  if (ev && ev.stopPropagation) ev.stopPropagation();
+};
+$('drawerGroupName').onclick = function(e) {
+  var ev = e || window.event;
+  if (ev && ev.stopPropagation) ev.stopPropagation();
+  switchDrawerGroup(1);
+};
 
 // Botones del HUD del reproductor
 $('btnDrawerTrigger').onclick = function(e) {
