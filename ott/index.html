@@ -3,250 +3,346 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>OTT TV - Mi Lista</title>
+<title>OTT TV</title>
 <meta http-equiv="Cache-Control" content="no-cache" />
 <style>
-:root{--bg:#0b0e14;--panel:#12161f;--card:#171c27;--line:#232a3a;--txt:#eef1f6;--muted:#9aa4b5;--accent:#22c55e}
-*{box-sizing:border-box}
-html,body{height:100%;margin:0;background:var(--bg);color:var(--txt);font-family:Arial,Helvetica,sans-serif}
-#app{max-width:1280px;margin:0 auto;padding:16px}
-header{display:flex;align-items:center;gap:12px;padding:8px 4px}
-.logo{font-weight:700;font-size:22px}
-.logo span{color:var(--accent)}
-.hint{color:var(--muted);font-size:13px}
-#view-setup,#view-home{margin-top:12px}
-.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px}
-input[type=text],input[type=url]{width:100%;background:#0d1117;border:1px solid var(--line);color:var(--txt);padding:12px;border-radius:8px;font-size:15px}
-button{background:var(--accent);border:0;color:#04120a;font-weight:700;padding:12px 16px;border-radius:8px;font-size:15px;cursor:pointer;margin-top:8px}
-button.ghost{background:transparent;color:var(--txt);border:1px solid var(--line)}
-.row{display:flex;gap:8px;flex-wrap:wrap}
-.layout{display:grid;grid-template-columns:230px 1fr;gap:12px;margin-top:12px}
-@media(max-width:800px){.layout{grid-template-columns:1fr}}
-#groups{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px;max-height:70vh;overflow:auto}
-.gitem{padding:10px 12px;border-radius:8px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.gitem.focused,.gitem:focus{background:#1d2536;outline:2px solid var(--accent)}
-#main{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;min-height:50vh}
-#search{margin-bottom:10px}
-#grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px;cursor:pointer;text-align:center}
-.card.focused,.card:focus{outline:3px solid var(--accent);border-color:var(--accent)}
-.card img{width:100%;height:80px;object-fit:contain;background:#0d1117;border-radius:6px}
-.card .t{font-size:13px;margin-top:6px;height:32px;overflow:hidden}
-.card .acts{margin-top:6px;display:flex;gap:4px;justify-content:center}
-.card .acts button{padding:4px 8px;font-size:12px;margin:0}
+html,body{height:100%;margin:0;background:#101418;color:#e8ecf1;font-family:Arial,Helvetica,sans-serif;font-size:15px}
+#app{height:100vh;display:flex;flex-direction:column}
+header.top{display:flex;align-items:center;gap:10px;background:#0b0e12;border-bottom:2px solid #1f6fb2;padding:8px 14px}
+.logo{font-weight:700;font-size:20px;color:#fff}
+.logo b{color:#22c55e}
+#clock{margin-left:auto;color:#9aa4b5;font-size:14px}
+/* setup */
+#view-setup{flex:1;display:flex;align-items:center;justify-content:center;padding:16px}
+.setupbox{background:#161b22;border:1px solid #2a3340;border-radius:10px;padding:22px;width:560px;max-width:95vw}
+.setupbox h2{margin:0 0 6px;color:#ffd23f}
+.setupbox p{color:#9aa4b5;margin:0 0 10px;font-size:14px}
+input[type=text],input[type=url]{width:100%;background:#0b0e12;border:1px solid #2a3340;color:#fff;padding:12px;border-radius:6px;font-size:15px;box-sizing:border-box}
+button{background:#1f6fb2;border:0;color:#fff;font-weight:700;padding:11px 16px;border-radius:6px;font-size:15px;cursor:pointer;margin:8px 6px 0 0}
+button.green{background:#22c55e;color:#04120a}
+button.ghost{background:transparent;border:1px solid #2a3340}
+button:focus{outline:3px solid #ffd23f}
+#status{color:#9aa4b5;font-size:13px;margin-top:10px}
+#engine{color:#9aa4b5;font-size:12px;margin-top:6px}
+/* home 3 columnas estilo OTT */
+#view-home{flex:1;display:none;flex-direction:column;min-height:0}
+#searchrow{display:flex;gap:8px;padding:8px 12px;background:#0b0e12}
+#searchrow input{max-width:300px;padding:9px}
+#cols{flex:1;display:flex;min-height:0}
+#groups{width:210px;background:#0b0e12;border-right:1px solid #232a35;overflow:auto;padding:6px}
+.gitem{padding:10px 12px;border-radius:6px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#cfd6df}
+.gitem.focused{background:#1f6fb2;color:#fff;outline:2px solid #ffd23f}
+#channels{flex:1;overflow:auto;padding:6px 10px;min-width:0}
+.chrow{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:6px;cursor:pointer;border:1px solid transparent}
+.chrow.focused{background:#1c2530;border-color:#ffd23f;outline:2px solid #ffd23f}
+chnum{color:#ffd23f;width:44px;font-weight:700;text-align:right}
+.chrow img{width:64px;height:36px;object-fit:contain;background:#000;border-radius:4px}
+.chname{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chfav{color:#ffd23f;width:22px;text-align:center}
+#side{width:250px;background:#0b0e12;border-left:1px solid #232a35;padding:12px;overflow:auto;font-size:14px}
+#side h3{margin:0 0 8px;color:#ffd23f;font-size:15px}
+#side .lbl{color:#9aa4b5;font-size:12px;margin-top:10px}
+#side .val{margin-top:2px;word-break:break-all}
+#side img#sideLogo{width:100%;max-height:120px;object-fit:contain;background:#000;border-radius:6px;margin-top:6px}
+/* barra de botones de colores */
+#hints{display:flex;gap:0;background:#0b0e12;border-top:1px solid #232a35;font-size:13px}
+.hint{flex:1;padding:9px 6px;text-align:center;color:#cfd6df;white-space:nowrap;overflow:hidden}
+.hint i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.r{background:#e53935}.g{background:#22c55e}.y{background:#ffd23f}.b{background:#1f6fb2}
+/* player */
 #player{position:fixed;inset:0;background:#000;display:none;z-index:50}
 #player.open{display:block}
 #v{width:100%;height:100%;background:#000}
-#pbar{position:absolute;left:0;right:0;bottom:0;padding:12px;background:linear-gradient(transparent,rgba(0,0,0,.8));display:flex;gap:10px;align-items:center}
-#ptitle{font-size:14px}
-#status{color:var(--muted);font-size:13px;margin-top:8px}
-.focusable:focus{outline:3px solid var(--accent)}
+#infobar{position:absolute;top:0;left:0;right:0;padding:12px 16px;background:linear-gradient(rgba(0,0,0,.85),transparent);display:flex;gap:12px;align-items:center}
+#ptitle{font-size:17px;font-weight:700}
+#psub{font-size:13px;color:#9aa4b5}
+#pstatus{font-size:12px;color:#ffd23f}
+#loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px}
+#perror{position:absolute;left:5%;right:5%;bottom:8%;background:rgba(20,10,10,.92);border:1px solid #e53935;border-radius:8px;padding:14px;display:none;font-size:14px}
+#perror b{color:#ff8a80}
+#pbar{position:absolute;left:0;right:0;bottom:0;padding:12px 16px;background:linear-gradient(transparent,rgba(0,0,0,.85));display:flex;gap:10px}
 </style>
 </head>
 <body>
 <div id="app">
-  <header>
-    <div class="logo">OTT <span>TV</span></div>
-    <div class="hint">Réplica estilo OTTPlayer &middot; listas M3U propias &middot; funciona en Media Station X</div>
-  </header>
+  <header class="top"><div class="logo">OTT <b>TV</b></div><div id="clock"></div></header>
 
-  <div id="view-setup" class="panel">
-    <h2 style="margin:0 0 8px">1. Carga tu lista M3U</h2>
-    <p class="hint" style="margin:0 0 10px">Pega la URL de tu lista, sube un archivo .m3u/.m3u8, o usa la demo. Se guarda en este TV.</p>
-    <input id="m3uUrl" type="url" placeholder="https://tudominio.com/lista.m3u" />
-    <div class="row">
-      <button id="btnLoad" class="focusable">Cargar URL</button>
-      <button id="btnFile" class="ghost focusable">Subir archivo</button>
-      <button id="btnDemo" class="ghost focusable">Probar demo</button>
-      <input id="file" type="file" accept=".m3u,.m3u8,.txt" style="display:none" />
+  <div id="view-setup">
+    <div class="setupbox">
+      <h2>Cargar lista M3U</h2>
+      <p>Pega la URL de tu lista, sube un archivo .m3u/.m3u8 o usa la demo. Queda guardada en este TV.</p>
+      <input id="m3uUrl" type="url" placeholder="https://tudominio.com/lista.m3u" />
+      <div>
+        <button id="btnLoad" class="green">Cargar URL</button>
+        <button id="btnFile" class="ghost">Subir archivo</button>
+        <button id="btnDemo" class="ghost">Demo</button>
+        <button id="btnGo" class="ghost" style="display:none">Ver canales &rarr;</button>
+        <input id="file" type="file" accept=".m3u,.m3u8,.txt" style="display:none" />
+      </div>
+      <div id="status">Sin lista cargada.</div>
+      <div id="engine">Motor: detectando...</div>
     </div>
-    <div class="row">
-      <button id="btnGo" class="ghost focusable" style="display:none">Ir a canales &rarr;</button>
-    </div>
-    <div id="status">Sin lista cargada.</div>
   </div>
 
-  <div id="view-home" style="display:none">
-    <div class="row">
-      <input id="search" type="text" placeholder="Buscar canal..." style="max-width:320px" />
-      <button id="btnChange" class="ghost focusable">Cambiar lista</button>
-      <button id="btnReload" class="ghost focusable">Recargar</button>
+  <div id="view-home">
+    <div id="searchrow">
+      <input id="search" type="text" placeholder="Buscar canal..." />
+      <button id="btnChange" class="ghost">Cambiar lista</button>
+      <button id="btnReload" class="ghost">Recargar</button>
     </div>
-    <div class="layout">
+    <div id="cols">
       <div id="groups" tabindex="0"></div>
-      <div id="main"><div id="grid"></div></div>
+      <div id="channels" tabindex="0"></div>
+      <div id="side">
+        <h3>Ahora</h3>
+        <div class="val" id="sideName">-</div>
+        <div class="lbl">Grupo</div><div class="val" id="sideGroup">-</div>
+        <div class="lbl">Logo</div><img id="sideLogo" alt="" style="display:none" />
+        <div class="lbl">Se&ntilde;al</div><div class="val" id="sideUrl">-</div>
+        <div class="lbl">EPG</div><div class="val">Sin gu&iacute;a en esta lista</div>
+      </div>
+    </div>
+    <div id="hints">
+      <div class="hint"><i class="r"></i>Rojo: volver</div>
+      <div class="hint"><i class="g"></i>Verde: favorito</div>
+      <div class="hint"><i class="y"></i>Amarillo: ocultar</div>
+      <div class="hint"><i class="b"></i>Azul: recargar</div>
     </div>
   </div>
 </div>
 
 <div id="player">
-  <video id="v" controls autoplay playsinline></video>
-  <div id="pbar">
-    <button id="btnBack" class="focusable">&larr; Volver</button>
-    <div id="ptitle">-</div>
-  </div>
+  <video id="v" playsinline></video>
+  <div id="infobar"><div><div id="ptitle">-</div><div id="psub">-</div><div id="pstatus"></div></div></div>
+  <div id="loading">Cargando...</div>
+  <div id="perror"></div>
+  <div id="pbar"><button id="btnBack">Volver</button></div>
 </div>
 
-<script src="//cdn.jsdelivr.net/npm/hls.js@1.5.13/dist/hls.min.js"></script>
+<script src="vendor/hls.min.js"></script>
 <script>
 (function(){
 "use strict";
-var LS_LIST="ott_clone_list_v1", LS_FAV="ott_clone_fav_v1", LS_HID="ott_clone_hid_v1", LS_URL="ott_clone_url_v1";
-var channels=[], groups=[], curGroup="__all", favs={}, hids={};
+var LS_LIST="ottv_list_v1", LS_FAV="ottv_fav_v1", LS_HID="ottv_hid_v1", LS_URL="ottv_url_v1";
+var channels=[], groups=[], curGroup="__all", favs={}, hids={}, rowIdx=0, curRows=[];
 try{ favs=JSON.parse(localStorage.getItem(LS_FAV)||"{}"); hids=JSON.parse(localStorage.getItem(LS_HID)||"{}"); }catch(e){}
-
 function $(id){return document.getElementById(id);}
 function status(t){$("status").textContent=t;}
+function hostOf(u){ try{ var a=document.createElement("a"); a.href=u; return a.hostname||u; }catch(e){ return u; } }
 
+/* reloj */
+function tick(){ var d=new Date(), p=function(n){return (n<10?"0":"")+n;}; $("clock").textContent=p(d.getDate())+"/"+p(d.getMonth()+1)+" "+p(d.getHours())+":"+p(d.getMinutes()); }
+tick(); setInterval(tick,30000);
+
+/* motor */
+var ENG="desconocido";
+(function eng(){
+  var isHlsUrl=false;
+  if(window.Hls && Hls.isSupported()) ENG="HLS.js local (MSE)";
+  else { var v=document.createElement("video"); if(v.canPlayType && v.canPlayType("application/vnd.apple.mpegurl")) ENG="Nativo del TV"; else ENG="Sin HLS (solo MP4/TS)"; }
+  $("engine").textContent="Motor: "+ENG;
+})();
+
+/* parser M3U */
 function parseM3U(text){
-  var lines=text.split(/\r?\n/), out=[], meta=null;
-  for(var i=0;i<lines.length;i++){
-    var ln=lines[i].replace(/^\uFEFF/,"").trim();
+  var lines=text.split(/\r?\n/), out=[], meta=null, i, ln;
+  for(i=0;i<lines.length;i++){
+    ln=lines[i].replace(/^\uFEFF/,"").trim();
     if(!ln) continue;
     if(ln.indexOf("#EXTINF")===0){
-      var name=(ln.split(",").pop()||"Sin nombre").trim();
+      var parts=ln.split(","), name=(parts.length>1?parts.slice(1).join(","):"Sin nombre").trim();
       var logo="", group="General";
       var m1=ln.match(/tvg-logo="([^"]*)"/); if(m1) logo=m1[1];
       var m2=ln.match(/group-title="([^"]*)"/); if(m2&&m2[1]) group=m2[1];
       meta={name:name,logo:logo,group:group};
-    } else if(ln.charAt(0)!=="#"){
-      if(meta){ meta.url=ln; meta.id=meta.group+"||"+meta.name+"||"+ln; out.push(meta); meta=null; }
-    }
+    } else if(ln.charAt(0)!=="#"){ if(meta){ meta.url=ln; meta.id=meta.group+"||"+meta.name+"||"+ln; out.push(meta); meta=null; } }
   }
   return out;
 }
-function computeGroups(){
-  var map={}, i, c;
-  for(i=0;i<channels.length;i++){ c=channels[i]; if(hids[c.id]) continue; map[c.group]=true; }
-  groups=Object.keys(map).sort();
-}
-function saveList(text){ try{localStorage.setItem(LS_LIST,text);}catch(e){} }
-function loadSaved(){ return localStorage.getItem(LS_LIST); }
-
-function renderGroups(){
-  var g=$("groups"); g.innerHTML="";
-  var all=[["__all","Todos ("+visible().length+")"],["__fav","Favoritos ("+countFav()+")"],["__hid","Ocultos ("+countHid()+")"]].concat(groups.map(function(x){return [x,x];}));
-  all.forEach(function(it,idx){
-    var d=document.createElement("div");
-    d.className="gitem focusable"; d.tabIndex=0; d.textContent=it[1]; d.setAttribute("data-g",it[0]);
-    if(it[0]===curGroup) d.classList.add("focused");
-    d.onclick=function(){curGroup=it[0]; renderGroups(); renderGrid();};
-    d.onkeydown=function(e){ if(e.key==="Enter"){curGroup=it[0]; renderGroups(); renderGrid(); focusFirstCard();} };
-    g.appendChild(d);
-  });
-}
-function visible(){
-  return channels.filter(function(c){return !hids[c.id];});
-}
-function countFav(){var n=0,i;for(i=0;i<channels.length;i++) if(favs[channels[i].id]) n++;return n;}
-function countHid(){var n=0,k;for(k in hids) if(hids[k]) n++;return n;}
+function saveList(t){ try{localStorage.setItem(LS_LIST,t);}catch(e){} }
+function loadSaved(){ try{return localStorage.getItem(LS_LIST);}catch(e){return null;} }
+function visible(){ return channels.filter(function(c){return !hids[c.id];}); }
+function computeGroups(){ var map={},i; for(i=0;i<channels.length;i++){ if(!hids[channels[i].id]) map[channels[i].group]=1; } groups=Object.keys(map).sort(); }
+function countFav(){ var n=0,i; for(i=0;i<channels.length;i++) if(favs[channels[i].id]) n++; return n; }
+function countHid(){ var k,n=0; for(k in hids) if(hids[k]) n++; return n; }
 function currentList(){
-  var q=$("search").value.toLowerCase(), base;
+  var q=$("search").value.toLowerCase(), base, i;
   if(curGroup==="__all") base=visible();
   else if(curGroup==="__fav") base=channels.filter(function(c){return favs[c.id]&&!hids[c.id];});
   else if(curGroup==="__hid") base=channels.filter(function(c){return hids[c.id];});
   else base=channels.filter(function(c){return c.group===curGroup&&!hids[c.id];});
-  if(q) base=base.filter(function(c){return (c.name+" "+c.group).toLowerCase().indexOf(q)>-1;});
-  return base.slice(0,400);
+  if(q){ var f=[]; for(i=0;i<base.length;i++){ if((base[i].name+" "+base[i].group).toLowerCase().indexOf(q)>-1) f.push(base[i]); } base=f; }
+  return base.slice(0,500);
 }
-function renderGrid(){
-  var grid=$("grid"); grid.innerHTML="";
-  var list=currentList();
-  if(!list.length){grid.innerHTML='<p class="hint">Sin canales. Cambia de grupo o recarga la lista.</p>';return;}
-  list.forEach(function(c){
-    var d=document.createElement("div");
-    d.className="card focusable"; d.tabIndex=0;
-    var img=document.createElement("img"); img.alt=""; img.loading="lazy";
-    img.src=c.logo||"data:image/svg+xml,"+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="160" height="80"><rect width="160" height="80" fill="#0d1117"/><text x="80" y="45" fill="#9aa4b5" text-anchor="middle" font-size="14">TV</text></svg>');
-    img.onerror=function(){img.style.display="none";};
-    var t=document.createElement("div"); t.className="t"; t.textContent=c.name;
-    var acts=document.createElement("div"); acts.className="acts";
-    var bf=document.createElement("button"); bf.textContent=favs[c.id]?"★":"☆"; bf.title="Favorito";
-    bf.onclick=function(ev){ev.stopPropagation(); favs[c.id]=!favs[c.id]; if(!favs[c.id]) delete favs[c.id]; try{localStorage.setItem(LS_FAV,JSON.stringify(favs));}catch(e){} renderGroups(); renderGrid();};
-    var bh=document.createElement("button"); bh.textContent=hids[c.id]?"Mostrar":"Ocultar"; bh.title="Ocultar";
-    bh.onclick=function(ev){ev.stopPropagation(); if(hids[c.id]) delete hids[c.id]; else hids[c.id]=1; try{localStorage.setItem(LS_HID,JSON.stringify(hids));}catch(e){} computeGroups(); renderGroups(); renderGrid();};
-    acts.appendChild(bf); acts.appendChild(bh);
-    d.appendChild(img); d.appendChild(t); d.appendChild(acts);
-    d.onclick=function(){play(c);};
-    d.onkeydown=function(e){ if(e.key==="Enter") play(c); };
-    grid.appendChild(d);
-  });
-}
-function focusFirstCard(){var f=document.querySelector("#grid .card"); if(f) f.focus();}
-function showHome(){$("view-setup").style.display="none";$("view-home").style.display="block";computeGroups();renderGroups();renderGrid();var s=$("search"); if(s) s.focus();}
-function showSetup(){$("view-home").style.display="none";$("view-setup").style.display="block";}
 
-var hls=null;
+/* render */
+function renderGroups(){
+  var g=$("groups"); g.innerHTML="";
+  var defs=[["__all","Todos ("+visible().length+")"],["__fav","Favoritos ("+countFav()+")"],["__hid","Ocultos ("+countHid()+")"]];
+  var i, all=defs.concat(groups.map(function(x){return [x,x];}));
+  for(i=0;i<all.length;i++){
+    (function(it){
+      var d=document.createElement("div");
+      d.className="gitem"+(it[0]===curGroup?" focused":""); d.tabIndex=0; d.textContent=it[1];
+      d.onclick=function(){curGroup=it[0];renderGroups();renderRows();};
+      d.onkeydown=function(e){if(e.key==="Enter"){curGroup=it[0];renderGroups();renderRows();focusRow(0);}};
+      d.onfocus=function(){ if(document.activeElement===d) previewGroup(it[0]); };
+      g.appendChild(d);
+    })(all[i]);
+  }
+}
+function previewGroup(){}
+function rowHTML(c,idx){
+  var d=document.createElement("div");
+  d.className="chrow"; d.tabIndex=0;
+  var fav=favs[c.id]?"★":"☆";
+  d.innerHTML='<div class="chnum">'+(idx+1)+'</div>'+
+    (c.logo?'<img alt="" src="'+c.logo.replace(/"/g,"")+'"/>':'<img alt="" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"/>')+
+    '<div class="chname">'+escapeHtml(c.name)+'</div><div class="chfav">'+fav+'</div>';
+  var img=d.getElementsByTagName("img")[0];
+  img.onerror=function(){img.style.visibility="hidden";};
+  d.onclick=function(){play(c);};
+  d.onkeydown=function(e){if(e.key==="Enter"){play(c);}};
+  d.onfocus=function(){showSide(c);};
+  return d;
+}
+function escapeHtml(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function renderRows(){
+  var box=$("channels"); box.innerHTML="";
+  curRows=currentList(); rowIdx=0;
+  if(!curRows.length){box.innerHTML='<p style="color:#9aa4b5">Sin canales aqu&iacute;.</p>';return;}
+  for(var i=0;i<curRows.length;i++){ box.appendChild(rowHTML(curRows[i],i)); }
+  showSide(curRows[0]);
+}
+function focusRow(i){
+  var rows=$("channels").getElementsByClassName("chrow");
+  if(!rows.length) return;
+  if(i<0)i=0; if(i>=rows.length)i=rows.length-1; rowIdx=i;
+  rows[i].focus(); showSide(curRows[i]);
+}
+function showSide(c){
+  if(!c) return;
+  $("sideName").textContent=c.name; $("sideGroup").textContent=c.group;
+  $("sideUrl").textContent=hostOf(c.url);
+  var im=$("sideLogo");
+  if(c.logo){im.src=c.logo;im.style.display="";im.onerror=function(){im.style.display="none";};}
+  else im.style.display="none";
+}
+function showHome(){$("view-setup").style.display="none";var h=$("view-home");h.style.display="flex";computeGroups();renderGroups();renderRows();$("search").focus();}
+function showSetup(){$("view-home").style.display="none";$("view-setup").style.display="flex";}
+
+/* player */
+var hls=null, curChan=null, hideBarT=null;
+function pstatus(t){$("pstatus").textContent=t;}
+function showBar(){var b=$("infobar"),p=$("pbar");b.style.display="";p.style.display="";clearTimeout(hideBarT);hideBarT=setTimeout(function(){b.style.display="none";p.style.display="none";},5000);}
 function play(c){
-  $("player").classList.add("open"); $("ptitle").textContent=c.name;
-  var v=$("v");
-  try{ if(hls){hls.destroy();hls=null;} }catch(e){}
+  curChan=c; $("perror").style.display="none";
+  $("player").classList.add("open");
+  $("ptitle").textContent=c.name; $("psub").textContent=c.group+" · "+hostOf(c.url);
+  $("loading").style.display="flex"; pstatus("Conectando ("+ENG+")...");
+  showBar(); var v=$("v");
+  try{if(hls){hls.destroy();hls=null;}}catch(e){}
   v.pause(); v.removeAttribute("src"); v.load();
   var isHls=/\.m3u8($|\?)/i.test(c.url);
-  if(isHls && window.Hls && Hls.isSupported()){ hls=new Hls({maxBufferLength:15}); hls.loadSource(c.url); hls.attachMedia(v); }
-  else { v.src=c.url; }
-  var p=v.play(); if(p&&p.catch) p.catch(function(){});
+  if(isHls && window.Hls && Hls.isSupported()){
+    hls=new Hls({maxBufferLength:20});
+    hls.on(Hls.Events.MANIFEST_PARSED,function(){ var p=v.play(); if(p&&p.catch)p.catch(function(){}); });
+    hls.on(Hls.Events.ERROR,function(ev,data){
+      if(data.fatal){ $("loading").style.display="none"; errBox("Señal con error", data.type+" / "+data.details); }
+    });
+    hls.loadSource(c.url); hls.attachMedia(v);
+  } else {
+    v.src=c.url;
+    var pr=v.play(); if(pr&&pr.catch)pr.catch(function(e){ $("loading").style.display="none"; errBox("No se pudo reproducir", String(e&&e.message||e)); });
+  }
   $("btnBack").focus();
 }
-function stop(){var v=$("v");v.pause();try{ if(hls){hls.destroy();hls=null;}}catch(e){}$("player").classList.remove("open");focusFirstCard();}
+function errBox(t,d){ var e=$("perror"); e.innerHTML="<b>"+escapeHtml(t)+"</b><br>"+escapeHtml(d)+"<br>Motor: "+escapeHtml(ENG); e.style.display="block"; }
+function stop(){ var v=$("v"); v.pause(); try{if(hls){hls.destroy();hls=null;}}catch(e){} $("player").classList.remove("open"); focusRow(rowIdx); }
+(function wire(){
+  var v=$("v");
+  v.addEventListener("playing",function(){
+    $("loading").style.display="none";
+    var w=v.videoWidth||0, h=v.videoHeight||0;
+    if(w>0) pstatus("Video "+w+"x"+h+" · "+ENG);
+    else pstatus("AUDIO SIN VIDEO: este TV no decodifica la imagen (probable HEVC). Prueba otro canal.");
+  });
+  v.addEventListener("waiting",function(){$("loading").style.display="flex";});
+  v.addEventListener("error",function(){
+    if(v.getAttribute("src")){ $("loading").style.display="none"; errBox("Error de señal","Formato o códec no soportado por este TV."); }
+  });
+})();
 
+/* carga */
 function fetchText(u,cb){
   if(window.fetch){fetch(u).then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.text();}).then(function(t){cb(null,t);}).catch(function(e){cb(e);});}
-  else{var x=new XMLHttpRequest();x.open("GET",u,true);x.onreadystatechange=function(){if(x.readyState===4){if(x.status>=200&&x.status<300)cb(null,x.responseText);else cb(new Error("HTTP "+x.status));}};x.onerror=function(){cb(new Error("network"));};x.send();}
+  else{var x=new XMLHttpRequest();x.open("GET",u,true);x.onreadystatechange=function(){if(x.readyState===4){if(x.status>=200&&x.status<300)cb(null,x.responseText);else cb(new Error("HTTP "+x.status));}};x.onerror=function(){cb(new Error("red"));};x.send();}
 }
 function applyText(text,src){
   channels=parseM3U(text);
   if(!channels.length){status("No se encontraron canales en esa lista.");return false;}
-  saveList(text); try{if(src) localStorage.setItem(LS_URL,src);}catch(e){}
-  status(channels.length+" canales cargados"+(src?" desde "+src:"")+".");
+  saveList(text); try{if(src)localStorage.setItem(LS_URL,src);}catch(e){}
+  status(channels.length+" canales cargados"+(src?" desde "+src:"")+"."); curGroup="__all";
   $("btnGo").style.display=""; computeGroups(); return true;
 }
-
 $("btnLoad").onclick=function(){
   var u=$("m3uUrl").value.trim();
   if(!u){status("Pega primero la URL de tu lista M3U.");return;}
   status("Descargando lista...");
   fetchText(u,function(err,text){
-    if(err){status("Error: "+err.message+". Si falla por CORS, sube el archivo en vez de URL.");return;}
-    if(applyText(text,u)) showHome();
+    if(err){status("Error: "+err.message+". Si falla por CORS, sube el archivo.");return;}
+    if(applyText(text,u))showHome();
   });
 };
 $("btnFile").onclick=function(){$("file").click();};
 $("file").onchange=function(e){
-  var f=e.target.files[0]; if(!f) return;
+  var f=e.target.files[0]; if(!f)return;
   var r=new FileReader();
-  r.onload=function(){ if(applyText(r.result,"archivo: "+f.name)) showHome(); };
+  r.onload=function(){if(applyText(r.result,"archivo: "+f.name))showHome();};
   r.readAsText(f);
 };
 $("btnDemo").onclick=function(){
-  var demo='#EXTM3U\n#EXTINF:-1 tvg-logo="" group-title="Demo",Canal Demo 1 (HLS)\nhttps://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8\n#EXTINF:-1 group-title="Demo",Canal Demo 2\nhttps://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8\n';
-  if(applyText(demo,"demo")) showHome();
+  var demo="#EXTM3U\n#EXTINF:-1 group-title=\"Demo\",Canal Demo HLS\nhttps://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8\n";
+  if(applyText(demo,"demo"))showHome();
 };
 $("btnGo").onclick=showHome;
 $("btnChange").onclick=showSetup;
-$("btnReload").onclick=function(){var t=loadSaved();if(t){channels=parseM3U(t);computeGroups();renderGroups();renderGrid();status(channels.length+" canales recargados.");}};
-$("search").oninput=renderGrid;
+$("btnReload").onclick=function(){var t=loadSaved();if(t){channels=parseM3U(t);computeGroups();renderGroups();renderRows();status(channels.length+" canales recargados.");}};
+$("search").oninput=function(){renderRows();};
 $("btnBack").onclick=stop;
 
+/* acciones favorito / ocultar */
+function toggleFav(){ var c=curRows[rowIdx]; if(!c)return; if(favs[c.id])delete favs[c.id]; else favs[c.id]=1; try{localStorage.setItem(LS_FAV,JSON.stringify(favs));}catch(e){} renderGroups(); renderRows(); focusRow(rowIdx); }
+function toggleHide(){ var c=curRows[rowIdx]; if(!c)return; if(hids[c.id])delete hids[c.id]; else hids[c.id]=1; try{localStorage.setItem(LS_HID,JSON.stringify(hids));}catch(e){} computeGroups(); renderGroups(); renderRows(); focusRow(Math.min(rowIdx,curRows.length-1)); }
+
+/* teclas: flechas + Enter + colores (403-406) + volver */
 document.addEventListener("keydown",function(e){
   var open=$("player").classList.contains("open");
-  if(open && (e.key==="Backspace"||e.key==="Escape"||e.keyCode===461||e.keyCode===10009)){e.preventDefault();stop();return;}
-  if(open) return;
-  var active=document.activeElement;
-  var card=active&&active.classList&&active.classList.contains("card")?active:null;
-  if(card){
-    if(e.key==="ArrowRight"){var n=card.nextElementSibling;if(n)n.focus();e.preventDefault();}
-    else if(e.key==="ArrowLeft"){var p=card.previousElementSibling;if(p)p.focus();e.preventDefault();}
-    else if(e.key==="ArrowDown"){var d=card.nextElementSibling;if(d)d.focus();e.preventDefault();}
-    else if(e.key==="ArrowUp"){var u=card.previousElementSibling;if(u)u.focus();e.preventDefault();}
+  var kc=e.keyCode||0;
+  if(open){
+    showBar();
+    if(e.key==="Backspace"||e.key==="Escape"||kc===461||kc===10009||kc===403){e.preventDefault();stop();}
+    return;
   }
+  if($("view-home").style.display!=="flex")return;
+  var tag=(document.activeElement&&document.activeElement.tagName)||"";
+  var typing=(tag==="INPUT");
+  if(kc===403){showSetup();e.preventDefault();return;}                    /* rojo */
+  if(!typing&&kc===404){toggleFav();e.preventDefault();return;}           /* verde */
+  if(!typing&&kc===405){toggleHide();e.preventDefault();return;}          /* amarillo */
+  if(!typing&&kc===406){$("btnReload").onclick();e.preventDefault();return;} /* azul */
+  if(typing)return;
+  if(e.key==="ArrowDown"){focusRow(rowIdx+1);e.preventDefault();}
+  else if(e.key==="ArrowUp"){focusRow(rowIdx-1);e.preventDefault();}
+  else if(e.key==="ArrowRight"){var s=$("search");if(s)s.focus();e.preventDefault();}
 });
 
+/* init */
 (function init(){
   var u=null; try{u=localStorage.getItem(LS_URL);}catch(e){}
-  if(u) $("m3uUrl").value=u;
+  if(u)$("m3uUrl").value=u;
   var t=loadSaved();
-  if(t){channels=parseM3U(t);if(channels.length){status(channels.length+" canales guardados. Pulsa Ir a canales.");$("btnGo").style.display="";}}
+  if(t){channels=parseM3U(t);if(channels.length){status(channels.length+" canales guardados. Pulsa Ver canales.");$("btnGo").style.display="";}}
 })();
 })();
 </script>
