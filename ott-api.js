@@ -436,14 +436,15 @@ function handleStream(req, res, query) {
           if (l.charAt(0) === '#') return line;
           try {
             const absChunk = new URL(l, targetUrl).href;
-            return '/api/ott/stream?url=' + encodeURIComponent(absChunk);
+            const ext = (absChunk.indexOf('.m3u8') !== -1 || absChunk.indexOf('chunks') !== -1 || absChunk.indexOf('playlist') !== -1) ? '.m3u8' : '.ts';
+            return '/api/ott/stream' + ext + '?url=' + encodeURIComponent(absChunk);
           } catch (e) {
             return l;
           }
         }).join('\n');
 
         res.writeHead(200, {
-          'Content-Type': 'application/vnd.apple.mpegurl; charset=utf-8',
+          'Content-Type': 'application/vnd.apple.mpegurl',
           'Access-Control-Allow-Origin': '*',
           'Access-Control-Allow-Methods': 'GET, OPTIONS',
           'Cache-Control': 'no-cache, no-store, must-revalidate'

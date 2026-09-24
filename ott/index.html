@@ -164,7 +164,7 @@ html, body {
   width: 16.1%;
   margin: 3px 0.28%;
   background: #1c0a14;
-  border: 1px solid #331222;
+  border: 2px solid #331222;
   border-radius: 2px;
   padding: 4px;
   position: relative;
@@ -177,8 +177,7 @@ html, body {
 
 .tile-item.focused {
   background: #9c284e !important;
-  border: 2px solid #ffcc00 !important;
-  outline: 2px solid #ffcc00;
+  border-color: #ffcc00 !important;
   z-index: 10;
 }
 
@@ -747,6 +746,14 @@ html, body {
   display: inline-block;
   transform: skewX(20deg);
   -webkit-transform: skewX(20deg);
+.player-tab-drawer-btn.focused {
+  background: #ffcc00 !important;
+  color: #000000 !important;
+  outline: 2px solid #ffffff;
+}
+
+.player-tab-drawer-btn.focused span svg line {
+  stroke: #000000 !important;
 }
 
 .player-play-btn {
@@ -757,6 +764,63 @@ html, body {
   font-size: 18px;
   color: #ffffff;
   cursor: pointer;
+}
+
+.player-play-btn.focused {
+  background: #ffcc00 !important;
+  color: #000000 !important;
+  border-radius: 4px;
+}
+
+/* Modal / Banner SINTONIZANDO */
+.player-tuning-modal {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  -webkit-transform: translate(-50%, -50%);
+  background: rgba(22, 6, 16, 0.94);
+  border: 2px solid #8a2542;
+  border-radius: 8px;
+  padding: 24px 40px;
+  text-align: center;
+  color: #ffffff;
+  z-index: 108;
+  display: none;
+}
+
+.tuning-spinner {
+  width: 36px;
+  height: 36px;
+  margin: 0 auto 12px auto;
+  border: 4px solid rgba(255, 204, 0, 0.2);
+  border-top: 4px solid #ffcc00;
+  border-radius: 50%;
+  -webkit-animation: spin 1s linear infinite;
+  animation: spin 1s linear infinite;
+}
+
+@-webkit-keyframes spin {
+  0% { -webkit-transform: rotate(0deg); }
+  100% { -webkit-transform: rotate(360deg); }
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.tuning-text {
+  font-size: 22px;
+  font-weight: bold;
+  letter-spacing: 2px;
+  color: #ffcc00;
+  margin-bottom: 6px;
+}
+
+.tuning-sub {
+  font-size: 14px;
+  color: #cccccc;
 }
 
 .player-progress-wrap {
@@ -1017,6 +1081,13 @@ html, body {
     <video id="video-el" preload="auto" playsinline webkit-playsinline></video>
     <object id="netcast-player" type="application/x-netcast-av" width="100%" height="100%" style="display:none;"></object>
     
+    <!-- Cartel SINTONIZANDO en el centro (Foto 2) -->
+    <div id="player-tuning" class="player-tuning-modal">
+      <div class="tuning-spinner"></div>
+      <div class="tuning-text">SINTONIZANDO</div>
+      <div class="tuning-sub" id="tuningSubText">Cargando señal en vivo...</div>
+    </div>
+    
     <!-- Overlay Superior (Foto 2) -->
     <div id="player-overlay-top">
       <div class="player-top-left">
@@ -1088,8 +1159,8 @@ window.onerror = function(msg, url, line) {
   return false;
 };
 
-var API_BASE = (window.location && window.location.protocol && window.location.protocol.indexOf('http') === 0 && window.location.host && window.location.host.indexOf('teamg.store') > -1)
-  ? (window.location.protocol + '//' + window.location.host)
+var API_BASE = (window.location && window.location.host && window.location.host.indexOf('teamg.store') > -1)
+  ? ('http://' + window.location.host)
   : 'http://ott.teamg.store';
 
 function escapeHtml(str) {
@@ -1103,12 +1174,34 @@ function escapeHtml(str) {
 }
 
 function safeScrollIntoView(el) {
-  if (!el || !el.scrollIntoView) return;
-  try {
-    el.scrollIntoView(false);
-  } catch (e) {
-    try { el.scrollIntoView(); } catch (e2) {}
+  if (!el) return;
+  var c = $('content-area');
+  if (c && c.contains(el)) {
+    var cTop = c.scrollTop;
+    var cHeight = c.clientHeight;
+    var elTop = el.offsetTop;
+    var elHeight = el.offsetHeight;
+    if (elTop < cTop) {
+      c.scrollTop = elTop;
+    } else if (elTop + elHeight > cTop + cHeight) {
+      c.scrollTop = elTop + elHeight - cHeight;
+    }
+    return;
   }
+  var d = $('player-drawer');
+  if (d && d.contains(el)) {
+    var dTop = d.scrollTop;
+    var dHeight = d.clientHeight;
+    var dElTop = el.offsetTop;
+    var dElHeight = el.offsetHeight;
+    if (dElTop < dTop) {
+      d.scrollTop = dElTop;
+    } else if (dElTop + dElHeight > dTop + dHeight) {
+      d.scrollTop = dElTop + dElHeight - dHeight;
+    }
+    return;
+  }
+  try { el.scrollIntoView(false); } catch (e) {}
 }
 
 /* ==========================================================================
@@ -1155,6 +1248,11 @@ var state = {
   kbCaps: false,
   drawerIdx: 0,
   drawerOpen: false,
+  playerHudVisible: false,
+  playerArea: 'bottom', // 'bottom' o 'top'
+  playerTopIdx: 4, // 0: ratio, 1: epg, 2: audio, 3: subs, 4: close
+  playerBotIdx: 0, // 0: btnDrawerTrigger, 1: btnPlayPause
+  playerFocusedEl: null,
   hideOverlayTimer: null,
   isPaused: false,
   
@@ -1857,7 +1955,8 @@ function renderChannels() {
     return;
   }
 
-  var fallbackSvg = '<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#666666" stroke-width="2" style="margin-top:16px;"><rect x="2" y="7" width="20" height="14" rx="2"/><polyline points="17 2 12 7 7 2"/></svg>';
+  var fallbackSvg = '<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#555555" stroke-width="2" style="margin-top:16px;"><rect x="2" y="7" width="20" height="14" rx="2"/><polyline points="17 2 12 7 7 2"/></svg>';
+  var frag = document.createDocumentFragment();
 
   for (var i = 0; i < list.length; i++) {
     var c = list[i];
@@ -1866,19 +1965,20 @@ function renderChannels() {
     
     var favHtml = state.favorites[c.id] ? '<div class="tile-fav-mark"><svg width="14" height="14" viewBox="0 0 24 24" fill="#ffcc00"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>' : '';
     
-    var thumbHtml = '<div class="tile-thumb">' +
-      '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;">' + fallbackSvg + '</div>' +
-      (c.logo ? '<img src="' + escapeHtml(c.logo) + '" onload="var p=this.previousSibling; if(p) p.style.display=\'none\';" onerror="this.style.display=\'none\';" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:contain;" />' : '') +
-      '</div>';
-    
-    tile.innerHTML = '<div class="tile-num">' + (i + 1) + '</div>' + favHtml + thumbHtml +
+    var thumbContent = c.logo
+      ? '<img src="' + escapeHtml(c.logo) + '" onerror="this.style.display=\'none\';" style="width:100%;height:100%;object-fit:contain;" />'
+      : fallbackSvg;
+
+    tile.innerHTML = '<div class="tile-num">' + (i + 1) + '</div>' + favHtml +
+      '<div class="tile-thumb">' + thumbContent + '</div>' +
       '<div class="tile-title">' + escapeHtml(c.name) + '</div>' +
       '<div class="tile-epg">' + escapeHtml(c.group) + '</div>' +
       '<div class="tile-bar"><div class="tile-bar-fill"></div></div>';
       
     tile.onclick = (function(idx) { return function() { playChannelAt(idx); }; })(i);
-    area.appendChild(tile);
+    frag.appendChild(tile);
   }
+  area.appendChild(frag);
   state.tileIdx = 0;
   updateMainFocus();
 }
@@ -2068,6 +2168,65 @@ function switchCategoryTab(dir) {
    REPRODUCTOR DE VIDEO A PANTALLA COMPLETA (Fotos 2 y 3)
    Soporte Dual: LG NetCast MediaPlayer por hardware + HTML5 Video + Proxy HTTP
    ========================================================================== */
+function showTuning(channelName) {
+  var t = $('player-tuning');
+  if (t) {
+    var sub = $('tuningSubText');
+    if (sub) sub.textContent = channelName ? ('Cargando ' + channelName + '...') : 'Cargando señal en vivo...';
+    t.style.display = 'block';
+  }
+}
+
+function hideTuning() {
+  var t = $('player-tuning');
+  if (t) t.style.display = 'none';
+}
+
+function updatePlayerFocus() {
+  if (state.playerFocusedEl) {
+    state.playerFocusedEl.classList.remove('focused');
+    state.playerFocusedEl = null;
+  }
+  if (!state.playerHudVisible || state.drawerOpen) return;
+
+  var targetEl = null;
+  if (state.playerArea === 'bottom') {
+    var botBtns = [$('btnDrawerTrigger'), $('btnPlayPause')];
+    targetEl = botBtns[state.playerBotIdx] || botBtns[0];
+  } else if (state.playerArea === 'top') {
+    var topBtns = [$('btnPlayerRatio'), $('btnPlayerEpg'), $('btnPlayerAudio'), $('btnPlayerSubs'), $('btnPlayerClose')];
+    targetEl = topBtns[state.playerTopIdx] || topBtns[0];
+  }
+
+  if (targetEl) {
+    targetEl.classList.add('focused');
+    state.playerFocusedEl = targetEl;
+  }
+}
+
+function showPlayerOverlay() {
+  state.playerHudVisible = true;
+  $('player-overlay-top').style.display = 'block';
+  $('player-overlay-bot').style.display = 'block';
+  updatePlayerFocus();
+  clearTimeout(state.hideOverlayTimer);
+  state.hideOverlayTimer = setTimeout(function() {
+    if (!state.drawerOpen) {
+      hidePlayerOverlay();
+    }
+  }, 6000);
+}
+
+function hidePlayerOverlay() {
+  state.playerHudVisible = false;
+  $('player-overlay-top').style.display = 'none';
+  $('player-overlay-bot').style.display = 'none';
+  if (state.playerFocusedEl) {
+    state.playerFocusedEl.classList.remove('focused');
+    state.playerFocusedEl = null;
+  }
+}
+
 function playChannelAt(idx) {
   var list = getFilteredChannels();
   if (!list[idx]) return;
@@ -2075,7 +2234,8 @@ function playChannelAt(idx) {
   var c = list[idx];
   
   $('player-title').textContent = c.name;
-  $('player-epg-now').textContent = c.group;
+  $('player-epg-now').textContent = c.group || '--';
+  $('player-res').textContent = '--';
   if (c.logo) {
     $('player-logo').src = c.logo;
     $('player-logo').style.display = 'block';
@@ -2085,28 +2245,35 @@ function playChannelAt(idx) {
   
   $('player-container').classList.add('open');
   state.screen = 'player';
+  showTuning(c.name);
   showPlayerOverlay();
   
   // 1. Resolver URL de reproducción: si es HTTPS o puerto especial, pasarlo por el stream proxy
   var streamUrl = c.url || '';
   var isHttps = (streamUrl.indexOf('https://') === 0);
+  var isHls = (streamUrl.indexOf('.m3u8') !== -1 || streamUrl.indexOf('/chunks') !== -1 || streamUrl.indexOf('/playlist') !== -1);
   var playUrl = streamUrl;
   
   if (isHttps || streamUrl.indexOf(':1936') !== -1 || streamUrl.indexOf('bitel.com.pe') !== -1 || streamUrl.indexOf('iptvperu.tv') !== -1) {
-    playUrl = (API_BASE || '') + '/api/ott/stream?url=' + encodeURIComponent(streamUrl);
+    var ext = isHls ? '.m3u8' : '.ts';
+    var httpHost = (window.location && window.location.host && window.location.host.indexOf('teamg.store') !== -1)
+      ? window.location.host
+      : 'ott.teamg.store';
+    playUrl = 'http://' + httpHost + '/api/ott/stream' + ext + '?url=' + encodeURIComponent(streamUrl);
   }
 
   // 2. Detección de motor: MediaPlayer (LG NetCast plugin) o HTML5
   var v = $('video-el');
   var netcastObj = $('netcast-player');
-  var useNetcast = false;
+  var engine = state.auth.playerEngine || 'auto';
+  var preferNetcast = false;
   
-  if (state.auth.playerEngine === 'mediaplayer') {
-    useNetcast = true;
-  } else if (state.auth.playerEngine === 'auto') {
+  if (engine === 'mediaplayer') {
+    preferNetcast = true;
+  } else if (engine === 'auto') {
     var ua = navigator.userAgent || '';
-    if (netcastObj && (typeof netcastObj.play === 'function' || ua.indexOf('NetCast') !== -1 || ua.indexOf('LG') !== -1)) {
-      useNetcast = true;
+    if (!isHls && netcastObj && (typeof netcastObj.play === 'function' || ua.indexOf('NetCast') !== -1 || ua.indexOf('LG') !== -1)) {
+      preferNetcast = true;
     }
   }
 
@@ -2117,70 +2284,82 @@ function playChannelAt(idx) {
     try { netcastObj.stop(); } catch (e3) {}
   }
 
-  if (useNetcast && netcastObj) {
-    v.style.display = 'none';
-    netcastObj.style.display = 'block';
-    netcastObj.data = playUrl;
-    try {
-      netcastObj.play(1);
-    } catch (errNetcast) {
-      netcastObj.style.display = 'none';
-      v.style.display = 'block';
-      playHtml5(v, playUrl);
-      return;
-    }
-
-    netcastObj.onPlayStateChange = function() {
-      try {
-        var ps = netcastObj.playState;
-        if (ps === 1) {
-          $('btnPlayPause').textContent = '▶❚❚';
-          var mi = netcastObj.mediaInformation;
-          if (mi && mi.width && mi.height) {
-            $('player-res').textContent = mi.width + 'x' + mi.height;
-          }
-        } else if (ps === 2) {
-          $('btnPlayPause').textContent = '▶';
-        } else if (ps === 6) {
-          if (playUrl === streamUrl) {
-            playUrl = (API_BASE || '') + '/api/ott/stream?url=' + encodeURIComponent(streamUrl);
-            netcastObj.data = playUrl;
-            netcastObj.play(1);
-          } else {
-            showToast('Error cargando señal del canal.');
-          }
-        }
-      } catch (e) {}
-    };
+  if (preferNetcast && netcastObj) {
+    startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c);
   } else {
-    if (netcastObj) netcastObj.style.display = 'none';
-    v.style.display = 'block';
-    playHtml5(v, playUrl);
+    playHtml5(v, netcastObj, playUrl, streamUrl, c);
   }
 }
 
-function playHtml5(v, playUrl) {
+function startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c) {
+  v.style.display = 'none';
+  netcastObj.style.display = 'block';
+  netcastObj.data = playUrl;
+  try {
+    netcastObj.play(1);
+  } catch (errNetcast) {
+    playHtml5(v, netcastObj, playUrl, streamUrl, c);
+    return;
+  }
+
+  netcastObj.onPlayStateChange = function() {
+    try {
+      var ps = netcastObj.playState;
+      if (ps === 1) { // Reproduciendo
+        hideTuning();
+        $('btnPlayPause').textContent = '▶❚❚';
+        var mi = netcastObj.mediaInformation;
+        if (mi && mi.width && mi.height) {
+          $('player-res').textContent = mi.width + 'x' + mi.height;
+        }
+      } else if (ps === 2) {
+        $('btnPlayPause').textContent = '▶';
+      } else if (ps === 6) { // Error -> Conmutar automáticamente a HTML5
+        console.log('NetCast playState error, conmutando a HTML5...');
+        playHtml5(v, netcastObj, playUrl, streamUrl, c);
+      }
+    } catch (e) {}
+  };
+}
+
+function playHtml5(v, netcastObj, playUrl, streamUrl, c) {
+  if (netcastObj) netcastObj.style.display = 'none';
+  v.style.display = 'block';
+
+  v.onloadeddata = function() { hideTuning(); };
+  v.onplaying = function() { hideTuning(); };
   v.onloadedmetadata = function() {
+    hideTuning();
     if (v.videoWidth && v.videoHeight) {
       $('player-res').textContent = v.videoWidth + 'x' + v.videoHeight;
     }
   };
   v.onerror = function() {
-    if (playUrl.indexOf('/api/ott/stream') === -1) {
-      var proxied = (API_BASE || '') + '/api/ott/stream?url=' + encodeURIComponent(playUrl);
-      playHtml5(v, proxied);
+    if (netcastObj && typeof netcastObj.play === 'function') {
+      console.log('HTML5 error, conmutando a NetCast...');
+      startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c);
     } else {
-      showToast('Error en stream.');
+      hideTuning();
+      showToast('Error cargando señal.');
     }
   };
 
-  if (window.Hls && Hls.isSupported() && /\.m3u8($|\?)/i.test(playUrl)) {
+  if (window.Hls && Hls.isSupported() && (playUrl.indexOf('.m3u8') !== -1 || streamUrl.indexOf('.m3u8') !== -1)) {
     state.hlsInstance = new Hls({ maxBufferLength: 15, enableWorker: false });
     state.hlsInstance.loadSource(playUrl);
     state.hlsInstance.attachMedia(v);
-    state.hlsInstance.on(Hls.Events.MANIFEST_PARSED, function() { v.play(); });
+    state.hlsInstance.on(Hls.Events.MANIFEST_PARSED, function() {
+      v.play();
+    });
     state.hlsInstance.on(Hls.Events.ERROR, function(evt, data) {
-      if (data.fatal) showToast('Error en stream HLS.');
+      if (data.fatal) {
+        if (netcastObj && typeof netcastObj.play === 'function') {
+          startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c);
+        } else {
+          hideTuning();
+          showToast('Error en stream HLS.');
+        }
+      }
     });
   } else {
     v.src = playUrl;
@@ -2188,19 +2367,8 @@ function playHtml5(v, playUrl) {
   }
 }
 
-function showPlayerOverlay() {
-  $('player-overlay-top').style.display = 'block';
-  $('player-overlay-bot').style.display = 'block';
-  clearTimeout(state.hideOverlayTimer);
-  state.hideOverlayTimer = setTimeout(function() {
-    if (!state.drawerOpen) {
-      $('player-overlay-top').style.display = 'none';
-      $('player-overlay-bot').style.display = 'none';
-    }
-  }, 5000);
-}
-
 function stopPlayer() {
+  hideTuning();
   var v = $('video-el');
   try { v.pause(); v.removeAttribute('src'); v.load(); } catch (e) {}
   var netcastObj = $('netcast-player');
@@ -2212,60 +2380,137 @@ function stopPlayer() {
   $('player-container').classList.remove('open');
   $('player-drawer').classList.remove('open');
   state.drawerOpen = false;
+  hidePlayerOverlay();
   state.screen = 'playlists';
   updateMainFocus(false);
 }
 
 function handlePlayerNav(kc) {
-  showPlayerOverlay();
   var list = getFilteredChannels();
 
+  // 1. Si el drawer lateral de canales está abierto
+  if (state.drawerOpen) {
+    if (kc === KEY.BACK || kc === KEY.BACKSPACE || kc === KEY.ESC || kc === KEY.TIZEN_BACK) {
+      closeChannelDrawer();
+      showPlayerOverlay();
+      return;
+    }
+    if (kc === KEY.UP || kc === KEY.CH_UP) {
+      state.drawerIdx = Math.max(0, state.drawerIdx - 1);
+      updateDrawerFocus();
+      return;
+    }
+    if (kc === KEY.DOWN || kc === KEY.CH_DOWN) {
+      state.drawerIdx = Math.min(list.length - 1, state.drawerIdx + 1);
+      updateDrawerFocus();
+      return;
+    }
+    if (kc === KEY.LEFT) {
+      switchDrawerGroup(-1);
+      return;
+    }
+    if (kc === KEY.RIGHT) {
+      switchDrawerGroup(1);
+      return;
+    }
+    if (kc === KEY.ENTER) {
+      playChannelAt(state.drawerIdx);
+      closeChannelDrawer();
+      showPlayerOverlay();
+      return;
+    }
+    return;
+  }
+
+  // 2. Teclas directas de control remoto
   if (kc === KEY.BACK || kc === KEY.BACKSPACE || kc === KEY.ESC || kc === KEY.TIZEN_BACK) {
-    if (state.drawerOpen) {
-      $('player-drawer').classList.remove('open');
-      state.drawerOpen = false;
+    if (state.playerHudVisible) {
+      hidePlayerOverlay();
     } else {
       stopPlayer();
     }
-  } else if (kc === KEY.PLAY || kc === KEY.PAUSE) {
+    return;
+  }
+  if (kc === KEY.PLAY || kc === KEY.PAUSE) {
     $('btnPlayPause').click();
-  } else if (kc === KEY.STOP) {
+    showPlayerOverlay();
+    return;
+  }
+  if (kc === KEY.STOP) {
     stopPlayer();
-  } else if (kc === KEY.GREEN || kc === KEY.GREEN_SAMSUNG || kc === 71) {
+    return;
+  }
+  if (kc === KEY.GREEN || kc === KEY.GREEN_SAMSUNG || kc === 71) {
     $('btnPlayerRatio').click();
-  } else if (kc === KEY.BLUE || kc === KEY.BLUE_SAMSUNG || kc === 66) {
+    showPlayerOverlay();
+    return;
+  }
+  if (kc === KEY.BLUE || kc === KEY.BLUE_SAMSUNG || kc === 66) {
     openChannelDrawer();
-  } else if (kc === KEY.UP || kc === KEY.CH_UP) {
-    if (state.drawerOpen) {
-      state.drawerIdx = Math.max(0, state.drawerIdx - 1);
-      updateDrawerFocus();
-    } else {
+    return;
+  }
+  if (kc === KEY.RED || kc === KEY.RED_SAMSUNG || kc === 82) {
+    playChannelAt(state.currentChannelIdx);
+    return;
+  }
+
+  // 3. Si el HUD está oculto: cualquier tecla lo despierta con foco en el selector inferior
+  if (!state.playerHudVisible) {
+    if (kc === KEY.CH_UP) {
       var prev = (state.currentChannelIdx - 1 + list.length) % list.length;
       playChannelAt(prev);
+      return;
     }
-  } else if (kc === KEY.DOWN || kc === KEY.CH_DOWN) {
-    if (state.drawerOpen) {
-      state.drawerIdx = Math.min(list.length - 1, state.drawerIdx + 1);
-      updateDrawerFocus();
-    } else {
+    if (kc === KEY.CH_DOWN) {
       var next = (state.currentChannelIdx + 1) % list.length;
       playChannelAt(next);
+      return;
     }
-  } else if (kc === KEY.LEFT) {
-    if (state.drawerOpen) {
-      switchDrawerGroup(-1);
+    state.playerArea = 'bottom';
+    state.playerBotIdx = 0;
+    showPlayerOverlay();
+    return;
+  }
+
+  // 4. Si el HUD está visible: navegación completa entre botones
+  showPlayerOverlay(); // renueva temporizador de ocultación
+
+  if (state.playerArea === 'bottom') {
+    if (kc === KEY.LEFT) {
+      state.playerBotIdx = Math.max(0, state.playerBotIdx - 1);
+      updatePlayerFocus();
+    } else if (kc === KEY.RIGHT) {
+      state.playerBotIdx = Math.min(1, state.playerBotIdx + 1);
+      updatePlayerFocus();
+    } else if (kc === KEY.UP) {
+      state.playerArea = 'top';
+      state.playerTopIdx = (state.playerBotIdx === 0 ? 0 : 4);
+      updatePlayerFocus();
+    } else if (kc === KEY.DOWN) {
+      hidePlayerOverlay();
+    } else if (kc === KEY.ENTER) {
+      if (state.playerBotIdx === 0) {
+        openChannelDrawer();
+      } else {
+        $('btnPlayPause').click();
+      }
     }
-  } else if (kc === KEY.RIGHT) {
-    if (state.drawerOpen) {
-      switchDrawerGroup(1);
-    }
-  } else if (kc === KEY.ENTER) {
-    if (!state.drawerOpen) {
-      openChannelDrawer();
-    } else {
-      playChannelAt(state.drawerIdx);
-      $('player-drawer').classList.remove('open');
-      state.drawerOpen = false;
+  } else if (state.playerArea === 'top') {
+    if (kc === KEY.LEFT) {
+      state.playerTopIdx = Math.max(0, state.playerTopIdx - 1);
+      updatePlayerFocus();
+    } else if (kc === KEY.RIGHT) {
+      state.playerTopIdx = Math.min(4, state.playerTopIdx + 1);
+      updatePlayerFocus();
+    } else if (kc === KEY.DOWN) {
+      state.playerArea = 'bottom';
+      state.playerBotIdx = (state.playerTopIdx >= 3 ? 1 : 0);
+      updatePlayerFocus();
+    } else if (kc === KEY.ENTER) {
+      var topBtns = [$('btnPlayerRatio'), $('btnPlayerEpg'), $('btnPlayerAudio'), $('btnPlayerSubs'), $('btnPlayerClose')];
+      if (topBtns[state.playerTopIdx]) {
+        topBtns[state.playerTopIdx].click();
+      }
     }
   }
 }
@@ -2279,6 +2524,7 @@ function openChannelDrawer() {
   var groupLabel = (state.currentGroup === '__all' ? 'Todos' : (state.currentGroup === '__fav' ? 'Favoritos' : state.currentGroup));
   $('drawerGroupName').innerHTML = '&lt; \u00A0 ' + groupLabel + ' \u00A0 &gt;';
 
+  var frag = document.createDocumentFragment();
   for (var i = 0; i < list.length; i++) {
     var row = document.createElement('div');
     row.className = 'drawer-row' + (i === state.currentChannelIdx ? ' focused' : '');
@@ -2288,22 +2534,30 @@ function openChannelDrawer() {
       '<div class="drawer-logo-box">' + logoHtml + '</div>' +
       '<div class="drawer-info">' +
         '<div class="drawer-name">' + escapeHtml(list[i].name) + '</div>' +
-        '<div class="drawer-epg">...</div>' +
+        '<div class="drawer-epg">' + escapeHtml(list[i].group || 'EN VIVO') + '</div>' +
       '</div>';
       
     row.onclick = (function(idx) {
       return function() {
         playChannelAt(idx);
-        $('player-drawer').classList.remove('open');
-        state.drawerOpen = false;
+        closeChannelDrawer();
       };
     })(i);
-    container.appendChild(row);
+    frag.appendChild(row);
   }
+  container.appendChild(frag);
   state.drawerIdx = state.currentChannelIdx;
   state.drawerOpen = true;
   $('player-drawer').classList.add('open');
   updateDrawerFocus();
+}
+
+function closeChannelDrawer() {
+  $('player-drawer').classList.remove('open');
+  state.drawerOpen = false;
+  state.playerArea = 'bottom';
+  state.playerBotIdx = 0;
+  updatePlayerFocus();
 }
 
 function updateDrawerFocus() {

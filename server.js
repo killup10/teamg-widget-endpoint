@@ -156,7 +156,7 @@ const server = http.createServer((req, res) => {
   }
 
   // Stream Proxy para Smart TVs (LG NetCast / Samsung): convierte flujos HTTPS/TLS 1.3 a HTTP puerto 80
-  if (pathname === '/api/ott/stream') {
+  if (pathname.indexOf('/api/ott/stream') === 0) {
     return ottApi.handleStream(req, res, query);
   }
 
