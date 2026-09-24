@@ -61,7 +61,7 @@ const createWidgetJson = (req) => {
 // APP 2 (nueva, separada): OTT TV clon estilo OTTPlayer en /ott
 const createOttJson = (req) => {
   const base = baseOf(req);
-  const vStamp = '2.2.0';
+  const vStamp = '2.3.0';
   const appUrl = base + '/ott/index.html?v=' + Date.now();
   return {
     "version": vStamp,
@@ -210,7 +210,7 @@ const server = http.createServer((req, res) => {
     const startJson = isOtt
       ? {
           "name": "OTT TV",
-          "version": "2.2.0",
+          "version": "2.3.0",
           "parameter": "content:" + base + "/msx/ott.json?v=" + Date.now()
         }
       : {
@@ -231,7 +231,7 @@ const server = http.createServer((req, res) => {
     const base = baseOf(req);
     const ottContent = {
       "type": "list",
-      "headline": "OTT TV",
+      "headline": "OTT TV v2.3.0 [3x6]",
       "template": { "type": "default", "layout": "0,0,3,2", "imageFiller": "width-center" },
       "items": [
         {

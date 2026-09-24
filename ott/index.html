@@ -162,13 +162,14 @@ html, body {
   display: inline-block;
   vertical-align: top;
   width: 16.1%;
-  margin: 4px 0.28%;
+  margin: 3px 0.28%;
   background: #1c0a14;
   border: 2px solid #331222;
   border-radius: 3px;
   padding: 4px;
   position: relative;
-  height: 178px;
+  height: 31.8%;
+  min-height: 140px;
   cursor: pointer;
   box-sizing: border-box;
   -webkit-box-sizing: border-box;
@@ -269,16 +270,18 @@ html, body {
 .folder-tile {
   display: inline-block;
   vertical-align: top;
-  width: 23.5%;
-  margin: 10px 0.7%;
+  width: 16.1%;
+  margin: 3px 0.28%;
   background: #1c0a14;
   border: 2px solid #331222;
-  border-radius: 6px;
-  padding: 24px 12px;
+  border-radius: 4px;
+  padding: 16px 8px;
   text-align: center;
   cursor: pointer;
   box-sizing: border-box;
   -webkit-box-sizing: border-box;
+  height: 31.8%;
+  min-height: 140px;
 }
 
 .folder-tile.focused {
@@ -1064,7 +1067,7 @@ html, body {
         <h3>Información</h3>
         <p id="optDescText">Usa tu usuario y contraseña otorgados por el administrador para vincular este televisor y descargar tus listas.</p>
         <div style="margin-top:22px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.2.0 (Cuadrícula 3x6 &amp; Magic Remote)
+          VERSIÓN: v2.3.0 [Cuadrícula 3x6 &amp; Magic Remote]
         </div>
       </div>
     </div>
@@ -1905,6 +1908,21 @@ function getFilteredChannels() {
   return res;
 }
 
+function getTileDimensions() {
+  var area = $('content-area');
+  var areaH = 0;
+  if (area && area.clientHeight > 200) {
+    areaH = area.clientHeight;
+  } else {
+    var winH = window.innerHeight || 720;
+    areaH = winH - 124;
+  }
+  var exactTileH = Math.floor((areaH - 24) / 3);
+  if (exactTileH < 120) exactTileH = 175;
+  var exactThumbH = Math.max(55, Math.floor(exactTileH * 0.55));
+  return { tileH: exactTileH, thumbH: exactThumbH };
+}
+
 function renderPlaylistsView() {
   var area = $('content-area');
   area.innerHTML = '';
@@ -1917,11 +1935,15 @@ function renderPlaylistsView() {
       loadPlaylistContent(state.playlists[0]);
       return;
     }
-    $('screenTitle').textContent = 'Playlists (' + state.playlists.length + ')';
+    var dims = getTileDimensions();
+    $('screenTitle').textContent = 'Playlists (' + state.playlists.length + ') [3x6]';
     $('bottom-tabs-bar').innerHTML = '';
     for (var i = 0; i < state.playlists.length; i++) {
       var d = document.createElement('div');
       d.className = 'folder-tile';
+      d.style.height = dims.tileH + 'px';
+      d.style.width = '16.1%';
+      d.style.margin = '3px 0.28%';
       d.innerHTML = '<div class="folder-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="#ffcc00" stroke="#d4a300" stroke-width="1.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></div><div class="folder-name">' + state.playlists[i].name + '</div><div class="folder-sub">OK para abrir</div>';
       d.onclick = (function(pl) { return function() { loadPlaylistContent(pl); }; })(state.playlists[i]);
       area.appendChild(d);
@@ -1930,7 +1952,7 @@ function renderPlaylistsView() {
     state.tileIdx = 0;
     updateMainFocus();
   } else {
-    $('screenTitle').textContent = 'Playlists';
+    $('screenTitle').textContent = 'Playlists [3x6]';
     $('bottom-tabs-bar').innerHTML = '';
     area.innerHTML = '<div style="text-align: center; margin-top: 100px; font-size: 20px; color: #a5929c;">' +
       'Sin listas cargadas.<br><br>Presiona el icono Ajustes (⚙) arriba para vincular.</div>';
@@ -1965,7 +1987,7 @@ function renderTabs() {
   }
 }
 
-/* Cuadrícula de 6 columnas exactas (Foto 1 y 4) */
+/* Cuadrícula de 6 columnas exactas x 3 filas exactas (18 canales por pantalla) */
 function renderChannels() {
   var area = $('content-area');
   area.innerHTML = '';
@@ -1975,13 +1997,14 @@ function renderChannels() {
   if (state.currentGroup !== '__all' && state.currentGroup !== '__fav') {
     title += ' - ' + state.currentGroup;
   }
-  $('screenTitle').textContent = title;
+  $('screenTitle').textContent = title + ' [3x6]';
   
   if (list.length === 0) {
     area.innerHTML = '<div style="text-align: center; margin-top: 100px; font-size: 18px; color: #a5929c;">No hay canales en este grupo.</div>';
     return;
   }
 
+  var dims = getTileDimensions();
   var fallbackSvg = '<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#555555" stroke-width="2" style="margin-top:16px;"><rect x="2" y="7" width="20" height="14" rx="2"/><polyline points="17 2 12 7 7 2"/></svg>';
   var frag = document.createDocumentFragment();
 
@@ -1989,6 +2012,9 @@ function renderChannels() {
     var c = list[i];
     var tile = document.createElement('div');
     tile.className = 'tile-item';
+    tile.style.height = dims.tileH + 'px';
+    tile.style.width = '16.1%';
+    tile.style.margin = '3px 0.28%';
     
     var favHtml = state.favorites[c.id] ? '<div class="tile-fav-mark"><svg width="14" height="14" viewBox="0 0 24 24" fill="#ffcc00"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>' : '';
     
@@ -1997,7 +2023,7 @@ function renderChannels() {
       : fallbackSvg;
 
     tile.innerHTML = '<div class="tile-num">' + (i + 1) + '</div>' + favHtml +
-      '<div class="tile-thumb">' + thumbContent + '</div>' +
+      '<div class="tile-thumb" style="height:' + dims.thumbH + 'px; line-height:' + dims.thumbH + 'px;">' + thumbContent + '</div>' +
       '<div class="tile-title">' + escapeHtml(c.name) + '</div>' +
       '<div class="tile-epg">' + escapeHtml(c.group) + '</div>' +
       '<div class="tile-bar"><div class="tile-bar-fill"></div></div>';
