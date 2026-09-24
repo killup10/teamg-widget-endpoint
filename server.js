@@ -146,14 +146,19 @@ const server = http.createServer((req, res) => {
 
   // *** LÓGICA CORREGIDA ***
   // Si Media Station X pide la raíz del dominio ('/'), le damos el JSON.
-  // APP 1: TeamG Play (se mantiene intacta).
+  // El teclado de MSX en TVs viejas no tiene "/", así que no se puede
+  // escribir "dominio/ott": el dominio ott.* responde la APP 2 en raíz.
+  // APP 1 TeamG en el resto de hosts (se mantiene intacta).
   if (pathname === '/') {
-    const widgetJson = createWidgetJson(req);
+    const hostOnly = getHost(req).split(':')[0].toLowerCase();
+    const ottJson = hostOnly === 'ott.teamg.store' || hostOnly.indexOf('ott.') === 0
+      ? createOttJson(req)
+      : createWidgetJson(req);
     res.writeHead(200, {
       'Content-Type': 'application/json; charset=utf-8',
       'Cache-Control': 'no-cache, no-store, must-revalidate'
     });
-    res.end(JSON.stringify(widgetJson, null, 2));
+    res.end(JSON.stringify(ottJson, null, 2));
     return;
   }
 
