@@ -219,7 +219,7 @@ const server = http.createServer((req, res) => {
           "title": "Abrir OTT TV",
           "description": "Carga tu lista M3U y mira tus canales",
           "image": base + "/ott/icon.png",
-          "action": "link:window:" + base + "/ott/index.html"
+          "action": "link:" + base + "/ott/index.html"
         }
       ]
     };
@@ -243,7 +243,7 @@ const server = http.createServer((req, res) => {
           "title": "Abrir TeamG Play",
           "description": "Abrir TeamG Play TV",
           "image": base + "/TeamG%20Play.png",
-          "action": "link:window:" + base + "/index.html"
+          "action": "link:" + base + "/index.html"
         }
       ]
     };
