@@ -16,10 +16,16 @@ const getHost = (req) => {
   return String(host).split(',')[0].trim();
 };
 const getProto = (req) => {
+  if (req.headers['cf-visitor']) {
+    try {
+      const v = JSON.parse(req.headers['cf-visitor']);
+      if (v && v.scheme) return v.scheme.toLowerCase();
+    } catch (e) {}
+  }
   const fwd = req.headers['x-forwarded-proto'];
   const p = (Array.isArray(fwd) ? fwd[0] : fwd) || '';
   if (p) return p.split(',')[0].trim().toLowerCase();
-  return (req.connection && req.connection.encrypted) ? 'https' : 'https';
+  return (req.connection && req.connection.encrypted) ? 'https' : 'http';
 };
 const baseOf = (req) => getProto(req) + '://' + getHost(req);
 
