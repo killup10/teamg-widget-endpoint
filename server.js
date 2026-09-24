@@ -61,21 +61,23 @@ const createWidgetJson = (req) => {
 // APP 2 (nueva, separada): OTT TV clon estilo OTTPlayer en /ott
 const createOttJson = (req) => {
   const base = baseOf(req);
+  const vStamp = '2.2.0';
+  const appUrl = base + '/ott/index.html?v=' + Date.now();
   return {
-    "version": "1.0.0",
+    "version": vStamp,
     "id": "com.ott.clone.tv",
     "name": "OTT TV",
-    "description": "OTT TV - réplica estilo OTTPlayer: carga tu M3U, grupos, favoritos y ocultos.",
+    "description": "OTT TV - réplica estilo OTTPlayer: cuadrícula 3x6 y reproductor optimizado.",
     "icon": base + "/ott/icon.png",
-    "homepage": base + "/ott/index.html",
+    "homepage": appUrl,
     "app": {
       "type": "web",
       "title": "OTT TV",
-      "url": base + "/ott/index.html",
+      "url": appUrl,
       "icon": base + "/ott/icon.png"
     },
     "startup": {
-      "url": base + "/ott/index.html"
+      "url": appUrl
     },
     "meta": {
       "platform": "LG NetCast / Samsung Tizen / WebOS",
@@ -115,7 +117,12 @@ const serveFile = (filePath, res) => {
       } else {
         const ext = path.extname(filePath).toLowerCase();
         const contentType = mimeTypes[ext] || 'application/octet-stream';
-        res.writeHead(200, { 'Content-Type': contentType });
+        res.writeHead(200, {
+          'Content-Type': contentType,
+          'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        });
         res.end(data);
       }
     });
@@ -203,8 +210,8 @@ const server = http.createServer((req, res) => {
     const startJson = isOtt
       ? {
           "name": "OTT TV",
-          "version": "1.0.0",
-          "parameter": "content:" + base + "/msx/ott.json"
+          "version": "2.2.0",
+          "parameter": "content:" + base + "/msx/ott.json?v=" + Date.now()
         }
       : {
           "name": "TeamG Play TV",
@@ -231,7 +238,7 @@ const server = http.createServer((req, res) => {
           "title": "Abrir OTT TV",
           "description": "Carga tu lista M3U y mira tus canales",
           "image": base + "/ott/icon.png",
-          "action": "link:" + base + "/ott/index.html"
+          "action": "link:" + base + "/ott/index.html?v=" + Date.now()
         }
       ]
     };
