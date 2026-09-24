@@ -59,3 +59,38 @@ producción. Cuando quieras lo resolvemos eligiendo una de las dos versiones.
 - PIN de 6 dígitos para vincular TV a lista del servidor (como OTTPlayer).
 - EPG con `tvg-url` XMLTV y barra ahora/siguiente.
 - Tema oscuro premium sobre este mismo `ott/index.html`.
+
+## Sistema de cuentas (modelo OTTPlayer real)
+
+Flujo: tú creas usuario+password en el panel → cliente se loguea en la tuerca
+→ registra su TV (NEW DEVICE con nombre) → tú le asignas listas → cliente
+pulsa botón rojo y le aparecen las carpetas.
+
+### Render: Build + variables (obligatorio tras esta versión)
+
+1. Servicio → Settings → **Build Command**: cambia `echo skip-build` por
+   `npm install` (ahora hay dependencia `mongodb`).
+2. **Environment** → añade:
+   - `ADMIN_KEY` = clave que elijas (ej. una larga) → login del panel admin.
+   - `MONGODB_URI` = tu connection string de Mongo (puedes reusar el mismo
+     cluster de TeamG; usa otra DB con `OTT_DB=ottv`). Sin esto funciona en
+     memoria pero se borra al dormirse el servicio.
+   - `TOKEN_SECRET` = opcional, otro valor largo.
+3. Save → redespliega.
+
+### Panel admin
+
+- URL: `https://ott.teamg.store/admin/` (o `http://` en NetCast viejas).
+- Entra con tu ADMIN_KEY. Verás `store: mongo` (o `memory` si falta URI).
+- Crea usuario + password → apúntalos para el cliente.
+- Agrega tus playlists M3U (+ EPG opcional).
+- Cuando el cliente registre su TV, aparece en Dispositivos: marca sus listas,
+  Guarda, y dile que pulse el botón rojo.
+
+### TV del cliente
+
+1. Abrir OTT TV → tuerca (o botón verde) → Cuenta: usuario, password,
+   nombre del TV (por defecto SamsungTV/LGTV/...) → Guardar y registrar TV.
+2. Vuelve al inicio vacío → pulsa botón rojo ⟳ → aparecen sus carpetas.
+3. OK en carpeta → grupos/canales como antes.
+
