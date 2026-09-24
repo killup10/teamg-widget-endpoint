@@ -208,6 +208,7 @@ html, body {
 }
 
 .tile-thumb {
+  position: relative;
   width: 100%;
   height: 68px;
   background: #000000;
@@ -1076,6 +1077,41 @@ html, body {
 (function() {
 'use strict';
 
+window.onerror = function(msg, url, line) {
+  try {
+    var t = document.getElementById('toast');
+    if (t) {
+      t.textContent = 'JS Error L' + line + ': ' + msg;
+      t.style.display = 'block';
+      setTimeout(function() { t.style.display = 'none'; }, 6000);
+    }
+  } catch (e) {}
+  return false;
+};
+
+var API_BASE = (window.location && window.location.protocol && window.location.protocol.indexOf('http') === 0 && window.location.host && window.location.host.indexOf('teamg.store') > -1)
+  ? (window.location.protocol + '//' + window.location.host)
+  : 'http://ott.teamg.store';
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function safeScrollIntoView(el) {
+  if (!el || !el.scrollIntoView) return;
+  try {
+    el.scrollIntoView(false);
+  } catch (e) {
+    try { el.scrollIntoView(); } catch (e2) {}
+  }
+}
+
 /* ==========================================================================
    CONSTANTES DE TECLADO / CONTROL REMOTO (LG NETCAST / SMART TV)
    ========================================================================== */
@@ -1207,18 +1243,37 @@ function showToast(msg) {
    PETICIONES AJAX / BACKEND
    ========================================================================== */
 function apiCall(method, path, body, callback) {
+  var fullUrl = (path.indexOf('http://') === 0 || path.indexOf('https://') === 0) ? path : (API_BASE + path);
   var xhr = new XMLHttpRequest();
-  xhr.open(method, path, true);
-  xhr.setRequestHeader('Content-Type', 'application/json');
+  var called = false;
+  function done(status, res, text) {
+    if (called) return;
+    called = true;
+    try {
+      callback(status, res, text);
+    } catch (cbErr) {
+      try { showToast('Err: ' + cbErr.message); } catch (e) {}
+    }
+  }
+  xhr.open(method, fullUrl, true);
+  if (body) {
+    xhr.setRequestHeader('Content-Type', 'application/json; charset=utf-8');
+  }
   xhr.onreadystatechange = function() {
     if (xhr.readyState === 4) {
       var res = null;
       try { res = JSON.parse(xhr.responseText); } catch (e) {}
-      callback(xhr.status, res, xhr.responseText);
+      done(xhr.status, res, xhr.responseText);
     }
   };
-  xhr.onerror = function() { callback(0, null, 'Error de conexión'); };
-  xhr.send(body ? JSON.stringify(body) : null);
+  xhr.onerror = function() {
+    done(0, null, 'Error de conexión');
+  };
+  try {
+    xhr.send(body ? JSON.stringify(body) : null);
+  } catch (sendErr) {
+    done(0, null, sendErr.message);
+  }
 }
 
 /* ==========================================================================
@@ -1584,85 +1639,115 @@ function parseM3U(text) {
 function loadDirectM3u(url) {
   showToast('Descargando lista externa...');
   var xhr = new XMLHttpRequest();
-  xhr.open('GET', url, true);
-  xhr.onreadystatechange = function() {
-    if (xhr.readyState === 4 && xhr.status === 200) {
-      state.channels = parseM3U(xhr.responseText);
+  var called = false;
+  function handleResult(status, text) {
+    if (called) return;
+    called = true;
+    if (status === 200 && text) {
+      state.channels = parseM3U(text);
       buildGroups();
       closeOptions();
       state.currentPlaylist = { name: 'M3U Directo' };
       renderChannels();
       renderTabs();
       showToast(state.channels.length + ' canales disponibles.');
+    } else {
+      showToast('Error al descargar M3U directo (' + status + ')');
+    }
+  }
+  xhr.open('GET', url, true);
+  xhr.onreadystatechange = function() {
+    if (xhr.readyState === 4) {
+      handleResult(xhr.status, xhr.responseText);
     }
   };
-  xhr.send();
+  xhr.onerror = function() {
+    handleResult(0, null);
+  };
+  try {
+    xhr.send();
+  } catch (e) {
+    handleResult(0, null);
+  }
 }
 
 function loadPlaylistContent(pl) {
   state.currentPlaylist = pl;
   showToast('Descargando ' + pl.name + '...');
-  var murl = '/api/ott/m3u?token=' + encodeURIComponent(state.auth.token) + '&deviceId=' + encodeURIComponent(state.auth.deviceId) + '&pid=' + encodeURIComponent(pl.id);
+  var murl = (API_BASE || '') + '/api/ott/m3u?token=' + encodeURIComponent(state.auth.token) + '&deviceId=' + encodeURIComponent(state.auth.deviceId) + '&pid=' + encodeURIComponent(pl.id);
   var xhr = new XMLHttpRequest();
+  var called = false;
+  function handleResult(status, text) {
+    if (called) return;
+    called = true;
+    if (status === 200 && text) {
+      state._m3uRetries = 0;
+      state.channels = parseM3U(text);
+      buildGroups();
+      state.currentGroup = '__all';
+      renderChannels();
+      renderTabs();
+      showToast(state.channels.length + ' canales.');
+    } else if (status === 401 && state.auth.login && state.auth.password) {
+      showToast('Renovando acceso...');
+      doSaveAndLogin();
+    } else if (status >= 500 || status === 0) {
+      if (!state._m3uRetries) state._m3uRetries = 0;
+      if (state._m3uRetries < 3) {
+        state._m3uRetries++;
+        showToast('Conectando con playlist (' + state._m3uRetries + '/3)...');
+        setTimeout(function() { loadPlaylistContent(pl); }, 3500);
+        return;
+      }
+      state._m3uRetries = 0;
+      showToast('Error cargando playlist (' + status + ')');
+    } else {
+      showToast('Error cargando playlist (' + status + ')');
+    }
+  }
   xhr.open('GET', murl, true);
   xhr.onreadystatechange = function() {
     if (xhr.readyState === 4) {
-      if (xhr.status === 200) {
-        state._m3uRetries = 0;
-        state.channels = parseM3U(xhr.responseText);
-        buildGroups();
-        state.currentGroup = '__all';
-        renderChannels();
-        renderTabs();
-        showToast(state.channels.length + ' canales.');
-      } else if (xhr.status === 401 && state.auth.login && state.auth.password) {
-        showToast('Renovando acceso...');
-        doSaveAndLogin();
-      } else if (xhr.status >= 500 || xhr.status === 0) {
-        if (!state._m3uRetries) state._m3uRetries = 0;
-        if (state._m3uRetries < 3) {
-          state._m3uRetries++;
-          showToast('Conectando con playlist (' + state._m3uRetries + '/3)...');
-          setTimeout(function() { loadPlaylistContent(pl); }, 3500);
-          return;
-        }
-        state._m3uRetries = 0;
-        showToast('Error cargando playlist (' + xhr.status + ')');
-      } else {
-        showToast('Error cargando playlist (' + xhr.status + ')');
-      }
+      handleResult(xhr.status, xhr.responseText);
     }
   };
   xhr.onerror = function() {
-    if (!state._m3uRetries) state._m3uRetries = 0;
-    if (state._m3uRetries < 3) {
-      state._m3uRetries++;
-      showToast('Reconectando (' + state._m3uRetries + '/3)...');
-      setTimeout(function() { loadPlaylistContent(pl); }, 3500);
-      return;
-    }
-    state._m3uRetries = 0;
-    showToast('Error de conexión al descargar.');
+    handleResult(0, null);
   };
-  xhr.send();
+  try {
+    xhr.send();
+  } catch (err) {
+    handleResult(0, null);
+  }
 }
 
 function buildGroups() {
   var map = {};
+  var groups = [];
   for (var i = 0; i < state.channels.length; i++) {
-    map[state.channels[i].group] = true;
+    var g = state.channels[i].group || 'General';
+    if (!map[g]) {
+      map[g] = true;
+      groups.push(g);
+    }
   }
-  state.groups = Object.keys(map).sort();
+  groups.sort();
+  state.groups = groups;
 }
 
 function getFilteredChannels() {
-  if (state.currentGroup === '__fav') {
-    return state.channels.filter(function(c) { return state.favorites[c.id]; });
-  } else if (state.currentGroup === '__all') {
-    return state.channels;
-  } else {
-    return state.channels.filter(function(c) { return c.group === state.currentGroup; });
+  var res = [];
+  for (var i = 0; i < state.channels.length; i++) {
+    var c = state.channels[i];
+    if (state.currentGroup === '__fav') {
+      if (state.favorites[c.id]) res.push(c);
+    } else if (state.currentGroup === '__all') {
+      res.push(c);
+    } else if (c.group === state.currentGroup) {
+      res.push(c);
+    }
   }
+  return res;
 }
 
 function renderPlaylistsView() {
@@ -1750,11 +1835,15 @@ function renderChannels() {
     tile.className = 'tile-item';
     
     var favHtml = state.favorites[c.id] ? '<div class="tile-fav-mark"><svg width="14" height="14" viewBox="0 0 24 24" fill="#ffcc00"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>' : '';
-    var thumbHtml = c.logo ? '<div class="tile-thumb"><img src="' + c.logo + '" onerror="this.style.display=\'none\'; this.parentNode.innerHTML=\'' + fallbackSvg + '\';" /></div>' : '<div class="tile-thumb">' + fallbackSvg + '</div>';
+    
+    var thumbHtml = '<div class="tile-thumb">' +
+      '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;">' + fallbackSvg + '</div>' +
+      (c.logo ? '<img src="' + escapeHtml(c.logo) + '" onload="var p=this.previousSibling; if(p) p.style.display=\'none\';" onerror="this.style.display=\'none\';" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:contain;" />' : '') +
+      '</div>';
     
     tile.innerHTML = '<div class="tile-num">' + (i + 1) + '</div>' + favHtml + thumbHtml +
-      '<div class="tile-title">' + c.name + '</div>' +
-      '<div class="tile-epg">' + c.group + '</div>' +
+      '<div class="tile-title">' + escapeHtml(c.name) + '</div>' +
+      '<div class="tile-epg">' + escapeHtml(c.group) + '</div>' +
       '<div class="tile-bar"><div class="tile-bar-fill"></div></div>';
       
     tile.onclick = (function(idx) { return function() { playChannelAt(idx); }; })(i);
@@ -1781,16 +1870,12 @@ function updateMainFocus() {
   } else if (state.currentFocusArea === 'content') {
     if (tiles[state.tileIdx]) {
       tiles[state.tileIdx].classList.add('focused');
-      if (tiles[state.tileIdx].scrollIntoView) {
-        tiles[state.tileIdx].scrollIntoView({ block: 'nearest' });
-      }
+      safeScrollIntoView(tiles[state.tileIdx]);
     }
   } else if (state.currentFocusArea === 'tabs') {
     if (tabs[state.tabIdx]) {
       tabs[state.tabIdx].classList.add('focused');
-      if (tabs[state.tabIdx].scrollIntoView) {
-        tabs[state.tabIdx].scrollIntoView({ inline: 'nearest' });
-      }
+      safeScrollIntoView(tabs[state.tabIdx]);
     }
   }
 }
@@ -2060,11 +2145,11 @@ function openChannelDrawer() {
     var row = document.createElement('div');
     row.className = 'drawer-row' + (i === state.currentChannelIdx ? ' focused' : '');
     
-    var logoHtml = list[i].logo ? '<img src="' + list[i].logo + '" onerror="this.style.display=\'none\'" />' : '';
+    var logoHtml = list[i].logo ? '<img src="' + escapeHtml(list[i].logo) + '" onerror="this.style.display=\'none\';" />' : '';
     row.innerHTML = '<span class="drawer-num">' + (i + 1) + '</span>' +
       '<div class="drawer-logo-box">' + logoHtml + '</div>' +
       '<div class="drawer-info">' +
-        '<div class="drawer-name">' + list[i].name + '</div>' +
+        '<div class="drawer-name">' + escapeHtml(list[i].name) + '</div>' +
         '<div class="drawer-epg">...</div>' +
       '</div>';
       
@@ -2088,9 +2173,7 @@ function updateDrawerFocus() {
   for (var i = 0; i < rows.length; i++) rows[i].classList.remove('focused');
   if (rows[state.drawerIdx]) {
     rows[state.drawerIdx].classList.add('focused');
-    if (rows[state.drawerIdx].scrollIntoView) {
-      rows[state.drawerIdx].scrollIntoView({ block: 'nearest' });
-    }
+    safeScrollIntoView(rows[state.drawerIdx]);
   }
 }
 

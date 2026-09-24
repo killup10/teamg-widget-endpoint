@@ -125,8 +125,8 @@ const serveFile = (filePath, res) => {
 const server = http.createServer((req, res) => {
   // Configurar cabeceras CORS para todas las respuestas
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, x-admin-key');
 
   // Manejar peticiones pre-vuelo (OPTIONS)
   if (req.method === 'OPTIONS') {
