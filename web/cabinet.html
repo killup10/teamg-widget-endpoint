@@ -7,19 +7,21 @@
 <style>
 *{box-sizing:border-box}
 html,body{margin:0;padding:0;font-family:Arial,Helvetica,sans-serif;color:#333;background:#f6f8f6}
-nav.top{display:flex;align-items:center;gap:26px;padding:14px 34px;border-bottom:2px solid #22c55e;background:#fff;position:sticky;top:0;z-index:10}
+nav.top{display:flex;align-items:center;gap:26px;padding:14px 34px;border-bottom:2px solid #22c55e;background:#fff;position:sticky;top:0;z-index:20}
 .logo{font-weight:800;font-size:22px;color:#22c55e}.logo small{display:block;font-size:11px;font-weight:400;letter-spacing:3px}
 .userchip{font-size:14px;color:#555}
 .tabs{margin-left:auto;display:flex;gap:4px;flex-wrap:wrap}
 .tabs button{background:none;border:0;padding:10px 14px;font-size:15px;color:#555;cursor:pointer;font-family:inherit}
 .tabs button.sel{background:#22c55e;color:#fff;border-radius:4px}
-.wrap{max-width:1000px;margin:26px auto;padding:0 20px 60px}
+.wrap{max-width:1150px;margin:26px auto;padding:0 20px 60px}
 .card{background:#fff;border-radius:8px;box-shadow:0 1px 6px #0001;padding:20px;margin-bottom:18px}
 h2{margin:0 0 12px;font-weight:400;font-size:22px}
 input,select{background:#fff;border:0;border-bottom:2px dotted #22c55e;border-radius:0;color:#333;padding:10px 4px;margin:3px;font-size:15px;font-family:inherit}
-button.act{background:#fff;border:0;box-shadow:0 2px 8px #0003;padding:10px 26px;font-size:13px;letter-spacing:1px;cursor:pointer;margin:3px;color:#333;font-family:inherit}
+button.act{background:#fff;border:0;box-shadow:0 2px 8px #0003;padding:10px 24px;font-size:13px;letter-spacing:1px;cursor:pointer;margin:3px;color:#333;font-family:inherit;border-radius:4px}
+button.act.green{background:#22c55e;color:#fff;font-weight:bold}
 button.danger{background:#fff;border:1px solid #e53935;color:#e53935;padding:7px 12px;border-radius:4px;cursor:pointer}
-table{border-collapse:collapse;width:100%;font-size:14px}td,th{border-bottom:1px solid #eee;padding:8px 6px;text-align:left}
+button.plain{background:none;border:1px solid #ccc;padding:7px 12px;border-radius:4px;cursor:pointer}
+table{border-collapse:collapse;width:100%;font-size:14px}td,th{border-bottom:1px solid #eee;padding:10px 8px;text-align:left}
 .small{color:#888;font-size:12px}
 .chk{display:inline-block;margin:3px 10px 3px 0;font-size:14px}
 .dev{border:1px solid #e4e4e4;border-radius:6px;padding:12px;margin:10px 0}
@@ -30,13 +32,82 @@ table{border-collapse:collapse;width:100%;font-size:14px}td,th{border-bottom:1px
 .seg{display:inline-block;border:1px solid #22c55e;border-radius:4px;overflow:hidden}
 .seg button{border:0;background:#fff;padding:8px 18px;cursor:pointer;font-family:inherit;font-size:14px}
 .seg button.selon{background:#22c55e;color:#fff}
-.modal{position:fixed;inset:0;background:#0008;display:none;align-items:center;justify-content:center;z-index:50}
+
+/* Modal Genérico */
+.modal{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.55);display:none;align-items:center;justify-content:center;z-index:50}
 .modal.open{display:flex}
 .mbox{background:#fff;border-radius:8px;padding:26px;width:420px;max-width:92vw}
 .mbox h3{margin:0 0 14px;font-weight:400;font-size:22px}
 .mbox input{width:100%}
 .mrow{display:flex;justify-content:space-between;margin-top:18px}
 h4{font-weight:400;color:#555;margin:18px 0 6px}
+
+/* ==================== EDITOR DE CONTENIDO DE PLAYLIST (Fotos 2 y 3) ==================== */
+.editor-top-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.breadcrumb{font-size:16px;color:#666}
+.breadcrumb a{color:#22c55e;text-decoration:none;font-weight:bold}
+.breadcrumb b{color:#222;font-size:18px}
+
+.editor-layout{display:flex;gap:20px;min-height:560px}
+.editor-sidebar{width:260px;background:#fff;border-radius:8px;box-shadow:0 1px 6px #0001;padding:16px;display:flex;flex-direction:column}
+.btn-new-group{border:1px solid #ccc;background:#fff;padding:10px 14px;border-radius:4px;cursor:pointer;font-size:14px;font-weight:bold;margin-bottom:14px;text-align:center;color:#333;width:100%}
+.btn-new-group:hover{border-color:#22c55e;color:#22c55e}
+.groups-list{flex:1;overflow-y:auto;border-top:1px solid #eee;padding-top:8px}
+.group-item{display:flex;align-items:center;padding:10px 8px;cursor:pointer;border-bottom:1px solid #f2f2f2;border-radius:4px;font-size:14px;color:#555}
+.group-item:hover{background:#f0fdf4}
+.group-item.active{background:#e8f5e9;color:#15803d;font-weight:bold;border-left:4px solid #22c55e}
+.group-item-name{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.group-item-actions{display:flex;gap:6px;margin-left:6px;opacity:0.6}
+.group-item:hover .group-item-actions{opacity:1}
+.group-item-actions span{cursor:pointer;font-size:14px;padding:2px}
+.group-item-actions span:hover{color:#22c55e}
+
+.editor-main{flex:1;display:flex;flex-direction:column}
+.editor-main-header{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.btn-create-channel{background:#22c55e;color:#fff;border:0;padding:10px 18px;border-radius:4px;font-weight:bold;cursor:pointer;font-size:14px;display:flex;align-items:center;gap:6px}
+.search-channels{flex:1;border:1px solid #ddd;border-radius:4px;padding:8px 12px;font-size:14px}
+.channels-container{flex:1;background:#fff;border-radius:8px;box-shadow:0 1px 6px #0001;padding:12px;overflow-y:auto;max-height:640px}
+
+/* Filas de Canales Verde Estilo Foto 2 */
+.channel-row{background:#22c55e;color:#fff;border-radius:4px;display:flex;align-items:center;padding:6px 12px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,0.15)}
+.channel-thumb{width:68px;height:42px;background:#000;border-radius:3px;margin-right:14px;object-fit:cover;display:block}
+.channel-name{flex:1;font-size:16px;font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.channel-actions{display:flex;gap:10px}
+.channel-btn{background:rgba(255,255,255,0.25);border:0;color:#fff;width:32px;height:32px;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px}
+.channel-btn:hover{background:#fff;color:#22c55e}
+.channel-btn.del:hover{background:#fff;color:#e53935}
+
+/* Modal Edit Channel (Foto 3) */
+.modal-edit-channel{width:780px;max-width:95vw;background:#fff;border-radius:8px;padding:32px;display:flex;gap:36px;position:relative}
+.modal-ch-left{width:180px;display:flex;flex-direction:column;align-items:center;justify-content:center;border-right:1px solid #eee;padding-right:24px}
+.ch-edit-icon{width:80px;height:80px;border:3px solid #333;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:38px;margin-bottom:12px}
+.ch-edit-label{font-size:18px;color:#333;text-align:center}
+
+.modal-ch-right{flex:1}
+.modal-ch-right h2{font-size:26px;font-weight:400;margin-bottom:24px}
+.form-field-row{display:flex;align-items:center;margin-bottom:16px}
+.form-field-label{width:130px;font-size:14px;color:#666}
+.form-field-input{flex:1}
+.form-field-input input, .form-field-input select{width:100%;border:0;border-bottom:2px dotted #22c55e;padding:8px 4px;font-size:15px;margin:0}
+
+/* Selector y preview de icono (Foto 3) */
+.icon-toggle-row{display:flex;gap:0;border:1px solid #ccc;border-radius:4px;overflow:hidden;width:fit-content;margin-bottom:10px}
+.icon-toggle-btn{border:0;background:#fff;padding:8px 20px;cursor:pointer;font-size:13px;font-weight:bold;color:#555}
+.icon-toggle-btn.sel{background:#22c55e;color:#fff}
+.icon-preview-wrap{display:flex;align-items:center;gap:14px;margin-top:6px}
+.icon-preview-box{width:160px;height:95px;background:#000;border:1px solid #ddd;border-radius:4px;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.icon-preview-box img{width:100%;height:100%;object-fit:contain}
+.icon-side-tools{display:flex;flex-direction:column;gap:8px}
+.icon-tool-btn{width:36px;height:36px;border:1px solid #ccc;background:#fff;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px}
+.icon-tool-btn:hover{border-color:#22c55e;color:#22c55e}
+
+.adult-toggle-row{display:flex;gap:0;border:1px solid #ccc;border-radius:4px;overflow:hidden;width:fit-content}
+.adult-btn{border:0;background:#fff;padding:8px 22px;cursor:pointer;font-size:14px;font-weight:bold;color:#555}
+.adult-btn.sel{background:#22c55e;color:#fff}
+
+.modal-ch-footer{margin-top:28px;border-top:1px solid #eee;padding-top:18px;text-align:right}
+.btn-save-channel{background:#fff;border:0;box-shadow:0 2px 8px #0002;padding:12px 34px;font-size:14px;font-weight:bold;letter-spacing:1px;cursor:pointer;color:#333;border-radius:4px}
+.btn-save-channel:hover{background:#22c55e;color:#fff}
 </style>
 </head>
 <body>
@@ -45,7 +116,10 @@ h4{font-weight:400;color:#555;margin:18px 0 6px}
   <div class="userchip" id="who"></div>
   <div class="tabs" id="tabs"></div>
 </nav>
+
 <div class="wrap" id="app"><p>Cargando...</p></div>
+
+<!-- Modal Crear Fake-User -->
 <div class="modal" id="modal"><div class="mbox">
   <h3>Create fake-user</h3>
   <input id="mu" placeholder="username" autocomplete="off" />
@@ -54,149 +128,627 @@ h4{font-weight:400;color:#555;margin:18px 0 6px}
   <div class="mrow"><button class="act" id="mcancel">CANCEL</button><button class="act" id="msave">SAVE</button></div>
   <p class="small" id="mmsg"></p>
 </div></div>
+
+<!-- Modal Channel's Setting (Foto 3) -->
+<div class="modal" id="modalChannelSetting">
+  <div class="modal-edit-channel">
+    <div class="modal-ch-left">
+      <div class="ch-edit-icon">✎</div>
+      <div class="ch-edit-label">edit channel</div>
+      <div class="small" style="margin-top:10px;text-align:center;" id="mChBreadcrumb">playlists / CINE</div>
+    </div>
+    <div class="modal-ch-right">
+      <h2>Channel's setting</h2>
+      
+      <div class="form-field-row">
+        <div class="form-field-label">playlist</div>
+        <div class="form-field-input"><b id="mChPlName">CINE 2026 FHD</b></div>
+      </div>
+      
+      <div class="form-field-row">
+        <div class="form-field-label">group</div>
+        <div class="form-field-input">
+          <select id="mChGroupSelect"></select>
+        </div>
+      </div>
+
+      <div class="form-field-row">
+        <div class="form-field-label">name</div>
+        <div class="form-field-input">
+          <input id="mChName" placeholder="Nombre del canal o película" />
+        </div>
+      </div>
+
+      <div class="form-field-row">
+        <div class="form-field-label">URL</div>
+        <div class="form-field-input">
+          <input id="mChUrl" placeholder="https://stream.mp4 / .m3u8" />
+        </div>
+      </div>
+
+      <div class="form-field-row" style="align-items:flex-start;">
+        <div class="form-field-label">channel's icon</div>
+        <div class="form-field-input">
+          <div class="icon-toggle-row">
+            <button class="icon-toggle-btn" id="btnIconLibrary">URL DIRECTA</button>
+            <button class="icon-toggle-btn sel" id="btnIconUpload">UPLOAD</button>
+          </div>
+          <input type="text" id="mChIconUrl" placeholder="https://dominio.com/logo.png" style="display:none;margin-bottom:8px;" />
+          <input type="file" id="mChIconFileInput" accept="image/*" style="display:none;" />
+          
+          <div class="icon-preview-wrap">
+            <div class="icon-preview-box">
+              <img id="mChIconImgPreview" src="" alt="Sin logo" onerror="this.style.display='none'" />
+            </div>
+            <div class="icon-side-tools">
+              <button class="icon-tool-btn" id="btnToolUploadPic" title="Subir imagen desde PC">🖼</button>
+              <button class="icon-tool-btn" id="btnToolDeletePic" title="Quitar imagen">🗑</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-field-row">
+        <div class="form-field-label">adult (18+)</div>
+        <div class="form-field-input">
+          <div class="adult-toggle-row">
+            <button class="adult-btn" id="btnAdultYes">YES</button>
+            <button class="adult-btn sel" id="btnAdultNo">NO</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-ch-footer">
+        <button class="act" id="btnCancelChModal" style="margin-right:8px;">CANCEL</button>
+        <button class="btn-save-channel" id="btnSaveChModal">SAVE</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
-var KEY=sessionStorage.getItem("ottkey")||"";
-if(!KEY)location.href="/web/";
-document.getElementById("who").textContent=sessionStorage.getItem("ottname")||"";
-var DATA=null,TAB="Home",OPENFU=null;
-function api(p,m,b){
-  return fetch(p,{method:m||"GET",headers:{"Content-Type":"application/json","x-admin-key":KEY},body:b?JSON.stringify(b):undefined})
-    .then(function(r){if(r.status===403){location.href="/web/";throw new Error("auth");}if(!r.ok)throw new Error("HTTP "+r.status);return r.json();});
+var KEY = sessionStorage.getItem("ottkey") || "";
+if (!KEY) location.href = "/web/";
+document.getElementById("who").textContent = sessionStorage.getItem("ottname") || "";
+
+var DATA = null, TAB = "Playlists", OPENFU = null;
+var CURRENT_PL = null, CURRENT_GROUP = null, EDITING_CH_IDX = -1;
+
+function api(p, m, b) {
+  return fetch(p, {
+    method: m || "GET",
+    headers: { "Content-Type": "application/json", "x-admin-key": KEY },
+    body: b ? JSON.stringify(b) : undefined
+  }).then(function(r) {
+    if (r.status === 403) { location.href = "/web/"; throw new Error("auth"); }
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    return r.json();
+  });
 }
-function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;");}
-function refresh(){api("/api/ott/admin/overview").then(function(o){DATA=o;render();});}
-var TABS=["Home","Playlists","Devices","Cabinet","Fake-users","Logout"];
-function render(){
-  var t=document.getElementById("tabs");t.innerHTML="";
-  TABS.forEach(function(x){
-    var b=document.createElement("button");b.textContent=x;if(x===TAB)b.className="sel";
-    b.onclick=function(){if(x==="Logout"){sessionStorage.removeItem("ottkey");location.href="/web/";return;}TAB=x;OPENFU=null;render();};
+
+function esc(s) {
+  return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function refresh() {
+  api("/api/ott/admin/overview").then(function(o) {
+    DATA = o;
+    render();
+  });
+}
+
+var TABS = ["Home", "Playlists", "Devices", "Cabinet", "Fake-users", "Logout"];
+
+function render() {
+  var t = document.getElementById("tabs");
+  t.innerHTML = "";
+  TABS.forEach(function(x) {
+    var b = document.createElement("button");
+    b.textContent = x;
+    if (x === TAB) b.className = "sel";
+    b.onclick = function() {
+      if (x === "Logout") { sessionStorage.removeItem("ottkey"); location.href = "/web/"; return; }
+      TAB = x;
+      CURRENT_PL = null;
+      OPENFU = null;
+      render();
+    };
     t.appendChild(b);
   });
-  var a=document.getElementById("app"),un={};
-  DATA.users.forEach(function(u){un[u.id]=u.login;});
-  if(TAB==="Home"){
-    a.innerHTML="<div class='card'><h2>Home</h2><p>Fake-users: <b>"+DATA.users.length+"</b> · Devices: <b>"+DATA.devices.length+"</b> · Playlists: <b>"+DATA.playlists.length+"</b> <span class='small'>(store: "+esc(DATA.mode)+")</span></p><p class='small'>1. Crea fake-users · 2. Agrega M3U en Playlists · 3. Activa y asigna en Devices · 4. El cliente actualiza con el botón rojo.</p></div>";
+
+  var a = document.getElementById("app"), un = {};
+  DATA.users.forEach(function(u) { un[u.id] = u.login; });
+
+  if (TAB === "Home") {
+    a.innerHTML = "<div class='card'><h2>Home</h2><p>Fake-users: <b>" + DATA.users.length + "</b> · Devices: <b>" + DATA.devices.length + "</b> · Playlists: <b>" + DATA.playlists.length + "</b> <span class='small'>(store: " + esc(DATA.mode) + ")</span></p><p class='small'>1. Crea fake-users · 2. Agrega M3U en Playlists · 3. Edita canales/logos · 4. Activa y asigna en Devices.</p></div>";
   }
-  if(TAB==="Cabinet"){
-    a.innerHTML="<div class='card'><h2>Cabinet</h2><p>Admin: <b>"+esc(sessionStorage.getItem("ottname")||"")+"</b></p><p>Fake-users: <b>"+DATA.users.length+"</b><br/>Devices: <b>"+DATA.devices.length+"</b><br/>Playlists: <b>"+DATA.playlists.length+"</b></p></div>";
+
+  if (TAB === "Cabinet") {
+    a.innerHTML = "<div class='card'><h2>Cabinet</h2><p>Admin: <b>" + esc(sessionStorage.getItem("ottname") || "") + "</b></p><p>Fake-users: <b>" + DATA.users.length + "</b><br/>Devices: <b>" + DATA.devices.length + "</b><br/>Playlists: <b>" + DATA.playlists.length + "</b></p></div>";
   }
-  if(TAB==="Playlists"){
-    var h="<div class='card'><h2>Playlists</h2><input id='pn' placeholder='Nombre' style='width:200px'/><input id='pu' placeholder='URL M3U' style='width:280px'/><input id='pe' placeholder='URL EPG (opcional)' style='width:280px'/><button class='act' id='bp'>Agregar</button> <span class='small' id='pm'></span><br/><br/><table><tr><th>Nombre</th><th>URL</th><th></th></tr>";
-    DATA.playlists.forEach(function(p){h+="<tr><td>"+esc(p.name)+"</td><td class='small'>"+esc(p.url)+"</td><td><button class='danger' data-dp='"+p.id+"'>Borrar</button></td></tr>";});
-    a.innerHTML=h+"</table></div>";
-    document.getElementById("bp").onclick=function(){
-      api("/api/ott/admin/playlist","POST",{name:document.getElementById("pn").value.trim(),url:document.getElementById("pu").value.trim(),epgUrl:document.getElementById("pe").value.trim()}).then(refresh).catch(function(e){document.getElementById("pm").textContent=e.message;});
-    };
-    bindDel("dp","playlist");
+
+  if (TAB === "Playlists") {
+    if (CURRENT_PL) {
+      renderPlaylistEditor(a);
+    } else {
+      renderPlaylistsList(a);
+    }
   }
-  if(TAB==="Devices"){
-    var h="<div class='card'><h2>Devices</h2>";
-    if(!DATA.devices.length)h+="<p class='small'>Sin dispositivos. Aparecen cuando el cliente se loguea y registra su TV.</p>";
-    DATA.devices.forEach(function(d){
-      h+="<div class='dev'><b>"+esc(d.note||d.name)+"</b> <span class='small'>TV: "+esc(d.name)+" · fake-user: "+esc(un[d.userId]||d.userId)+" · "+esc(d.platform||"")+" · visto: "+esc(d.lastSeen||"-")+"</span> <button class='danger' data-dd='"+d.id+"'>Borrar</button><br/>";
-      h+="<span class='small'>Nombre/nota (no afecta al cliente):</span> <input data-note='"+d.id+"' value='"+esc(d.note||"")+"' placeholder='Ej. javi larrea CELULAR vence 09-02-27 1 año FULL' style='width:320px'/>";
-      h+="<span class='small'>Fake-user:</span> <select data-fu='"+d.id+"'>"+DATA.users.map(function(u){return"<option value='"+u.id+"'"+(u.id===d.userId?" selected":"")+">"+esc(u.login)+"</option>";}).join("")+"</select><br/>";
-      h+="<span class='small'>connected playlists:</span><br/>";
-      DATA.playlists.forEach(function(p){
-        var on=(d.playlists||[]).indexOf(p.id)>-1;
-        h+="<label class='chk'><input type='checkbox' data-dev='"+d.id+"' value='"+p.id+"'"+(on?" checked":"")+"/>"+esc(p.name)+"</label>";
+
+  if (TAB === "Devices") {
+    var h = "<div class='card'><h2>Devices</h2>";
+    if (!DATA.devices.length) h += "<p class='small'>Sin dispositivos. Aparecen cuando el cliente se loguea y registra su TV.</p>";
+    DATA.devices.forEach(function(d) {
+      h += "<div class='dev'><b>" + esc(d.note || d.name) + "</b> <span class='small'>TV: " + esc(d.name) + " · fake-user: " + esc(un[d.userId] || d.userId) + " · " + esc(d.platform || "") + " · visto: " + esc(d.lastSeen || "-") + "</span> <button class='danger' data-dd='" + d.id + "'>Borrar</button><br/>";
+      h += "<span class='small'>Nombre/nota:</span> <input data-note='" + d.id + "' value='" + esc(d.note || "") + "' placeholder='Ej. TV Sala' style='width:320px'/>";
+      h += "<span class='small'>Fake-user:</span> <select data-fu='" + d.id + "'>" + DATA.users.map(function(u) { return "<option value='" + u.id + "'" + (u.id === d.userId ? " selected" : "") + ">" + esc(u.login) + "</option>"; }).join("") + "</select><br/>";
+      h += "<span class='small'>connected playlists:</span><br/>";
+      DATA.playlists.forEach(function(p) {
+        var on = (d.playlists || []).indexOf(p.id) > -1;
+        h += "<label class='chk'><input type='checkbox' data-dev='" + d.id + "' value='" + p.id + "'" + (on ? " checked" : "") + "/>" + esc(p.name) + "</label>";
       });
-      h+="<br/><button class='act' data-save='"+d.id+"'>OK</button></div>";
+      h += "<br/><button class='act' data-save='" + d.id + "'>OK</button></div>";
     });
-    a.innerHTML=h+"</div>";
-    bindDel("dd","device");
-    var s=document.querySelectorAll("[data-save]");
-    for(var i=0;i<s.length;i++)s[i].onclick=function(){
-      var dev=this.getAttribute("data-save"),ids=[],c=document.querySelectorAll("input[data-dev='"+dev+"']");
-      for(var j=0;j<c.length;j++)if(c[j].checked)ids.push(c[j].value);
-      var note=document.querySelector("input[data-note='"+dev+"']").value;
-      var fu=document.querySelector("select[data-fu='"+dev+"']").value;
-      api("/api/ott/admin/device","PUT",{id:dev,note:note,userId:fu}).then(function(){
-        return api("/api/ott/admin/assign","POST",{deviceId:dev,playlistIds:ids});
-      }).then(function(){alert("Guardado. El cliente pulsa el botón rojo.");refresh();});
+    a.innerHTML = h + "</div>";
+    bindDel("dd", "device");
+    var s = document.querySelectorAll("[data-save]");
+    for (var i = 0; i < s.length; i++) s[i].onclick = function() {
+      var dev = this.getAttribute("data-save"), ids = [], c = document.querySelectorAll("input[data-dev='" + dev + "']");
+      for (var j = 0; j < c.length; j++) if (c[j].checked) ids.push(c[j].value);
+      var note = document.querySelector("input[data-note='" + dev + "']").value;
+      var fu = document.querySelector("select[data-fu='" + dev + "']").value;
+      api("/api/ott/admin/device", "PUT", { id: dev, note: note, userId: fu }).then(function() {
+        return api("/api/ott/admin/assign", "POST", { deviceId: dev, playlistIds: ids });
+      }).then(function() { alert("Guardado. El cliente pulsa el botón rojo en la TV."); refresh(); });
     };
   }
-  if(TAB==="Fake-users"){renderFU(a,un);}
+
+  if (TAB === "Fake-users") { renderFU(a, un); }
 }
-function renderFU(a,un){
-  var h="<button class='act' id='bcreate'>⊕ CREATE</button><h2 style='margin-top:14px'>fake users</h2>";
-  DATA.users.forEach(function(u){
-    var nd=DATA.devices.filter(function(d){return d.userId===u.id;}).length;
-    h+="<div class='furow' data-fu-row='"+u.id+"'>"+esc(u.login)+
-      " <span class='st "+(u.active?"on":"off")+"'>"+(u.active?"ON":"OFF")+"</span>"+
-      " <span class='small'>"+nd+" devices"+(u.expires?" · vence "+esc(u.expires):"")+"</span></div>";
-    if(OPENFU===u.id){
-      h+="<div class='card' id='fudet'><h2>"+esc(u.login)+
-        " <button class='danger' data-du='"+u.id+"' style='float:right'>Borrar</button>"+
-        " <button class='plain' data-edit-dev='"+u.id+"' style='float:right;margin-right:6px'>✎ Devices</button></h2>";
-      h+="<h4>Activity</h4><div class='seg'><button data-act='1' class='"+(u.active?"selon":"")+"'>ON</button><button data-act='0' class='"+(!u.active?"selon":"")+"'>OFF</button></div>";
-      h+="<h4>Vence (opcional)</h4><input type='date' id='fexp' value='"+esc(u.expires||"")+"'/> <button class='act' id='bexp'>OK</button>";
-      h+="<h4>Change password</h4><input id='fp1' type='password' placeholder='password'/><input id='fp2' type='password' placeholder='repeat password'/> <button class='act' id='bpw'>SAVE</button> <span class='small' id='pwmsg'></span>";
-      h+="<h4>Devices <span class='small'>(marca para asociar a este fake-user)</span></h4><div id='fudev'></div><button class='act' id='bdev'>SAVE</button></div>";
+
+/* ==================== VISTA: LISTA DE PLAYLISTS ==================== */
+function renderPlaylistsList(a) {
+  var h = "<div class='card'><h2>Playlists</h2><input id='pn' placeholder='Nombre' style='width:200px'/><input id='pu' placeholder='URL M3U' style='width:280px'/><input id='pe' placeholder='URL EPG (opcional)' style='width:280px'/><button class='act green' id='bp'>Agregar</button> <span class='small' id='pm'></span><br/><br/><table><tr><th>Nombre</th><th>URL</th><th>Acciones</th></tr>";
+  DATA.playlists.forEach(function(p) {
+    h += "<tr><td><b>" + esc(p.name) + "</b></td><td class='small' style='max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'>" + esc(p.url) + "</td>" +
+      "<td><button class='act green' data-edit-pl='" + p.id + "'>✎ Editar Contenido</button> " +
+      "<button class='danger' data-dp='" + p.id + "'>Borrar</button></td></tr>";
+  });
+  a.innerHTML = h + "</table></div>";
+
+  document.getElementById("bp").onclick = function() {
+    api("/api/ott/admin/playlist", "POST", {
+      name: document.getElementById("pn").value.trim(),
+      url: document.getElementById("pu").value.trim(),
+      epgUrl: document.getElementById("pe").value.trim()
+    }).then(refresh).catch(function(e) { document.getElementById("pm").textContent = e.message; });
+  };
+
+  bindDel("dp", "playlist");
+
+  var eb = document.querySelectorAll("[data-edit-pl]");
+  for (var i = 0; i < eb.length; i++) {
+    eb[i].onclick = function() {
+      var pid = this.getAttribute("data-edit-pl");
+      var pObj = null;
+      for (var k = 0; k < DATA.playlists.length; k++) if (DATA.playlists[k].id === pid) pObj = DATA.playlists[k];
+      loadPlaylistChannels(pObj);
+    };
+  }
+}
+
+/* ==================== CARGAR Y EDITAR CONTENIDO (Fotos 2 y 3) ==================== */
+function loadPlaylistChannels(pObj) {
+  var a = document.getElementById("app");
+  a.innerHTML = "<div class='card'><p>Descargando y procesando canales de <b>" + esc(pObj.name) + "</b>...</p></div>";
+  api("/api/ott/admin/playlist/channels?id=" + pObj.id).then(function(res) {
+    CURRENT_PL = {
+      id: pObj.id,
+      name: pObj.name,
+      channels: res.channels || [],
+      groups: res.groups || []
+    };
+    if (!CURRENT_PL.groups.length) CURRENT_PL.groups = ["General"];
+    CURRENT_GROUP = CURRENT_PL.groups[0];
+    render();
+  }).catch(function(err) {
+    alert("Error al cargar lista: " + err.message);
+    CURRENT_PL = null;
+    render();
+  });
+}
+
+function renderPlaylistEditor(a) {
+  var groupCounts = {};
+  CURRENT_PL.groups.forEach(function(g) { groupCounts[g] = 0; });
+  CURRENT_PL.channels.forEach(function(c) {
+    groupCounts[c.group] = (groupCounts[c.group] || 0) + 1;
+  });
+
+  var filteredChannels = CURRENT_PL.channels.filter(function(c) {
+    return c.group === CURRENT_GROUP;
+  });
+
+  var h = "<div class='editor-top-nav'>" +
+    "<div class='breadcrumb'><a href='#' id='btnBackToPlaylists'>playlists</a> / <b>" + esc(CURRENT_PL.name) + "</b></div>" +
+    "<div><button class='act green' id='btnSaveWholePlaylist'>💾 Guardar Cambios en Servidor</button></div>" +
+    "</div>";
+
+  h += "<div class='editor-layout'>";
+
+  // Panel Izquierdo: Grupos (Foto 2)
+  h += "<div class='editor-sidebar'>" +
+    "<button class='btn-new-group' id='btnAddNewGroup'>+ NEW GROUP</button>" +
+    "<div class='groups-list'>";
+
+  CURRENT_PL.groups.forEach(function(g) {
+    var count = groupCounts[g] || 0;
+    var isActive = g === CURRENT_GROUP;
+    h += "<div class='group-item " + (isActive ? "active" : "") + "' data-group-select='" + esc(g) + "'>" +
+      "<span class='group-item-name'>" + esc(g) + " (" + count + ")</span>" +
+      "<div class='group-item-actions'>" +
+        "<span title='Renombrar grupo' data-group-rename='" + esc(g) + "'>✏</span>" +
+        "<span title='Borrar grupo' data-group-del='" + esc(g) + "'>🗑</span>" +
+      "</div></div>";
+  });
+  h += "</div></div>";
+
+  // Panel Derecho: Canales en Grupo Seleccionado (Foto 2)
+  h += "<div class='editor-main'>" +
+    "<div class='editor-main-header'>" +
+      "<button class='btn-create-channel' id='btnCreateChannel'>+ create channel</button>" +
+      "<input class='search-channels' id='chSearchInput' placeholder='Buscar en " + esc(CURRENT_GROUP) + "...' />" +
+      "<span class='small'>" + filteredChannels.length + " canales</span>" +
+    "</div>" +
+    "<div class='channels-container' id='channelsListContainer'>";
+
+  if (!filteredChannels.length) {
+    h += "<p style='text-align:center;color:#888;margin-top:40px;'>No hay canales en el grupo <b>" + esc(CURRENT_GROUP) + "</b>.<br>Haz clic en <b>+ create channel</b> para añadir uno.</p>";
+  } else {
+    filteredChannels.forEach(function(c, idx) {
+      var globalIdx = CURRENT_PL.channels.indexOf(c);
+      var thumb = c.logo ? "<img class='channel-thumb' src='" + esc(c.logo) + "' onerror=\"this.style.display='none'\" />" : "<div class='channel-thumb' style='color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;'>SIN LOGO</div>";
+      h += "<div class='channel-row' data-ch-row='" + globalIdx + "'>" +
+        thumb +
+        "<span class='channel-name'>" + esc(c.name) + "</span>" +
+        "<div class='channel-actions'>" +
+          "<button class='channel-btn' title='Setting (Editar canal)' data-ch-edit='" + globalIdx + "'>⚙</button>" +
+          "<button class='channel-btn del' title='Borrar canal' data-ch-del='" + globalIdx + "'>🗑</button>" +
+        "</div></div>";
+    });
+  }
+  h += "</div></div></div>";
+
+  a.innerHTML = h;
+
+  // Eventos de Navegación y Grupos
+  document.getElementById("btnBackToPlaylists").onclick = function(e) {
+    e.preventDefault();
+    CURRENT_PL = null;
+    render();
+  };
+
+  document.getElementById("btnSaveWholePlaylist").onclick = function() {
+    savePlaylistToServer();
+  };
+
+  document.getElementById("btnAddNewGroup").onclick = function() {
+    var ng = prompt("Nombre del nuevo grupo (ej. CINE 2026, ACCION):");
+    if (ng && ng.trim()) {
+      ng = ng.trim();
+      if (CURRENT_PL.groups.indexOf(ng) < 0) {
+        CURRENT_PL.groups.push(ng);
+        CURRENT_GROUP = ng;
+        render();
+      }
+    }
+  };
+
+  var gItems = document.querySelectorAll("[data-group-select]");
+  for (var i = 0; i < gItems.length; i++) {
+    gItems[i].onclick = function() {
+      CURRENT_GROUP = this.getAttribute("data-group-select");
+      render();
+    };
+  }
+
+  var rBtns = document.querySelectorAll("[data-group-rename]");
+  for (var i = 0; i < rBtns.length; i++) {
+    rBtns[i].onclick = function(e) {
+      e.stopPropagation();
+      var oldG = this.getAttribute("data-group-rename");
+      var newG = prompt("Nuevo nombre para el grupo '" + oldG + "':", oldG);
+      if (newG && newG.trim() && newG.trim() !== oldG) {
+        newG = newG.trim();
+        var gIdx = CURRENT_PL.groups.indexOf(oldG);
+        if (gIdx > -1) CURRENT_PL.groups[gIdx] = newG;
+        CURRENT_PL.channels.forEach(function(c) {
+          if (c.group === oldG) c.group = newG;
+        });
+        if (CURRENT_GROUP === oldG) CURRENT_GROUP = newG;
+        savePlaylistToServer();
+      }
+    };
+  }
+
+  var dBtns = document.querySelectorAll("[data-group-del]");
+  for (var i = 0; i < dBtns.length; i++) {
+    dBtns[i].onclick = function(e) {
+      e.stopPropagation();
+      var gDel = this.getAttribute("data-group-del");
+      if (confirm("¿Borrar el grupo '" + gDel + "' y todos sus canales?")) {
+        CURRENT_PL.groups = CURRENT_PL.groups.filter(function(g) { return g !== gDel; });
+        CURRENT_PL.channels = CURRENT_PL.channels.filter(function(c) { return c.group !== gDel; });
+        if (!CURRENT_PL.groups.length) CURRENT_PL.groups = ["General"];
+        CURRENT_GROUP = CURRENT_PL.groups[0];
+        savePlaylistToServer();
+      }
+    };
+  }
+
+  document.getElementById("btnCreateChannel").onclick = function() {
+    openChannelSettingModal(-1);
+  };
+
+  var editBtns = document.querySelectorAll("[data-ch-edit]");
+  for (var i = 0; i < editBtns.length; i++) {
+    editBtns[i].onclick = function(e) {
+      e.stopPropagation();
+      var idx = parseInt(this.getAttribute("data-ch-edit"), 10);
+      openChannelSettingModal(idx);
+    };
+  }
+
+  var delBtns = document.querySelectorAll("[data-ch-del]");
+  for (var i = 0; i < delBtns.length; i++) {
+    delBtns[i].onclick = function(e) {
+      e.stopPropagation();
+      var idx = parseInt(this.getAttribute("data-ch-del"), 10);
+      if (confirm("¿Borrar este canal?")) {
+        CURRENT_PL.channels.splice(idx, 1);
+        savePlaylistToServer();
+      }
+    };
+  }
+
+  // Buscador en tiempo real de canales
+  var sInput = document.getElementById("chSearchInput");
+  sInput.oninput = function() {
+    var q = this.value.toLowerCase().trim();
+    var rows = document.querySelectorAll(".channel-row");
+    for (var i = 0; i < rows.length; i++) {
+      var name = rows[i].querySelector(".channel-name").textContent.toLowerCase();
+      rows[i].style.display = (name.indexOf(q) > -1 ? "flex" : "none");
+    }
+  };
+}
+
+/* ==================== MODAL CHANNEL'S SETTING (Foto 3) ==================== */
+function openChannelSettingModal(channelIdx) {
+  EDITING_CH_IDX = channelIdx;
+  var isNew = channelIdx === -1;
+  var ch = isNew ? { name: "", url: "", logo: "", group: CURRENT_GROUP, adult: false } : CURRENT_PL.channels[channelIdx];
+
+  document.getElementById("mChBreadcrumb").textContent = "playlists / " + CURRENT_PL.name;
+  document.getElementById("mChPlName").textContent = CURRENT_PL.name;
+  document.getElementById("mChName").value = ch.name || "";
+  document.getElementById("mChUrl").value = ch.url || "";
+  document.getElementById("mChIconUrl").value = ch.logo || "";
+
+  var sel = document.getElementById("mChGroupSelect");
+  sel.innerHTML = "";
+  CURRENT_PL.groups.forEach(function(g) {
+    var opt = document.createElement("option");
+    opt.value = g;
+    opt.textContent = g;
+    if (g === ch.group) opt.selected = true;
+    sel.appendChild(opt);
+  });
+
+  updateIconPreview(ch.logo || "");
+
+  var isAdult = !!ch.adult;
+  updateAdultToggle(isAdult);
+
+  document.getElementById("modalChannelSetting").className = "modal open";
+}
+
+function updateIconPreview(url) {
+  var img = document.getElementById("mChIconImgPreview");
+  if (url) {
+    img.src = url;
+    img.style.display = "block";
+  } else {
+    img.removeAttribute("src");
+    img.style.display = "none";
+  }
+}
+
+function updateAdultToggle(isAdult) {
+  document.getElementById("btnAdultYes").className = "adult-btn" + (isAdult ? " sel" : "");
+  document.getElementById("btnAdultNo").className = "adult-btn" + (!isAdult ? " sel" : "");
+}
+
+// Handlers del modal de edición
+document.getElementById("btnIconLibrary").onclick = function() {
+  document.getElementById("btnIconLibrary").className = "icon-toggle-btn sel";
+  document.getElementById("btnIconUpload").className = "icon-toggle-btn";
+  document.getElementById("mChIconUrl").style.display = "block";
+};
+
+document.getElementById("btnIconUpload").onclick = function() {
+  document.getElementById("btnIconUpload").className = "icon-toggle-btn sel";
+  document.getElementById("btnIconLibrary").className = "icon-toggle-btn";
+  document.getElementById("mChIconUrl").style.display = "none";
+  document.getElementById("mChIconFileInput").click();
+};
+
+document.getElementById("btnToolUploadPic").onclick = function() {
+  document.getElementById("mChIconFileInput").click();
+};
+
+document.getElementById("btnToolDeletePic").onclick = function() {
+  document.getElementById("mChIconUrl").value = "";
+  updateIconPreview("");
+};
+
+document.getElementById("mChIconFileInput").onchange = function() {
+  if (this.files && this.files[0]) {
+    var file = this.files[0];
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      var base64 = e.target.result;
+      updateIconPreview(base64);
+      // Subir al servidor inmediatamente
+      api("/api/ott/admin/upload-image", "POST", { data: base64 }).then(function(res) {
+        if (res && res.url) {
+          document.getElementById("mChIconUrl").value = res.url;
+          updateIconPreview(res.url);
+        }
+      }).catch(function(err) {
+        alert("Error al subir imagen: " + err.message);
+      });
+    };
+    reader.readAsDataURL(file);
+  }
+};
+
+document.getElementById("mChIconUrl").oninput = function() {
+  updateIconPreview(this.value.trim());
+};
+
+document.getElementById("btnAdultYes").onclick = function() { updateAdultToggle(true); };
+document.getElementById("btnAdultNo").onclick = function() { updateAdultToggle(false); };
+
+document.getElementById("btnCancelChModal").onclick = function() {
+  document.getElementById("modalChannelSetting").className = "modal";
+};
+
+document.getElementById("btnSaveChModal").onclick = function() {
+  var name = document.getElementById("mChName").value.trim();
+  var url = document.getElementById("mChUrl").value.trim();
+  var group = document.getElementById("mChGroupSelect").value;
+  var logo = document.getElementById("mChIconUrl").value.trim();
+  var adult = document.getElementById("btnAdultYes").classList.contains("sel");
+
+  if (!name) { alert("Ingresa el nombre del canal o película."); return; }
+  if (!url) { alert("Ingresa la URL del video o stream."); return; }
+
+  if (EDITING_CH_IDX === -1) {
+    CURRENT_PL.channels.push({
+      id: "c_" + (CURRENT_PL.channels.length + 1),
+      name: name,
+      url: url,
+      group: group,
+      logo: logo,
+      adult: adult
+    });
+  } else {
+    CURRENT_PL.channels[EDITING_CH_IDX].name = name;
+    CURRENT_PL.channels[EDITING_CH_IDX].url = url;
+    CURRENT_PL.channels[EDITING_CH_IDX].group = group;
+    CURRENT_PL.channels[EDITING_CH_IDX].logo = logo;
+    CURRENT_PL.channels[EDITING_CH_IDX].adult = adult;
+  }
+
+  document.getElementById("modalChannelSetting").className = "modal";
+  savePlaylistToServer();
+};
+
+function savePlaylistToServer() {
+  api("/api/ott/admin/playlist/save-channels", "POST", {
+    id: CURRENT_PL.id,
+    channels: CURRENT_PL.channels
+  }).then(function(res) {
+    render();
+  }).catch(function(err) {
+    alert("Error al guardar: " + err.message);
+  });
+}
+
+/* ==================== FAKE USERS ==================== */
+function renderFU(a, un) {
+  var h = "<button class='act' id='bcreate'>⊕ CREATE</button><h2 style='margin-top:14px'>fake users</h2>";
+  DATA.users.forEach(function(u) {
+    var nd = DATA.devices.filter(function(d) { return d.userId === u.id; }).length;
+    h += "<div class='furow' data-fu-row='" + u.id + "'>" + esc(u.login) +
+      " <span class='st " + (u.active ? "on" : "off") + "'>" + (u.active ? "ON" : "OFF") + "</span>" +
+      " <span class='small'>" + nd + " devices" + (u.expires ? " · vence " + esc(u.expires) : "") + "</span></div>";
+    if (OPENFU === u.id) {
+      h += "<div class='card' id='fudet'><h2>" + esc(u.login) +
+        " <button class='danger' data-du='" + u.id + "' style='float:right'>Borrar</button>" +
+        " <button class='plain' data-edit-dev='" + u.id + "' style='float:right;margin-right:6px'>✎ Devices</button></h2>";
+      h += "<h4>Activity</h4><div class='seg'><button data-act='1' class='" + (u.active ? "selon" : "") + "'>ON</button><button data-act='0' class='" + (!u.active ? "selon" : "") + "'>OFF</button></div>";
+      h += "<h4>Vence (opcional)</h4><input type='date' id='fexp' value='" + esc(u.expires || "") + "'/> <button class='act' id='bexp'>OK</button>";
+      h += "<h4>Change password</h4><input id='fp1' type='password' placeholder='password'/><input id='fp2' type='password' placeholder='repeat password'/> <button class='act' id='bpw'>SAVE</button> <span class='small' id='pwmsg'></span>";
+      h += "<h4>Devices <span class='small'>(marca para asociar a este fake-user)</span></h4><div id='fudev'></div><button class='act' id='bdev'>SAVE</button></div>";
     }
   });
-  a.innerHTML=h;
-  var rows=document.querySelectorAll("[data-fu-row]");
-  for(var i=0;i<rows.length;i++)rows[i].onclick=function(){OPENFU=(OPENFU===this.getAttribute("data-fu-row"))?null:this.getAttribute("data-fu-row");render();};
-  document.getElementById("bcreate").onclick=function(){document.getElementById("modal").className="modal open";};
-  if(OPENFU)bindDetail(OPENFU);
+  a.innerHTML = h;
+  var rows = document.querySelectorAll("[data-fu-row]");
+  for (var i = 0; i < rows.length; i++) rows[i].onclick = function() { OPENFU = (OPENFU === this.getAttribute("data-fu-row")) ? null : this.getAttribute("data-fu-row"); render(); };
+  document.getElementById("bcreate").onclick = function() { document.getElementById("modal").className = "modal open"; };
+  if (OPENFU) bindDetail(OPENFU);
 }
-function bindDetail(uid){
-  var u=null;for(var i=0;i<DATA.users.length;i++)if(DATA.users[i].id===uid)u=DATA.users[i];
-  if(!u)return;
-  var segs=document.querySelectorAll("#fudet .seg button");
-  for(var i=0;i<segs.length;i++)segs[i].onclick=function(){
-    api("/api/ott/admin/user","POST",{id:uid,active:this.getAttribute("data-act")==="1"}).then(refresh);
+
+function bindDetail(uid) {
+  var u = null; for (var i = 0; i < DATA.users.length; i++) if (DATA.users[i].id === uid) u = DATA.users[i];
+  if (!u) return;
+  var segs = document.querySelectorAll("#fudet .seg button");
+  for (var i = 0; i < segs.length; i++) segs[i].onclick = function() {
+    api("/api/ott/admin/user", "POST", { id: uid, active: this.getAttribute("data-act") === "1" }).then(refresh);
   };
-  document.getElementById("bexp").onclick=function(){
-    api("/api/ott/admin/user","POST",{id:uid,expires:document.getElementById("fexp").value}).then(refresh);
+  document.getElementById("bexp").onclick = function() {
+    api("/api/ott/admin/user", "POST", { id: uid, expires: document.getElementById("fexp").value }).then(refresh);
   };
-  document.getElementById("bpw").onclick=function(){
-    var p1=document.getElementById("fp1").value,p2=document.getElementById("fp2").value;
-    if(!p1||p1!==p2){document.getElementById("pwmsg").textContent="No coinciden.";return;}
-    api("/api/ott/admin/user","POST",{id:uid,password:p1}).then(function(){document.getElementById("pwmsg").textContent="Guardado.";});
+  document.getElementById("bpw").onclick = function() {
+    var p1 = document.getElementById("fp1").value, p2 = document.getElementById("fp2").value;
+    if (!p1 || p1 !== p2) { document.getElementById("pwmsg").textContent = "No coinciden."; return; }
+    api("/api/ott/admin/user", "POST", { id: uid, password: p1 }).then(function() { document.getElementById("pwmsg").textContent = "Guardado."; });
   };
-  var box=document.getElementById("fudev"),h="";
-  DATA.devices.forEach(function(d){
-    var on=d.userId===uid;
-    h+="<label class='chk'><input type='checkbox' data-fdev='"+d.id+"'"+(on?" checked":"")+"/>"+esc(d.note||d.name)+" <span class='small'>("+esc(d.platform||"")+")</span></label><br/>";
+  var box = document.getElementById("fudev"), h = "";
+  DATA.devices.forEach(function(d) {
+    var on = d.userId === uid;
+    h += "<label class='chk'><input type='checkbox' data-fdev='" + d.id + "'" + (on ? " checked" : "") + "/>" + esc(d.note || d.name) + " <span class='small'>(" + esc(d.platform || "") + ")</span></label><br/>";
   });
-  box.innerHTML=h||"<p class='small'>Sin devices registrados.</p>";
-  document.getElementById("bdev").onclick=function(){
-    var c=box.querySelectorAll("input[data-fdev]"),jobs=[];
-    for(var j=0;j<c.length;j++){
-      var did=c[j].getAttribute("data-fdev"),want=c[j].checked;
-      var cur=null;for(var k=0;k<DATA.devices.length;k++)if(DATA.devices[k].id===did)cur=DATA.devices[k];
-      if(cur&&((cur.userId===uid)!==want)){
-        if(want)jobs.push(api("/api/ott/admin/device","PUT",{id:did,userId:uid}));
+  box.innerHTML = h || "<p class='small'>Sin devices registrados.</p>";
+  document.getElementById("bdev").onclick = function() {
+    var c = box.querySelectorAll("input[data-fdev]"), jobs = [];
+    for (var j = 0; j < c.length; j++) {
+      var did = c[j].getAttribute("data-fdev"), want = c[j].checked;
+      var cur = null; for (var k = 0; k < DATA.devices.length; k++) if (DATA.devices[k].id === did) cur = DATA.devices[k];
+      if (cur && ((cur.userId === uid) !== want)) {
+        if (want) jobs.push(api("/api/ott/admin/device", "PUT", { id: did, userId: uid }));
       }
     }
     Promise.all(jobs).then(refresh);
   };
-  var dd=document.querySelector("[data-du]");
-  if(dd)dd.onclick=function(e){e.stopPropagation();if(confirm("¿Borrar fake-user?"))api("/api/ott/admin/user?id="+uid,"DELETE").then(function(){OPENFU=null;refresh();});};
-  var ed=document.querySelector("[data-edit-dev]");
-  if(ed)ed.onclick=function(e){e.stopPropagation();TAB="Devices";OPENFU=null;render();};
+  var dd = document.querySelector("[data-du]");
+  if (dd) dd.onclick = function(e) { e.stopPropagation(); if (confirm("¿Borrar fake-user?")) api("/api/ott/admin/user?id=" + uid, "DELETE").then(function() { OPENFU = null; refresh(); }); };
+  var ed = document.querySelector("[data-edit-dev]");
+  if (ed) ed.onclick = function(e) { e.stopPropagation(); TAB = "Devices"; OPENFU = null; render(); };
 }
-function bindDel(attr,kind){
-  var b=document.querySelectorAll("[data-"+attr+"]");
-  for(var i=0;i<b.length;i++)b[i].onclick=function(){
-    if(!confirm("¿Borrar?"))return;
-    api("/api/ott/admin/"+kind+"?id="+this.getAttribute("data-"+attr),"DELETE").then(refresh);
+
+function bindDel(attr, kind) {
+  var b = document.querySelectorAll("[data-" + attr + "]");
+  for (var i = 0; i < b.length; i++) b[i].onclick = function() {
+    if (!confirm("¿Borrar?")) return;
+    api("/api/ott/admin/" + kind + "?id=" + this.getAttribute("data-" + attr), "DELETE").then(refresh);
   };
 }
-document.getElementById("mcancel").onclick=function(){document.getElementById("modal").className="modal";};
-document.getElementById("msave").onclick=function(){
-  var u=document.getElementById("mu").value.trim(),p1=document.getElementById("mp").value,p2=document.getElementById("mp2").value;
-  if(!u){document.getElementById("mmsg").textContent="Falta username.";return;}
-  if(!p1||p1!==p2){document.getElementById("mmsg").textContent="Passwords no coinciden.";return;}
-  api("/api/ott/admin/user","POST",{login:u,password:p1}).then(function(){
-    document.getElementById("modal").className="modal";
-    document.getElementById("mu").value="";document.getElementById("mp").value="";document.getElementById("mp2").value="";
+
+document.getElementById("mcancel").onclick = function() { document.getElementById("modal").className = "modal"; };
+document.getElementById("msave").onclick = function() {
+  var u = document.getElementById("mu").value.trim(), p1 = document.getElementById("mp").value, p2 = document.getElementById("mp2").value;
+  if (!u) { document.getElementById("mmsg").textContent = "Falta username."; return; }
+  if (!p1 || p1 !== p2) { document.getElementById("mmsg").textContent = "Passwords no coinciden."; return; }
+  api("/api/ott/admin/user", "POST", { login: u, password: p1 }).then(function() {
+    document.getElementById("modal").className = "modal";
+    document.getElementById("mu").value = ""; document.getElementById("mp").value = ""; document.getElementById("mp2").value = "";
     refresh();
-  }).catch(function(e){document.getElementById("mmsg").textContent=e.message;});
+  }).catch(function(e) { document.getElementById("mmsg").textContent = e.message; });
 };
+
 refresh();
 </script>
 </body>

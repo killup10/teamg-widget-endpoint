@@ -75,6 +75,54 @@ async function fetchText(url) {
     return await r.text();
   } finally { clearTimeout(t); }
 }
+
+function parseM3uText(text) {
+  const lines = String(text || '').split(/\r?\n/);
+  const channels = [];
+  const groupsSet = new Set();
+  let current = null;
+  let chId = 1;
+
+  for (let i = 0; i < lines.length; i++) {
+    const ln = lines[i].trim();
+    if (!ln) continue;
+    if (ln.indexOf('#EXTINF') === 0) {
+      const parts = ln.split(',');
+      const name = (parts.length > 1 ? parts.slice(1).join(',') : 'Canal').trim();
+      let logo = '';
+      let group = 'General';
+      let adult = false;
+
+      const mLogo = ln.match(/tvg-logo="([^"]*)"/i);
+      if (mLogo) logo = mLogo[1];
+      const mGroup = ln.match(/group-title="([^"]*)"/i);
+      if (mGroup && mGroup[1].trim()) group = mGroup[1].trim();
+      if (/adult="1"|censored="1"/i.test(ln) || /18\+|adult/i.test(group)) adult = true;
+
+      current = { id: 'c_' + (chId++), name, logo, group, adult };
+      groupsSet.add(group);
+    } else if (ln.charAt(0) !== '#') {
+      if (current) {
+        current.url = ln;
+        channels.push(current);
+        current = null;
+      }
+    }
+  }
+  return { channels, groups: Array.from(groupsSet).sort() };
+}
+
+function serializeChannelsToM3u(channels) {
+  let m3u = '#EXTM3U\n';
+  for (const c of (channels || [])) {
+    const logoAttr = c.logo ? ` tvg-logo="${c.logo}"` : '';
+    const groupAttr = c.group ? ` group-title="${c.group}"` : '';
+    const adultAttr = c.adult ? ' adult="1"' : '';
+    m3u += `#EXTINF:-1${logoAttr}${groupAttr}${adultAttr},${c.name}\n${c.url}\n`;
+  }
+  return m3u;
+}
+
 const pub = (p) => ({ id: p._id, name: p.name, epg: p.epgUrl || '' });
 
 async function authedDevice(body, query) {
@@ -140,6 +188,11 @@ async function handle(req, res, pathname, query, body) {
     if (a.err) return json(res, 401, { ok: false, error: a.err });
     const pl = await a.cols.playlists.findOne({ _id: String(query.pid || '') });
     if (!pl || (a.dev.playlists || []).indexOf(pl._id) < 0) return json(res, 403, { ok: false, error: 'No asignada' });
+    if (pathname === '/api/ott/m3u' && pl.customM3u) {
+      res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+      res.end(pl.customM3u);
+      return;
+    }
     let target = pathname === '/api/ott/m3u' ? pl.url : (pl.epgUrl || '');
     if (!target) return json(res, 404, { ok: false, error: 'Sin URL' });
     try {
@@ -148,6 +201,27 @@ async function handle(req, res, pathname, query, body) {
       res.end(text);
     } catch (e) { return json(res, 502, { ok: false, error: 'No se pudo descargar: ' + e.message }); }
     return;
+  }
+
+  // ---- Icono público subido por el admin ----
+  if (pathname.indexOf('/api/ott/icon/') === 0 && req.method === 'GET') {
+    const iconId = pathname.replace('/api/ott/icon/', '').trim();
+    if (!iconId) return json(res, 404, { ok: false });
+    const icon = await cols.icons.findOne({ _id: iconId });
+    if (!icon || !icon.data) return json(res, 404, { ok: false });
+    try {
+      const parts = String(icon.data).split(',');
+      const mime = (parts[0] && parts[0].match(/:(.*?);/)) ? parts[0].match(/:(.*?);/)[1] : 'image/png';
+      const buf = Buffer.from(parts[1] || parts[0], 'base64');
+      res.writeHead(200, {
+        'Content-Type': mime,
+        'Cache-Control': 'public, max-age=31536000, immutable'
+      });
+      res.end(buf);
+      return;
+    } catch (e) {
+      return json(res, 500, { ok: false });
+    }
   }
 
   // ---- ADMIN: login con usuario+password (no ADMIN_KEY) ----
@@ -232,6 +306,40 @@ async function handle(req, res, pathname, query, body) {
       await cols.devices.updateOne({ _id: String(body.id) }, { $set: upd });
       return json(res, 200, { ok: true });
     }
+    if (sub === 'playlist/channels' && req.method === 'GET') {
+      const pl = await cols.playlists.findOne({ _id: String(query.id || '') });
+      if (!pl) return json(res, 404, { ok: false, error: 'Lista no encontrada' });
+      let text = pl.customM3u || '';
+      if (!text && pl.url) {
+        try {
+          text = await fetchText(pl.url);
+        } catch (e) {
+          return json(res, 502, { ok: false, error: 'No se pudo descargar la lista original: ' + e.message });
+        }
+      }
+      const parsed = parseM3uText(text || '');
+      return json(res, 200, {
+        ok: true,
+        playlist: { id: pl._id, name: pl.name, url: pl.url },
+        channels: parsed.channels,
+        groups: parsed.groups
+      });
+    }
+
+    if (sub === 'playlist/save-channels' && req.method === 'POST') {
+      if (!body.id || !Array.isArray(body.channels)) return json(res, 400, { ok: false, error: 'id+channels' });
+      const m3uText = serializeChannelsToM3u(body.channels);
+      await cols.playlists.updateOne({ _id: String(body.id) }, { $set: { customM3u: m3uText, count: body.channels.length, updatedAt: store.nowIso() } });
+      return json(res, 200, { ok: true, count: body.channels.length });
+    }
+
+    if (sub === 'upload-image' && req.method === 'POST') {
+      if (!body.data) return json(res, 400, { ok: false, error: 'Falta data' });
+      const iconId = store.uid();
+      await cols.icons.insertOne({ _id: iconId, data: body.data, created: store.nowIso() });
+      return json(res, 200, { ok: true, url: '/api/ott/icon/' + iconId });
+    }
+
     return json(res, 404, { ok: false });
   }
 

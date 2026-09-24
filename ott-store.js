@@ -46,10 +46,11 @@ async function init() {
       users: wrap(db.collection('ott_users')),
       devices: wrap(db.collection('ott_devices')),
       playlists: wrap(db.collection('ott_playlists')),
+      icons: wrap(db.collection('ott_icons')),
     };
     console.log('[OTT] store: mongo');
   } else {
-    cols = { mode: 'memory', users: memCol(), devices: memCol(), playlists: memCol() };
+    cols = { mode: 'memory', users: memCol(), devices: memCol(), playlists: memCol(), icons: memCol() };
     console.log('[OTT] store: memory (pon MONGODB_URI en Render para producción)');
   }
   return cols;

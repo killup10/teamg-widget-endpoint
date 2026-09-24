@@ -149,14 +149,15 @@ const server = http.createServer((req, res) => {
     return serveFile(path.join(__dirname, 'ott', 'icon.png'), res);
   }
 
-  // API OTT (login, dispositivos, feed, admin). Cuerpo JSON hasta 1MB.
+  // API OTT (login, dispositivos, feed, admin). Cuerpo JSON hasta 15MB.
   if (pathname.indexOf('/api/ott/') === 0) {
     let raw = '';
-    req.on('data', (c) => { raw += c; if (raw.length > 1048576) req.destroy(); });
+    req.on('data', (c) => { raw += c; if (raw.length > 15728640) req.destroy(); });
     req.on('end', () => {
       let body = {};
       try { body = raw ? JSON.parse(raw) : {}; } catch (e) { body = {}; }
-      ottApi.handle(req, res, pathname, query, body).catch(() => {
+      ottApi.handle(req, res, pathname, query, body).catch((err) => {
+        console.error('API Error:', err);
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end('{"ok":false}');
       });
