@@ -6,8 +6,11 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "build": "echo 'No build step required'",
+    "build": "npm install --omit=dev",
     "deploy": "vercel --prod"
+  },
+  "dependencies": {
+    "mongodb": "^6.9.0"
   },
   "keywords": [
     "teamg",

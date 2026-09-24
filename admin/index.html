@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>OTT TV - Admin</title>
+<style>
+body{background:#0b0e14;color:#eef;font-family:Arial,sans-serif;margin:0;padding:18px}
+h1{font-size:20px} h2{font-size:16px;color:#ffd23f;border-bottom:1px solid #333;padding-bottom:4px}
+.card{background:#141926;border:1px solid #2a3340;border-radius:8px;padding:14px;margin:12px 0;max-width:900px}
+input,select{background:#0b0e12;border:1px solid #2a3340;color:#fff;padding:9px;border-radius:6px;margin:3px;font-size:14px}
+button{background:#22c55e;border:0;color:#04120a;font-weight:700;padding:9px 14px;border-radius:6px;cursor:pointer;margin:3px}
+button.red{background:#e53935;color:#fff} button.ghost{background:transparent;border:1px solid #555;color:#fff}
+table{border-collapse:collapse;width:100%;font-size:14px} td,th{border-bottom:1px solid #2a3340;padding:7px 6px;text-align:left}
+.small{color:#9aa4b5;font-size:12px}
+.chk{display:inline-block;margin:2px 8px 2px 0}.chk input{margin-right:4px}
+#login{background:#141926;border:1px solid #2a3340;border-radius:8px;padding:20px;max-width:380px;margin:60px auto}
+</style>
+</head>
+<body>
+<div id="login">
+  <h1>OTT TV Admin</h1>
+  <p class="small">Clave de administrador (ADMIN_KEY de Render).</p>
+  <input id="key" type="password" placeholder="admin key" style="width:100%;box-sizing:border-box" />
+  <br/><button id="btnIn">Entrar</button>
+  <p class="small" id="lerr"></p>
+</div>
+<div id="app" style="display:none">
+  <h1>OTT TV Admin <span class="small" id="mode"></span></h1>
+  <div class="card"><h2>Crear usuario (login + password para el cliente)</h2>
+    <input id="nu" placeholder="usuario" /><input id="np" placeholder="password" />
+    <button id="btnU">Crear</button><span class="small" id="umsg"></span>
+    <table id="tU"></table>
+  </div>
+  <div class="card"><h2>Playlists M3U del sistema</h2>
+    <input id="pn" placeholder="Nombre (ej. Plan Gplay)" style="width:200px" />
+    <input id="pu" placeholder="URL M3U" style="width:300px" />
+    <input id="pe" placeholder="URL EPG XMLTV (opcional)" style="width:300px" />
+    <button id="btnP">Agregar</button><span class="small" id="pmsg"></span>
+    <table id="tP"></table>
+  </div>
+  <div class="card"><h2>Dispositivos y asignación</h2>
+    <p class="small">Marca las listas de cada TV y pulsa Guardar. El cliente actualiza con el botón rojo.</p>
+    <div id="devs"></div>
+  </div>
+</div>
+<script>
+var KEY="";
+function api(path,method,body){
+  return fetch(path,{method:method||"GET",headers:{"Content-Type":"application/json","x-admin-key":KEY},body:body?JSON.stringify(body):undefined})
+    .then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.json();});
+}
+function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;");}
+document.getElementById("btnIn").onclick=function(){
+  KEY=document.getElementById("key").value;
+  api("/api/ott/admin/overview").then(function(o){
+    document.getElementById("login").style.display="none";
+    document.getElementById("app").style.display="";
+    document.getElementById("mode").textContent="· store: "+o.mode;
+    render(o);
+  }).catch(function(){document.getElementById("lerr").textContent="Clave incorrecta.";});
+};
+function refresh(){api("/api/ott/admin/overview").then(render).catch(function(e){alert(e.message);});}
+function render(o){
+  var tU="<tr><th>Usuario</th><th>Creado</th><th></th></tr>";
+  o.users.forEach(function(u){tU+="<tr><td>"+esc(u.login)+"</td><td class='small'>"+esc(u.created||"")+"</td><td><button class='red' data-du='"+u.id+"'>Borrar</button></td></tr>";});
+  document.getElementById("tU").innerHTML=tU;
+  var tP="<tr><th>Lista</th><th>URL</th><th></th></tr>";
+  o.playlists.forEach(function(p){tP+="<tr><td>"+esc(p.name)+"</td><td class='small'>"+esc(p.url)+"</td><td><button class='red' data-dp='"+p.id+"'>Borrar</button></td></tr>";});
+  document.getElementById("tP").innerHTML=tP;
+  var un={};o.users.forEach(function(u){un[u.id]=u.login;});
+  var h="";
+  o.devices.forEach(function(d){
+    h+="<div style='border:1px solid #2a3340;border-radius:6px;padding:10px;margin:8px 0'>";
+    h+="<b>"+esc(d.name)+"</b> <span class='small'>"+esc(d.id)+" · usuario: "+esc(un[d.userId]||d.userId)+" · "+esc(d.platform||"")+" · visto: "+esc(d.lastSeen||"-")+"</span> ";
+    h+="<button class='red' data-dd='"+d.id+"'>Borrar</button><br/>";
+    o.playlists.forEach(function(p){
+      var on=(d.playlists||[]).indexOf(p.id)>-1;
+      h+="<label class='chk'><input type='checkbox' data-dev='"+d.id+"' value='"+p.id+"'"+(on?" checked":"")+"/>"+esc(p.name)+"</label>";
+    });
+    h+="<br/><button data-save='"+d.id+"'>Guardar asignación</button></div>";
+  });
+  document.getElementById("devs").innerHTML=h||"<p class='small'>Aún no hay dispositivos. Aparecen cuando el cliente se loguea y registra su TV.</p>";
+  bind(o);
+}
+function bind(){
+  var b;
+  b=document.querySelectorAll("[data-du]");for(var i=0;i<b.length;i++)b[i].onclick=function(){if(confirm("¿Borrar usuario?"))api("/api/ott/admin/user?id="+this.getAttribute("data-du"),"DELETE").then(refresh);};
+  b=document.querySelectorAll("[data-dp]");for(var i=0;i<b.length;i++)b[i].onclick=function(){if(confirm("¿Borrar lista?"))api("/api/ott/admin/playlist?id="+this.getAttribute("data-dp"),"DELETE").then(refresh);};
+  b=document.querySelectorAll("[data-dd]");for(var i=0;i<b.length;i++)b[i].onclick=function(){if(confirm("¿Borrar dispositivo?"))api("/api/ott/admin/device?id="+this.getAttribute("data-dd"),"DELETE").then(refresh);};
+  b=document.querySelectorAll("[data-save]");for(var i=0;i<b.length;i++)b[i].onclick=function(){
+    var dev=this.getAttribute("data-save"),ids=[],c=document.querySelectorAll("input[data-dev='"+dev+"']");
+    for(var j=0;j<c.length;j++)if(c[j].checked)ids.push(c[j].value);
+    api("/api/ott/admin/assign","POST",{deviceId:dev,playlistIds:ids}).then(function(){alert("Guardado. Dile al cliente que pulse el botón rojo.");}).then(refresh);
+  };
+}
+document.getElementById("btnU").onclick=function(){
+  var l=document.getElementById("nu").value.trim(),p=document.getElementById("np").value;
+  api("/api/ott/admin/user","POST",{login:l,password:p}).then(function(){document.getElementById("umsg").textContent="Creado: "+l;refresh();}).catch(function(e){document.getElementById("umsg").textContent=e.message;});
+};
+document.getElementById("btnP").onclick=function(){
+  var n=document.getElementById("pn").value.trim(),u=document.getElementById("pu").value.trim(),e=document.getElementById("pe").value.trim();
+  api("/api/ott/admin/playlist","POST",{name:n,url:u,epgUrl:e}).then(function(){document.getElementById("pmsg").textContent="Agregada.";refresh();}).catch(function(e2){document.getElementById("pmsg").textContent=e2.message;});
+};
+</script>
+</body>
+</html>

@@ -50,6 +50,23 @@ button:focus{outline:3px solid #fff}
 .tile .ep.live{color:var(--ok)}
 .tile .bar{height:4px;background:#ffffff33;margin-top:4px;border-radius:2px}
 .tile .bar i{display:block;height:100%;background:var(--ok);border-radius:2px}
+#hicons{display:flex;gap:8px;margin-left:12px}
+.ic{position:relative;width:44px;height:44px;border-radius:50%;background:#ffffff22;border:2px solid #ffffff88;color:#fff;font-size:20px;cursor:pointer;margin:0;padding:0;font-family:inherit}
+.ic i{position:absolute;left:8px;right:8px;bottom:-7px;height:4px;border-radius:2px}
+.ic:focus{outline:3px solid #fff}
+/* carpetas = playlists asignadas por el admin */
+#view-folders{flex:1;display:none;flex-direction:column;min-height:0;overflow:auto;padding:16px}
+#foldmsg{color:var(--mut);margin:4px 2px 12px}
+#folders{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+@media(max-width:900px){#folders{grid-template-columns:repeat(2,1fr)}}
+.folder{background:var(--panel);border:2px solid #ffffff33;border-radius:8px;padding:22px 12px;cursor:pointer;text-align:center;font-size:18px}
+.folder .fi{font-size:40px}
+.folder small{display:block;color:var(--mut);font-size:13px;margin-top:6px}
+.folder.focused,.folder:focus{border-color:var(--focus);outline:3px solid #fff}
+/* cuenta */
+.accbox{background:#06063a;border:1px solid #ffffff44;border-radius:8px;padding:14px;margin-bottom:14px}
+.accbox h3{margin:0 0 8px;color:#ffcf40;font-size:16px}
+#accstatus{font-size:13px;color:var(--mut);margin-top:8px}
 /* player */
 #player{position:fixed;inset:0;background:#000;display:none;z-index:50}
 #player.open{display:block}
@@ -83,11 +100,34 @@ button:focus{outline:3px solid #fff}
 </head>
 <body>
 <div id="app">
-  <header class="top"><div class="logo">OTT <b>TV</b></div><div id="epgstate"></div><div id="clock"></div></header>
+  <header class="top">
+    <div class="logo">OTT <b>TV</b></div>
+    <div id="hicons">
+      <button class="ic" id="btnRed" title="Actualizar (botón rojo)">&#8635;<i class="r"></i></button>
+      <button class="ic" id="btnAcc" title="Cuenta (botón verde)">&#9998;<i class="g"></i></button>
+      <button class="ic" id="btnCfg" title="Ajustes (botón amarillo)">&#9881;<i class="y"></i></button>
+    </div>
+    <div id="epgstate"></div><div id="clock"></div>
+  </header>
 
   <div id="view-setup">
     <div class="setupbox">
-      <h2>Listas y gu&iacute;a</h2>
+      <h2>Cuenta y listas</h2>
+      <div class="accbox">
+        <h3>Cuenta (la crea tu administrador)</h3>
+        <label>Login (usuario)</label>
+        <input id="accLogin" type="text" placeholder="usuario" autocomplete="off" />
+        <label>Password</label>
+        <input id="accPass" type="text" placeholder="password" autocomplete="off" />
+        <label>Nombre del dispositivo</label>
+        <input id="devName" type="text" placeholder="Ej. Living Samsung" />
+        <div>
+          <button id="btnLink" class="green">Guardar y registrar TV</button>
+          <button id="btnUnlink" class="ghost">Cerrar sesión</button>
+        </div>
+        <div id="accstatus">Sin cuenta.</div>
+      </div>
+      <h2>Lista local (modo prueba)</h2>
       <p>La lista M3U y la gu&iacute;a EPG quedan guardadas en este TV.</p>
       <label>Lista M3U (URL o archivo)</label>
       <input id="m3uUrl" type="url" placeholder="https://tudominio.com/lista.m3u" />
@@ -111,6 +151,11 @@ button:focus{outline:3px solid #fff}
   <div id="view-home">
     <div id="tabs" tabindex="0"></div>
     <div id="grid" tabindex="0"></div>
+  </div>
+
+  <div id="view-folders">
+    <div id="foldmsg"></div>
+    <div id="folders"></div>
   </div>
 </div>
 
@@ -301,8 +346,8 @@ function focusTile(i){
   if(i<0)i=0;if(i>=ts.length)i=ts.length-1;tileIdx=i;ts[i].focus();
 }
 function renderAll(){renderTabs();renderGrid();}
-function showHome(){$("view-setup").style.display="none";$("view-home").style.display="flex";computeGroups();renderAll();}
-function showSetup(){$("view-home").style.display="none";$("view-setup").style.display="flex";}
+function showHome(){$("view-setup").style.display="none";$("view-folders").style.display="none";$("view-home").style.display="flex";computeGroups();renderAll();}
+function showSetup(){$("view-home").style.display="none";$("view-folders").style.display="none";$("view-setup").style.display="flex";paintAcc();}
 
 /* ---- player ---- */
 var hls=null,pi=0,plistOpen=false,hideT=null,zapBuf="",zapT=null;
@@ -429,10 +474,16 @@ document.addEventListener("keydown",function(e){
     if(e.key==="Backspace"||e.key==="Escape"||kc===461||kc===10009||kc===403){stop();e.preventDefault();return;}
     return;
   }
-  if($("view-home").style.display!=="flex")return;
+  if($("view-home").style.display!=="flex"&&$("view-folders").style.display!=="flex")return;
   var tag=(document.activeElement&&document.activeElement.tagName)||"";
   if(tag==="INPUT"||tag==="SELECT")return;
-  if(kc===403){showSetup();e.preventDefault();return;}
+  if(e.key==="Backspace"||e.key==="Escape"||kc===461||kc===10009){
+    if(FOLDERS.length&&$("view-home").style.display==="flex"){showFolders();}
+    else showSetup();
+    e.preventDefault();return;
+  }
+  if(kc===403){if(ACC.token)doFeed(true);else showSetup();e.preventDefault();return;}
+  if($("view-folders").style.display==="flex")return;
   if(kc===404){var c=rows[tileIdx];if(c){if(favs[c.id])delete favs[c.id];else favs[c.id]=1;try{localStorage.setItem(LS_FAV,JSON.stringify(favs));}catch(x){}renderAll();focusTile(tileIdx);}e.preventDefault();return;}
   if(kc===405){var c2=rows[tileIdx];if(c2){if(hids[c2.id])delete hids[c2.id];else hids[c2.id]=1;try{localStorage.setItem(LS_HID,JSON.stringify(hids));}catch(x){}computeGroups();renderAll();focusTile(Math.min(tileIdx,rows.length-1));}e.preventDefault();return;}
   var cols=6;
@@ -442,8 +493,107 @@ document.addEventListener("keydown",function(e){
   else if(e.key==="ArrowUp"){if(tileIdx-cols<0){var tb=$("tabs").getElementsByClassName("tab");if(tb.length)tb[0].focus();}else focusTile(tileIdx-cols);e.preventDefault();}
 });
 
+/* ---- cuenta OTT: login + NEW DEVICE + carpetas del admin ---- */
+var ACC={},FOLDERS=[],curFolder=null;
+function lsGet(k){try{return localStorage.getItem(k);}catch(e){return null;}}
+function lsSet(k,v){try{localStorage.setItem(k,v);}catch(e){}}
+function loadAcc(){try{ACC=JSON.parse(lsGet("ottv2_acc")||"{}")||{};}catch(e){ACC={};}}
+function saveAcc(){lsSet("ottv2_acc",JSON.stringify(ACC));}
+function apiBase(){return location.protocol+"//"+location.host;}
+function apiReq(method,p,b,cb){
+  var u=apiBase()+p;
+  if(window.fetch){
+    fetch(u,{method:method,headers:{"Content-Type":"application/json"},body:b?JSON.stringify(b):undefined})
+      .then(function(r){return r.text().then(function(t){return{st:r.status,tx:t};});})
+      .then(function(o){var j=null;try{j=JSON.parse(o.tx);}catch(e){}cb(o.st,j,o.tx);})
+      .catch(function(e){cb(0,null,String(e));});
+  }else{
+    var x=new XMLHttpRequest();x.open(method,u,true);x.setRequestHeader("Content-Type","application/json");
+    x.onreadystatechange=function(){if(x.readyState===4){var j=null;try{j=JSON.parse(x.responseText);}catch(e){}cb(x.status,j,x.responseText);}};
+    x.onerror=function(){cb(0,null,"red");};x.send(b?JSON.stringify(b):null);
+  }
+}
+function platformName(){
+  var ua=navigator.userAgent||"";
+  if(ua.indexOf("Tizen")>-1)return "SamsungTV";
+  if(ua.indexOf("Web0S")>-1||ua.indexOf("webOS")>-1)return "LGTV";
+  if(ua.indexOf("NetCast")>-1)return "LGNetCast";
+  if(ua.indexOf("Android")>-1)return "AndroidTV";
+  return "SmartTV";
+}
+function devId(){
+  var d=lsGet("ottv2_dev");
+  if(!d){d="tv-"+Math.random().toString(36).slice(2,10);lsSet("ottv2_dev",d);}
+  return d;
+}
+function accStatus(t){$("accstatus").textContent=t;}
+function paintAcc(){
+  $("accLogin").value=ACC.login||"";
+  if(!ACC.deviceName)ACC.deviceName=platformName();
+  $("devName").value=ACC.deviceName||"";
+  if(ACC.token)accStatus("Conectado como "+(ACC.login||"")+" · TV: "+(ACC.deviceName||""));
+  else accStatus("Sin cuenta.");
+}
+function doLink(){
+  var l=$("accLogin").value.trim(),p=$("accPass").value,dn=$("devName").value.trim()||platformName();
+  if(!l||!p){accStatus("Escribe usuario y password.");return;}
+  accStatus("Verificando...");
+  apiReq("POST","/api/ott/login",{login:l,password:p},function(st,j){
+    if(st!==200||!j||!j.ok){accStatus("Login incorrecto.");return;}
+    ACC={token:j.token,login:l,deviceName:dn,deviceId:devId()};saveAcc();
+    accStatus("Registrando TV...");
+    apiReq("POST","/api/ott/device",{token:ACC.token,deviceId:ACC.deviceId,name:dn,platform:platformName()},function(st2,j2){
+      if(st2!==200||!j2||!j2.ok){accStatus("Error registrando TV: "+((j2&&j2.error)||st2));return;}
+      paintAcc();doFeed(false);
+    });
+  });
+}
+function doUnlink(){ACC={};saveAcc();FOLDERS=[];curFolder=null;paintAcc();showSetup();}
+function doFeed(fromRed){
+  if(!ACC.token){if(fromRed)showSetup();return;}
+  if(fromRed)$("foldmsg").textContent="Actualizando...";
+  apiReq("GET","/api/ott/feed?token="+encodeURIComponent(ACC.token)+"&deviceId="+encodeURIComponent(ACC.deviceId||devId()),null,function(st,j){
+    if(st!==200||!j||!j.ok){$("foldmsg").textContent="Sesión vencida. Entra a Cuenta (botón verde).";showFolders();return;}
+    FOLDERS=j.playlists||[];
+    showFolders();
+    if(!FOLDERS.length)$("foldmsg").textContent="TV registrado como "+(ACC.deviceName||"")+". Aún sin listas: avisa a tu administrador y pulsa el botón rojo para actualizar.";
+  });
+}
+function showFolders(){
+  $("view-setup").style.display="none";$("view-home").style.display="none";
+  var f=$("view-folders");f.style.display="flex";
+  var box=$("folders");box.innerHTML="";
+  if(FOLDERS.length&&ACC.login)$("foldmsg").textContent="Carpetas de "+ACC.login+" · TV "+(ACC.deviceName||"")+" · OK para abrir";
+  for(var i=0;i<FOLDERS.length;i++){
+    (function(fd,idx){
+      var d=document.createElement("div");d.className="folder";d.tabIndex=0;
+      d.innerHTML='<div class="fi">📁</div>'+esc(fd.name)+'<small>Abrir</small>';
+      d.onclick=function(){openFolder(idx);};
+      d.onkeydown=function(e){if(e.key==="Enter")openFolder(idx);};
+      box.appendChild(d);
+      if(idx===0)setTimeout(function(){var f0=box.getElementsByClassName("folder");if(f0.length&&document.activeElement===document.body)f0[0].focus();},100);
+    })(FOLDERS[i],i);
+  }
+}
+function openFolder(idx){
+  var fd=FOLDERS[idx];if(!fd)return;curFolder=fd;
+  $("foldmsg").textContent="Cargando "+fd.name+"...";
+  var murl=apiBase()+"/api/ott/m3u?token="+encodeURIComponent(ACC.token)+"&deviceId="+encodeURIComponent(ACC.deviceId||devId())+"&pid="+encodeURIComponent(fd.id);
+  fetchText(murl,function(err,text){
+    if(err){$("foldmsg").textContent="Error cargando lista.";return;}
+    if(applyText(text,"carpeta: "+fd.name)){showHome();}
+    if(fd.epg)loadEPG(apiBase()+"/api/ott/epg?token="+encodeURIComponent(ACC.token)+"&deviceId="+encodeURIComponent(ACC.deviceId||devId())+"&pid="+encodeURIComponent(fd.id),true);
+  });
+}
+$("btnLink").onclick=doLink;
+$("btnUnlink").onclick=doUnlink;
+$("btnRed").onclick=function(){doFeed(true);};
+$("btnAcc").onclick=function(){showSetup();setTimeout(function(){$("accLogin").focus();},50);};
+$("btnCfg").onclick=function(){showSetup();};
+
 /* init */
 (function init(){
+  loadAcc();paintAcc();
   var u=null,g=null;try{u=localStorage.getItem(LS_URL);g=localStorage.getItem(LS_EPGURL);}catch(e){}
   if(u)$("m3uUrl").value=u;if(g)$("epgUrl").value=g;
   var t=loadSaved();

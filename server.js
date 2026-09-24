@@ -2,6 +2,7 @@ const http = require('http');
 const url = require('url');
 const fs = require('fs');
 const path = require('path');
+const ottApi = require('./ott-api');
 
 const PORT = process.env.PORT || 3000;
 
@@ -121,11 +122,35 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  const parsedUrl = url.parse(req.url);
+  const parsedUrl = url.parse(req.url, true);
   // Algunos clientes embebidos (NetCast/MSX viejos) mandan path vacío:
   // tratarlo como raíz en vez de 404.
   const pathname = parsedUrl.pathname || '/';
   console.log('[REQ]', req.method, getHost(req) + (req.url || '/'));
+
+  // API OTT (login, dispositivos, feed, admin). Cuerpo JSON hasta 1MB.
+  if (pathname.indexOf('/api/ott/') === 0) {
+    let raw = '';
+    req.on('data', (c) => { raw += c; if (raw.length > 1048576) req.destroy(); });
+    req.on('end', () => {
+      let body = {};
+      try { body = raw ? JSON.parse(raw) : {}; } catch (e) { body = {}; }
+      ottApi.handle(req, res, pathname, parsedUrl.query || {}, body).catch(() => {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end('{"ok":false}');
+      });
+    });
+    return;
+  }
+
+  // Panel admin en /admin (archivos de ./admin).
+  if (pathname === '/admin' || pathname === '/admin/') {
+    return serveFile(path.join(__dirname, 'admin', 'index.html'), res);
+  }
+  if (pathname.indexOf('/admin/') === 0) {
+    const relA = path.normalize(decodeURIComponent(pathname).replace(/^\/admin\//, '')).replace(/^(\.\.(\/|\\|$))+/, '');
+    return serveFile(path.join(__dirname, 'admin', relA), res);
+  }
 
   // MSX pide /msx/start.json cuando el Start Parameter es solo un host
   // (ej. "ott.teamg.store"). Según wiki MSX debe ser un Start Object con
