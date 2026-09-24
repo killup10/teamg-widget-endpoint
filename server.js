@@ -7,14 +7,21 @@ const ottApi = require('./ott-api');
 const PORT = process.env.PORT || 3000;
 
 // Base URL dinámica: usa el Host real (Render/Railway/dominio propio).
-// Así no queda hardcodeado teamgplay.online y funciona con ott.teamg.store,
-// widget.teamg.store o el dominio .onrender.com. Siempre http para NetCast.
+// Base URL dinámica: usa el Host real y el protocolo HTTPS (Render/Cloudflare).
+// De esta forma los JSON de Media Station X y los enlaces de la app no generan
+// contenido mixto ni rebotes 301.
 const getHost = (req) => {
   const fwd = req.headers['x-forwarded-host'];
   const host = (Array.isArray(fwd) ? fwd[0] : fwd) || req.headers.host || ('localhost:' + PORT);
   return String(host).split(',')[0].trim();
 };
-const baseOf = (req) => 'http://' + getHost(req);
+const getProto = (req) => {
+  const fwd = req.headers['x-forwarded-proto'];
+  const p = (Array.isArray(fwd) ? fwd[0] : fwd) || '';
+  if (p) return p.split(',')[0].trim().toLowerCase();
+  return (req.connection && req.connection.encrypted) ? 'https' : 'https';
+};
+const baseOf = (req) => getProto(req) + '://' + getHost(req);
 
 // Función que crea el JSON dinámico para Media Station X
 // APP 1 (existente, no tocar IDs): TeamG Play en /
