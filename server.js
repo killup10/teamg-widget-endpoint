@@ -122,11 +122,19 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  const parsedUrl = url.parse(req.url, true);
-  // Algunos clientes embebidos (NetCast/MSX viejos) mandan path vacío:
-  // tratarlo como raíz en vez de 404.
-  const pathname = parsedUrl.pathname || '/';
+  let pathname = '/';
+  let query = {};
+  try {
+    const u = new URL(req.url || '/', 'http://x');
+    pathname = u.pathname || '/';
+    query = Object.fromEntries(u.searchParams);
+  } catch (e) { pathname = '/'; }
   console.log('[REQ]', req.method, getHost(req) + (req.url || '/'));
+
+  // Favicon: responde el icono para no ensuciar logs con 404.
+  if (pathname === '/favicon.ico') {
+    return serveFile(path.join(__dirname, 'ott', 'icon.png'), res);
+  }
 
   // API OTT (login, dispositivos, feed, admin). Cuerpo JSON hasta 1MB.
   if (pathname.indexOf('/api/ott/') === 0) {
@@ -135,7 +143,7 @@ const server = http.createServer((req, res) => {
     req.on('end', () => {
       let body = {};
       try { body = raw ? JSON.parse(raw) : {}; } catch (e) { body = {}; }
-      ottApi.handle(req, res, pathname, parsedUrl.query || {}, body).catch(() => {
+      ottApi.handle(req, res, pathname, query, body).catch(() => {
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end('{"ok":false}');
       });
