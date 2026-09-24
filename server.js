@@ -127,6 +127,47 @@ const server = http.createServer((req, res) => {
   const pathname = parsedUrl.pathname || '/';
   console.log('[REQ]', req.method, getHost(req) + (req.url || '/'));
 
+  // MSX pide /msx/start.json cuando el Start Parameter es solo un host
+  // (ej. "ott.teamg.store"). Responde pantalla MSX que abre la app.
+  if (pathname === '/msx/start.json') {
+    const base = baseOf(req);
+    const hostOnly = getHost(req).split(':')[0].toLowerCase();
+    const isOtt = hostOnly === 'ott.teamg.store' || hostOnly.indexOf('ott.') === 0;
+    const msxJson = isOtt
+      ? {
+          "headline": "OTT TV",
+          "type": "list",
+          "template": { "type": "default", "layout": "0,0,3,2", "imageFiller": "width-center" },
+          "items": [
+            {
+              "title": "OTT TV",
+              "description": "Abrir OTT TV",
+              "image": base + "/ott/icon.png",
+              "action": "link:window:" + base + "/ott/index.html"
+            }
+          ]
+        }
+      : {
+          "headline": "TeamG Play",
+          "type": "list",
+          "template": { "type": "default", "layout": "0,0,3,2", "imageFiller": "width-center" },
+          "items": [
+            {
+              "title": "TeamG Play",
+              "description": "Abrir TeamG Play",
+              "image": base + "/TeamG%20Play.png",
+              "action": "link:window:" + base + "/index.html"
+            }
+          ]
+        };
+    res.writeHead(200, {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Cache-Control': 'no-cache, no-store, must-revalidate'
+    });
+    res.end(JSON.stringify(msxJson, null, 2));
+    return;
+  }
+
   // APP 2: OTT TV (nueva, separada de TeamG). Start Parameter en MSX:
   //   ott.teamg.store/ott   o   widget.teamg.store/ott
   if (pathname === '/ott' || pathname === '/ott/' || pathname === '/ott.json') {
