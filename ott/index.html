@@ -43,7 +43,7 @@ html, body {
 /* ==================== BARRA SUPERIOR (Fotos 1 y 4) ==================== */
 #topbar {
   width: 100%;
-  height: 68px;
+  height: 76px;
   background: #190610;
   position: absolute;
   top: 0;
@@ -56,7 +56,7 @@ html, body {
 .topbar-title {
   position: absolute;
   left: 24px;
-  top: 18px;
+  top: 22px;
   font-size: 24px;
   font-weight: 500;
   color: #ffffff;
@@ -72,41 +72,46 @@ html, body {
 
 .top-icons-row {
   display: block;
-  margin-bottom: 4px;
+  margin-bottom: 5px;
 }
 
 .round-icon-btn {
   display: inline-block;
   vertical-align: middle;
-  width: 34px;
-  height: 34px;
-  line-height: 30px;
+  width: 44px;
+  height: 44px;
+  line-height: 40px;
   text-align: center;
   border-radius: 50%;
   background: #ffffff;
   color: #000000;
   border: 2px solid #ffffff;
-  font-size: 17px;
-  font-weight: bold;
   cursor: pointer;
   margin-left: 10px;
+  padding: 0;
   transition: all 0.12s ease;
   -webkit-transition: all 0.12s ease;
+}
+
+.round-icon-btn svg {
+  display: inline-block;
+  vertical-align: middle;
+  pointer-events: none;
 }
 
 .round-icon-btn.focused, .round-icon-btn:hover {
   background: #ffcc00;
   border-color: #ffffff;
-  box-shadow: 0 0 14px #ffffff;
-  -webkit-box-shadow: 0 0 14px #ffffff;
+  box-shadow: 0 0 16px #ffffff;
+  -webkit-box-shadow: 0 0 16px #ffffff;
   transform: scale(1.15);
   -webkit-transform: scale(1.15);
 }
 
 /* Franja de 4 colores del control remoto (Foto 1) */
 .color-strip {
-  width: 220px;
-  height: 3px;
+  width: 260px;
+  height: 4px;
   display: inline-block;
   background: #333333;
   margin-bottom: 3px;
@@ -136,7 +141,7 @@ html, body {
 /* ==================== VISTA: PLAYLISTS / CANALES (Foto 1 y 4) ==================== */
 #view-playlists {
   position: absolute;
-  top: 68px;
+  top: 76px;
   left: 0;
   right: 0;
   bottom: 0;
@@ -906,11 +911,11 @@ html, body {
     <div class="topbar-title" id="screenTitle">Playlists</div>
     <div class="topbar-right">
       <div class="top-icons-row">
-        <div class="round-icon-btn" id="btnEpg" title="Guía EPG">◷</div>
-        <div class="round-icon-btn" id="btnFav" title="Favoritos">★</div>
-        <div class="round-icon-btn" id="btnSort" title="Ordenar">⇅</div>
-        <div class="round-icon-btn" id="btnSettings" title="Opciones">⚙</div>
-        <div class="round-icon-btn" id="btnClose" title="Volver">⮌</div>
+        <div class="round-icon-btn" id="btnEpg" title="Guía EPG"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg></div>
+        <div class="round-icon-btn" id="btnFav" title="Favoritos"><svg width="22" height="22" viewBox="0 0 24 24" fill="#000000" stroke="#000000" stroke-width="1"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>
+        <div class="round-icon-btn" id="btnSort" title="Ordenar"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="4" x2="7" y2="20"/><polyline points="4 7 7 4 10 7"/><line x1="17" y1="20" x2="17" y2="4"/><polyline points="14 17 17 20 20 17"/></svg></div>
+        <div class="round-icon-btn" id="btnSettings" title="Opciones"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></div>
+        <div class="round-icon-btn" id="btnClose" title="Volver"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg></div>
       </div>
       <div class="color-strip">
         <div class="color-strip-seg cs-white"></div>
@@ -1026,11 +1031,11 @@ html, body {
       </div>
       <div class="player-top-right">
         <div class="top-icons-row">
-          <div class="round-icon-btn" id="btnPlayerRatio" title="Aspect Ratio">⧉</div>
-          <div class="round-icon-btn" id="btnPlayerEpg" title="Guía">◷</div>
-          <div class="round-icon-btn" id="btnPlayerAudio" title="Audio">🌐</div>
-          <div class="round-icon-btn" id="btnPlayerSubs" title="Subtítulos">🗖</div>
-          <div class="round-icon-btn" id="btnPlayerClose" title="Cerrar">⮌</div>
+          <div class="round-icon-btn" id="btnPlayerRatio" title="Aspect Ratio"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2" ry="2"/><polyline points="7 9 7 7 9 7"/><polyline points="17 9 17 7 15 7"/><polyline points="7 15 7 17 9 17"/><polyline points="17 15 17 17 15 17"/></svg></div>
+          <div class="round-icon-btn" id="btnPlayerEpg" title="Guía"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg></div>
+          <div class="round-icon-btn" id="btnPlayerAudio" title="Audio"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="#000000"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg></div>
+          <div class="round-icon-btn" id="btnPlayerSubs" title="Subtítulos"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2" ry="2"/><path d="M10 9.5a2.5 2.5 0 0 0-2.5 2.5v0a2.5 2.5 0 0 0 2.5 2.5"/><path d="M16.5 9.5a2.5 2.5 0 0 0-2.5 2.5v0a2.5 2.5 0 0 0 2.5 2.5"/></svg></div>
+          <div class="round-icon-btn" id="btnPlayerClose" title="Cerrar"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg></div>
         </div>
         <div class="color-strip">
           <div class="color-strip-seg cs-white"></div>
@@ -1046,7 +1051,7 @@ html, body {
 
     <!-- Overlay Inferior (Foto 2) -->
     <div id="player-overlay-bot">
-      <div class="player-tab-drawer-btn" id="btnDrawerTrigger"><span>≡</span></div>
+      <div class="player-tab-drawer-btn" id="btnDrawerTrigger"><span><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" style="vertical-align:middle;"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></span></div>
       <div class="player-play-btn" id="btnPlayPause">▶❚❚</div>
       <div class="player-progress-wrap">
         <div class="player-progress-bar"><div id="player-epg-fill"></div></div>
@@ -1088,6 +1093,10 @@ var KEY = {
   GREEN: 404,
   YELLOW: 405,
   BLUE: 406,
+  RED_SAMSUNG: 108,
+  GREEN_SAMSUNG: 20,
+  YELLOW_SAMSUNG: 21,
+  BLUE_SAMSUNG: 22,
   PLAY: 415,
   PAUSE: 19,
   STOP: 413,
@@ -1464,7 +1473,7 @@ function doSaveAndLogin() {
     }
     state.auth.token = res.token;
     saveStorage();
-    showToast('Registrando TV...');
+    showToast('Vinculando TV...');
     apiCall('POST', '/api/ott/device', {
       token: state.auth.token,
       deviceId: state.auth.deviceId,
@@ -1474,8 +1483,12 @@ function doSaveAndLogin() {
       if (res2 && res2.playlists && res2.playlists.length > 0) {
         state.playlists = res2.playlists;
         closeOptions();
-        renderPlaylistsView();
-        showToast(state.playlists.length + ' listas asignadas.');
+        if (state.playlists.length === 1) {
+          loadPlaylistContent(state.playlists[0]);
+        } else {
+          renderPlaylistsView();
+          showToast(state.playlists.length + ' listas asignadas.');
+        }
       } else {
         fetchFeed();
       }
@@ -1484,20 +1497,39 @@ function doSaveAndLogin() {
 }
 
 function fetchFeed() {
+  if (!state.auth.token && state.auth.login && state.auth.password) {
+    doSaveAndLogin();
+    return;
+  }
   if (!state.auth.token) {
     openOptions();
     showToast('Ingresa tus datos de usuario.');
     return;
   }
-  showToast('Cargando playlists...');
+  showToast('Cargando listas...');
   apiCall('GET', '/api/ott/feed?token=' + encodeURIComponent(state.auth.token) + '&deviceId=' + encodeURIComponent(state.auth.deviceId), null, function(st, res) {
-    if (st === 200 && res && res.ok && res.playlists && res.playlists.length > 0) {
-      state.playlists = res.playlists;
+    if (st === 200 && res && res.ok) {
+      state.playlists = res.playlists || [];
       closeOptions();
-      renderPlaylistsView();
-      showToast(state.playlists.length + ' listas cargadas.');
+      if (state.playlists.length === 0) {
+        showToast('TV registrado. Aún sin listas asignadas.');
+        renderPlaylistsView();
+      } else if (state.playlists.length === 1) {
+        loadPlaylistContent(state.playlists[0]);
+      } else {
+        renderPlaylistsView();
+        showToast(state.playlists.length + ' listas cargadas.');
+      }
+    } else if (st === 401) {
+      if (state.auth.login && state.auth.password) {
+        showToast('Renovando sesión...');
+        doSaveAndLogin();
+      } else {
+        showToast('Sesión vencida. Ingresa a Ajustes.');
+        openOptions();
+      }
     } else {
-      showToast('TV registrado. Aún sin listas asignadas.');
+      showToast('Error al conectar: ' + ((res && res.error) || ('HTTP ' + st)));
       closeOptions();
       renderPlaylistsView();
     }
@@ -1516,9 +1548,19 @@ function parseM3U(text) {
       var parts = ln.split(',');
       var name = (parts.length > 1 ? parts.slice(1).join(',') : 'Canal').trim();
       var logo = '', group = 'General';
-      var mLogo = ln.match(/tvg-logo="([^"]*)"/); if (mLogo) logo = mLogo[1];
-      var mGroup = ln.match(/group-title="([^"]*)"/); if (mGroup) group = mGroup[1];
+      var mLogo = ln.match(/tvg-logo="([^"]*)"/i); if (mLogo) logo = mLogo[1];
+      var mGroup = ln.match(/group-title="([^"]*)"/i); if (mGroup && mGroup[1].trim()) group = mGroup[1].trim();
       meta = { name: name, logo: logo, group: group, id: 'ch-' + i };
+    } else if (ln.indexOf('#EXTGRP:') === 0) {
+      if (meta) {
+        var grp = ln.replace('#EXTGRP:', '').trim();
+        if (grp) meta.group = grp;
+      }
+    } else if (ln.indexOf('#EXTIMG:') === 0) {
+      if (meta) {
+        var img = ln.replace('#EXTIMG:', '').trim();
+        if (img) meta.logo = img;
+      }
     } else if (ln.charAt(0) !== '#') {
       if (meta) { meta.url = ln; list.push(meta); meta = null; }
     }
@@ -1551,14 +1593,24 @@ function loadPlaylistContent(pl) {
   var xhr = new XMLHttpRequest();
   xhr.open('GET', murl, true);
   xhr.onreadystatechange = function() {
-    if (xhr.readyState === 4 && xhr.status === 200) {
-      state.channels = parseM3U(xhr.responseText);
-      buildGroups();
-      state.currentGroup = '__all';
-      renderChannels();
-      renderTabs();
-      showToast(state.channels.length + ' canales.');
+    if (xhr.readyState === 4) {
+      if (xhr.status === 200) {
+        state.channels = parseM3U(xhr.responseText);
+        buildGroups();
+        state.currentGroup = '__all';
+        renderChannels();
+        renderTabs();
+        showToast(state.channels.length + ' canales.');
+      } else if (xhr.status === 401 && state.auth.login && state.auth.password) {
+        showToast('Renovando acceso...');
+        doSaveAndLogin();
+      } else {
+        showToast('Error cargando playlist (' + xhr.status + ')');
+      }
     }
+  };
+  xhr.onerror = function() {
+    showToast('Error de conexión al descargar.');
   };
   xhr.send();
 }
@@ -1589,12 +1641,16 @@ function renderPlaylistsView() {
     renderChannels();
     renderTabs();
   } else if (state.playlists.length > 0) {
+    if (state.playlists.length === 1) {
+      loadPlaylistContent(state.playlists[0]);
+      return;
+    }
     $('screenTitle').textContent = 'Playlists (' + state.playlists.length + ')';
     $('bottom-tabs-bar').innerHTML = '';
     for (var i = 0; i < state.playlists.length; i++) {
       var d = document.createElement('div');
       d.className = 'folder-tile';
-      d.innerHTML = '<div class="folder-icon">📁</div><div class="folder-name">' + state.playlists[i].name + '</div><div class="folder-sub">OK para abrir</div>';
+      d.innerHTML = '<div class="folder-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="#ffcc00" stroke="#d4a300" stroke-width="1.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></div><div class="folder-name">' + state.playlists[i].name + '</div><div class="folder-sub">OK para abrir</div>';
       d.onclick = (function(pl) { return function() { loadPlaylistContent(pl); }; })(state.playlists[i]);
       area.appendChild(d);
     }
@@ -1605,7 +1661,7 @@ function renderPlaylistsView() {
     $('screenTitle').textContent = 'Playlists';
     $('bottom-tabs-bar').innerHTML = '';
     area.innerHTML = '<div style="text-align: center; margin-top: 100px; font-size: 20px; color: #a5929c;">' +
-      'Sin listas cargadas.<br><br>Presiona el icono ⚙ (Settings) arriba para ingresar tus datos.</div>';
+      'Sin listas cargadas.<br><br>Presiona el icono Ajustes (⚙) arriba para vincular.</div>';
   }
 }
 
@@ -1654,13 +1710,15 @@ function renderChannels() {
     return;
   }
 
+  var fallbackSvg = '<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#666666" stroke-width="2" style="margin-top:16px;"><rect x="2" y="7" width="20" height="14" rx="2"/><polyline points="17 2 12 7 7 2"/></svg>';
+
   for (var i = 0; i < list.length; i++) {
     var c = list[i];
     var tile = document.createElement('div');
     tile.className = 'tile-item';
     
-    var favHtml = state.favorites[c.id] ? '<div class="tile-fav-mark">★</div>' : '';
-    var thumbHtml = c.logo ? '<div class="tile-thumb"><img src="' + c.logo + '" onerror="this.style.display=\'none\'" /></div>' : '<div class="tile-thumb">TV</div>';
+    var favHtml = state.favorites[c.id] ? '<div class="tile-fav-mark"><svg width="14" height="14" viewBox="0 0 24 24" fill="#ffcc00"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>' : '';
+    var thumbHtml = c.logo ? '<div class="tile-thumb"><img src="' + c.logo + '" onerror="this.style.display=\'none\'; this.parentNode.innerHTML=\'' + fallbackSvg + '\';" /></div>' : '<div class="tile-thumb">' + fallbackSvg + '</div>';
     
     tile.innerHTML = '<div class="tile-num">' + (i + 1) + '</div>' + favHtml + thumbHtml +
       '<div class="tile-title">' + c.name + '</div>' +
@@ -1726,15 +1784,21 @@ function handleMainNav(kc) {
       }
       updateMainFocus();
     } else if (kc === KEY.ENTER) {
-      if (state.topIconIdx === 1) {
-        // Pestaña favoritos
+      if (state.topIconIdx === 0) {
+        if (state.currentPlaylist) loadPlaylistContent(state.currentPlaylist);
+        else fetchFeed();
+      } else if (state.topIconIdx === 1) {
         state.currentGroup = (state.currentGroup === '__fav' ? '__all' : '__fav');
         renderTabs();
         renderChannels();
+      } else if (state.topIconIdx === 2) {
+        state.channels.reverse();
+        renderChannels();
+        showToast('Orden invertido.');
       } else if (state.topIconIdx === 3) {
         openOptions();
       } else if (state.topIconIdx === 4) {
-        if (state.channels.length > 0 && state.playlists.length > 0) {
+        if (state.channels.length > 0 && state.playlists.length > 1) {
           state.channels = [];
           state.currentPlaylist = null;
           renderPlaylistsView();
@@ -1791,9 +1855,15 @@ function handleMainNav(kc) {
   }
 
   // Teclas directas de colores (Franja Foto 1)
-  if (kc === KEY.RED) { fetchFeed(); }
-  else if (kc === KEY.GREEN) { openOptions(); }
-  else if (kc === KEY.YELLOW) {
+  if (kc === KEY.RED || kc === KEY.RED_SAMSUNG || kc === 82) {
+    if (state.currentPlaylist) {
+      loadPlaylistContent(state.currentPlaylist);
+    } else {
+      fetchFeed();
+    }
+  } else if (kc === KEY.GREEN || kc === KEY.GREEN_SAMSUNG || kc === 71) {
+    openOptions();
+  } else if (kc === KEY.YELLOW || kc === KEY.YELLOW_SAMSUNG || kc === 89) {
     // Alternar favorito
     var list = getFilteredChannels();
     if (list[state.tileIdx]) {
@@ -1803,8 +1873,10 @@ function handleMainNav(kc) {
       saveStorage();
       renderChannels();
     }
+  } else if (kc === KEY.BLUE || kc === KEY.BLUE_SAMSUNG || kc === 66) {
+    switchCategoryTab(1);
   } else if (kc === KEY.BACK || kc === KEY.BACKSPACE || kc === KEY.ESC || kc === KEY.TIZEN_BACK) {
-    if (state.channels.length > 0 && state.playlists.length > 0) {
+    if (state.channels.length > 0 && state.playlists.length > 1) {
       state.channels = [];
       state.currentPlaylist = null;
       renderPlaylistsView();
@@ -1812,6 +1884,17 @@ function handleMainNav(kc) {
       window.history.back();
     }
   }
+}
+
+function switchCategoryTab(dir) {
+  var allTabs = ['__all', '__fav'].concat(state.groups);
+  var cur = allTabs.indexOf(state.currentGroup);
+  if (cur < 0) cur = 0;
+  var next = (cur + dir + allTabs.length) % allTabs.length;
+  state.currentGroup = allTabs[next];
+  state.tabIdx = next;
+  renderTabs();
+  renderChannels();
 }
 
 /* ==========================================================================
@@ -2019,21 +2102,32 @@ document.addEventListener('keydown', function(e) {
 loadStorage();
 if (state.auth.token) {
   fetchFeed();
+} else if (state.auth.login && state.auth.password) {
+  doSaveAndLogin();
 } else if (state.auth.directM3u) {
   loadDirectM3u(state.auth.directM3u);
 } else {
   renderPlaylistsView();
 }
 
-// Clics directos para Magic Remote
+// Clics directos para Magic Remote y Mouse
+$('btnEpg').onclick = function() {
+  if (state.currentPlaylist) loadPlaylistContent(state.currentPlaylist);
+  else fetchFeed();
+};
 $('btnFav').onclick = function() {
   state.currentGroup = (state.currentGroup === '__fav' ? '__all' : '__fav');
   renderTabs();
   renderChannels();
 };
+$('btnSort').onclick = function() {
+  state.channels.reverse();
+  renderChannels();
+  showToast('Orden invertido.');
+};
 $('btnSettings').onclick = function() { openOptions(); };
 $('btnClose').onclick = function() {
-  if (state.channels.length > 0 && state.playlists.length > 0) {
+  if (state.channels.length > 0 && state.playlists.length > 1) {
     state.channels = [];
     state.currentPlaylist = null;
     renderPlaylistsView();
@@ -2049,6 +2143,20 @@ $('kbKeyOk').onclick = function() { closeKeyboard(true); };
 $('devBtnOk').onclick = function() { closeDeviceSelection(); };
 $('btnDoSave').onclick = function() { doSaveAndLogin(); };
 $('btnDrawerTrigger').onclick = function() { openChannelDrawer(); };
+$('btnPlayerRatio').onclick = function() {
+  var v = $('video-el');
+  if (v.style.objectFit === 'fill') { v.style.objectFit = 'cover'; showToast('Aspect: Cover'); }
+  else if (v.style.objectFit === 'cover') { v.style.objectFit = 'contain'; showToast('Aspect: Contain'); }
+  else { v.style.objectFit = 'fill'; showToast('Aspect: Full (Stretch)'); }
+};
+$('btnPlayerEpg').onclick = function() { openChannelDrawer(); };
+$('btnPlayerAudio').onclick = function() { showToast('Pistas de audio nativas activas'); };
+$('btnPlayerSubs').onclick = function() { showToast('Subtítulos DVB/CC nativos'); };
+$('btnPlayPause').onclick = function() {
+  var v = $('video-el');
+  if (v.paused) { v.play(); $('btnPlayPause').textContent = '▶❚❚'; }
+  else { v.pause(); $('btnPlayPause').textContent = '▶'; }
+};
 $('btnPlayerClose').onclick = function() { stopPlayer(); };
 
 var optRows = document.getElementsByClassName('opt-row');
