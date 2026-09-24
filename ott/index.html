@@ -9,24 +9,10 @@
 <meta http-equiv="Expires" content="0" />
 <style>
 /* ==========================================================================
-   OTTPLAYER ESTILO AUTÉNTICO (Optimizado para LG NetCast / Smart TV 2012-2026)
-   - Cero dependencias de CSS moderno (sin inset, sin CSS grid rígido, sin ES6)
-   - Compatible 100% con WebKit 534/537 y resoluciones 720p / 1080p
+   OTTPLAYER IDENTICO (Réplica exacta 1:1 a fotos del usuario)
+   Optimizado para LG NetCast Smart TV (WebKit 534/537, 2012-2026)
+   Cero dependencias modernas. Compatible con 720p y 1080p.
    ========================================================================== */
-:root {
-  --bg-main: #060913;
-  --bg-topbar: #090c17;
-  --bg-options: #14050d;
-  --wine-sel: #7b1d3a;
-  --wine-glow: rgba(123, 29, 58, 0.85);
-  --blue-kb: #0070d0;
-  --blue-glow: rgba(0, 112, 208, 0.8);
-  --tab-unsel: #181522;
-  --text-white: #ffffff;
-  --text-dim: #a5abbf;
-  --text-yellow: #ffcc00;
-}
-
 * {
   margin: 0;
   padding: 0;
@@ -39,7 +25,7 @@ html, body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background-color: #060913;
+  background-color: #14050d;
   color: #ffffff;
   font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
   user-select: none;
@@ -51,14 +37,14 @@ html, body {
   height: 100%;
   position: relative;
   overflow: hidden;
-  background-color: #060913;
+  background-color: #14050d;
 }
 
-/* ==================== BARRA SUPERIOR (Foto 1) ==================== */
+/* ==================== BARRA SUPERIOR (Fotos 1 y 4) ==================== */
 #topbar {
   width: 100%;
-  height: 64px;
-  background: #090c17;
+  height: 68px;
+  background: #190610;
   position: absolute;
   top: 0;
   left: 0;
@@ -67,70 +53,90 @@ html, body {
   z-index: 20;
 }
 
-.topbar-content {
-  width: 100%;
-  height: 100%;
-  position: relative;
-  padding: 0 28px;
-}
-
-.title-main {
+.topbar-title {
   position: absolute;
-  left: 28px;
-  top: 16px;
-  font-size: 26px;
-  font-weight: bold;
-  letter-spacing: 0.5px;
+  left: 24px;
+  top: 18px;
+  font-size: 24px;
+  font-weight: 500;
   color: #ffffff;
+  letter-spacing: 0.3px;
 }
 
-.top-icons-box {
+.topbar-right {
   position: absolute;
-  right: 28px;
-  top: 12px;
+  right: 20px;
+  top: 8px;
+  text-align: right;
 }
 
-.round-btn {
+.top-icons-row {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.round-icon-btn {
   display: inline-block;
   vertical-align: middle;
-  width: 38px;
-  height: 38px;
-  line-height: 34px;
+  width: 34px;
+  height: 34px;
+  line-height: 30px;
   text-align: center;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.12);
-  border: 2px solid rgba(255, 255, 255, 0.7);
-  color: #ffffff;
-  font-size: 18px;
+  background: #ffffff;
+  color: #000000;
+  border: 2px solid #ffffff;
+  font-size: 17px;
+  font-weight: bold;
   cursor: pointer;
   margin-left: 10px;
-  transition: all 0.15s ease;
-  -webkit-transition: all 0.15s ease;
+  transition: all 0.12s ease;
+  -webkit-transition: all 0.12s ease;
 }
 
-.round-btn.focused, .round-btn:hover {
-  background: rgba(255, 255, 255, 0.35);
+.round-icon-btn.focused, .round-icon-btn:hover {
+  background: #ffcc00;
   border-color: #ffffff;
-  box-shadow: 0 0 12px #ffffff;
-  -webkit-box-shadow: 0 0 12px #ffffff;
-  transform: scale(1.12);
-  -webkit-transform: scale(1.12);
+  box-shadow: 0 0 14px #ffffff;
+  -webkit-box-shadow: 0 0 14px #ffffff;
+  transform: scale(1.15);
+  -webkit-transform: scale(1.15);
 }
 
-.clock-text {
-  position: absolute;
-  right: 32px;
-  top: 48px;
-  font-size: 12px;
-  color: #cccccc;
-  font-weight: 500;
+/* Franja de 4 colores del control remoto (Foto 1) */
+.color-strip {
+  width: 220px;
+  height: 3px;
+  display: inline-block;
+  background: #333333;
+  margin-bottom: 3px;
+  overflow: hidden;
+  border-radius: 1px;
+}
+
+.color-strip-seg {
+  display: inline-block;
+  vertical-align: top;
+  width: 20%;
+  height: 100%;
+}
+.cs-white { background: #ffffff; }
+.cs-red { background: #e52945; }
+.cs-green { background: #28b446; }
+.cs-yellow { background: #ffcc00; }
+.cs-blue { background: #1e78d6; }
+
+.top-clock-text {
+  font-size: 13px;
+  color: #ffffff;
   letter-spacing: 0.5px;
+  font-weight: normal;
 }
 
-/* ==================== VISTA: PLAYLISTS / CANALES (Foto 1) ==================== */
+/* ==================== VISTA: PLAYLISTS / CANALES (Foto 1 y 4) ==================== */
 #view-playlists {
   position: absolute;
-  top: 64px;
+  top: 68px;
   left: 0;
   right: 0;
   bottom: 0;
@@ -142,74 +148,71 @@ html, body {
   top: 0;
   left: 0;
   right: 0;
-  bottom: 54px;
+  bottom: 48px;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 20px 24px;
+  padding: 8px 12px;
   text-align: left;
 }
 
-/* Tiles de Canales */
+/* Cuadrícula de Canales: 6 columnas exactas (Foto 1) */
 .tile-item {
   display: inline-block;
   vertical-align: top;
-  width: 15.2%;
-  margin: 6px 0.6%;
-  background: rgba(12, 17, 34, 0.75);
-  border: 2px solid rgba(255, 255, 255, 0.14);
-  border-radius: 6px;
-  padding: 8px;
+  width: 16.1%;
+  margin: 3px 0.28%;
+  background: #1c0a14;
+  border: 1px solid #331222;
+  border-radius: 2px;
+  padding: 4px;
   position: relative;
-  height: 145px;
+  height: 142px;
   cursor: pointer;
   box-sizing: border-box;
   -webkit-box-sizing: border-box;
   overflow: hidden;
-  transition: all 0.15s ease;
-  -webkit-transition: all 0.15s ease;
+  transition: all 0.1s ease;
+  -webkit-transition: all 0.1s ease;
 }
 
 .tile-item.focused {
-  border-color: #e52945;
-  box-shadow: 0 0 16px rgba(229, 41, 69, 0.85);
-  -webkit-box-shadow: 0 0 16px rgba(229, 41, 69, 0.85);
-  transform: scale(1.05);
-  -webkit-transform: scale(1.05);
+  background: #8a2542 !important;
+  border-color: #aa3558;
+  box-shadow: 0 0 14px rgba(138, 37, 66, 0.85);
+  -webkit-box-shadow: 0 0 14px rgba(138, 37, 66, 0.85);
   z-index: 10;
-  background: rgba(22, 28, 55, 0.95);
 }
 
 .tile-num {
   position: absolute;
-  top: 4px;
-  left: 8px;
-  font-size: 13px;
-  font-weight: bold;
+  top: 2px;
+  left: 5px;
+  font-size: 12px;
   color: #ffffff;
   text-shadow: 1px 1px 2px #000000;
   z-index: 2;
 }
 
-.tile-fav {
+.tile-fav-mark {
   position: absolute;
-  top: 4px;
-  right: 8px;
-  font-size: 14px;
+  top: 2px;
+  right: 5px;
+  font-size: 12px;
   color: #ffcc00;
   z-index: 2;
 }
 
 .tile-thumb {
   width: 100%;
-  height: 70px;
+  height: 68px;
   background: #000000;
-  border-radius: 4px;
   display: block;
   text-align: center;
-  line-height: 70px;
+  line-height: 68px;
   color: #666;
-  font-size: 12px;
+  font-size: 11px;
   overflow: hidden;
+  margin-top: 2px;
 }
 
 .tile-thumb img {
@@ -222,36 +225,43 @@ html, body {
 .tile-title {
   font-size: 13px;
   font-weight: bold;
-  margin-top: 6px;
+  margin-top: 4px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   color: #ffffff;
+  text-align: center;
+  padding: 0 2px;
+}
+
+.tile-item.focused .tile-title {
+  color: #ffcc00;
 }
 
 .tile-epg {
   font-size: 11px;
-  color: #99a0b8;
+  color: #a5929c;
   margin-top: 2px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  text-align: center;
+  padding: 0 2px;
 }
 
 .tile-bar {
   height: 4px;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 2px;
+  background: #2b0d1b;
   position: absolute;
-  bottom: 8px;
-  left: 8px;
-  right: 8px;
+  bottom: 0;
+  left: 0;
+  right: 0;
   overflow: hidden;
 }
 
 .tile-bar-fill {
   height: 100%;
-  background: #2cd66d;
+  background: #e08868;
   width: 45%;
 }
 
@@ -259,61 +269,41 @@ html, body {
 .folder-tile {
   display: inline-block;
   vertical-align: top;
-  width: 23%;
-  margin: 10px 0.9%;
-  background: rgba(18, 24, 48, 0.85);
-  border: 2px solid rgba(255, 255, 255, 0.16);
-  border-radius: 8px;
-  padding: 24px 14px;
+  width: 23.5%;
+  margin: 10px 0.7%;
+  background: #1c0a14;
+  border: 2px solid #331222;
+  border-radius: 6px;
+  padding: 24px 12px;
   text-align: center;
   cursor: pointer;
   box-sizing: border-box;
   -webkit-box-sizing: border-box;
-  transition: all 0.15s ease;
-  -webkit-transition: all 0.15s ease;
 }
 
 .folder-tile.focused {
-  border-color: #e52945;
-  box-shadow: 0 0 16px rgba(229, 41, 69, 0.85);
-  -webkit-box-shadow: 0 0 16px rgba(229, 41, 69, 0.85);
-  transform: scale(1.05);
-  -webkit-transform: scale(1.05);
-  background: rgba(28, 36, 70, 0.95);
+  background: #8a2542;
+  border-color: #aa3558;
+  box-shadow: 0 0 16px rgba(138, 37, 66, 0.9);
+  -webkit-box-shadow: 0 0 16px rgba(138, 37, 66, 0.9);
 }
 
-.folder-icon {
-  font-size: 44px;
-  margin-bottom: 8px;
-}
+.folder-icon { font-size: 44px; margin-bottom: 8px; }
+.folder-name { font-size: 18px; font-weight: bold; color: #ffffff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.folder-sub { font-size: 12px; color: #a5929c; margin-top: 4px; }
 
-.folder-name {
-  font-size: 18px;
-  font-weight: bold;
-  color: #ffffff;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.folder-sub {
-  font-size: 12px;
-  color: #8fa0cc;
-  margin-top: 4px;
-}
-
-/* Barra inferior de pestañas trapezoidales (Foto 1) */
+/* Barra inferior de pestañas trapezoidales (Foto 4) */
 #bottom-tabs-bar {
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
-  height: 54px;
+  height: 48px;
   background: #000000;
   overflow-x: auto;
   overflow-y: hidden;
   white-space: nowrap;
-  padding-left: 20px;
+  padding-left: 16px;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   z-index: 15;
 }
@@ -321,18 +311,18 @@ html, body {
 .tab-skew {
   display: inline-block;
   vertical-align: top;
-  padding: 0 30px;
-  height: 54px;
-  line-height: 54px;
-  background: #181522;
-  color: #ffffff;
-  font-size: 16px;
+  padding: 0 32px;
+  height: 48px;
+  line-height: 48px;
+  background: #14050d;
+  color: #c8b8c0;
+  font-size: 15px;
   font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
   transform: skewX(-20deg);
   -webkit-transform: skewX(-20deg);
-  margin-right: 6px;
+  margin-right: 4px;
   border: 0;
   border-right: 1px solid rgba(0, 0, 0, 0.4);
 }
@@ -344,7 +334,7 @@ html, body {
 }
 
 .tab-skew.active {
-  background: #7b1d3a;
+  background: #8a2542;
   color: #ffffff;
   font-weight: bold;
 }
@@ -357,7 +347,7 @@ html, body {
 /* ==================== VISTA: OPTIONS / AJUSTES (Fotos 2 y 5) ==================== */
 #view-options {
   position: absolute;
-  top: 64px;
+  top: 68px;
   left: 0;
   right: 0;
   bottom: 0;
@@ -367,9 +357,7 @@ html, body {
   overflow-y: auto;
 }
 
-.opt-container {
-  width: 100%;
-}
+.opt-container { width: 100%; }
 
 .opt-left {
   display: inline-block;
@@ -378,38 +366,26 @@ html, body {
 }
 
 .opt-row {
-  height: 48px;
-  line-height: 44px;
+  height: 46px;
+  line-height: 42px;
   padding: 0 16px;
   border-radius: 4px;
   cursor: pointer;
   border: 2px solid transparent;
   margin-bottom: 6px;
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.04);
   position: relative;
-  transition: all 0.1s ease;
-  -webkit-transition: all 0.1s ease;
 }
 
 .opt-row.focused {
-  background: #7b1d3a;
-  border-color: #ff5566;
-  box-shadow: 0 0 14px rgba(255, 51, 68, 0.6);
-  -webkit-box-shadow: 0 0 14px rgba(255, 51, 68, 0.6);
+  background: #8a2542;
+  border-color: #aa3558;
+  box-shadow: 0 0 14px rgba(138, 37, 66, 0.7);
+  -webkit-box-shadow: 0 0 14px rgba(138, 37, 66, 0.7);
 }
 
-.opt-label {
-  font-size: 16px;
-  color: #e0e0e0;
-  float: left;
-}
-
-.opt-value {
-  font-size: 16px;
-  color: #ffffff;
-  font-weight: bold;
-  float: right;
-}
+.opt-label { font-size: 16px; color: #e0e0e0; float: left; }
+.opt-value { font-size: 16px; color: #ffffff; font-weight: bold; float: right; }
 
 .opt-btn-action {
   width: 100%;
@@ -460,7 +436,7 @@ html, body {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(3, 4, 18, 0.98);
+  background: rgba(8, 2, 6, 0.98);
   display: none;
   z-index: 60;
   padding: 24px 40px;
@@ -540,8 +516,8 @@ html, body {
   width: 62px;
   height: 48px;
   line-height: 46px;
-  background: #090e24;
-  border: 1px solid #1b2446;
+  background: #140812;
+  border: 1px solid #331525;
   border-radius: 4px;
   color: #ffffff;
   font-size: 20px;
@@ -599,7 +575,7 @@ html, body {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(3, 4, 18, 0.98);
+  background: rgba(8, 2, 6, 0.98);
   display: none;
   z-index: 55;
   text-align: center;
@@ -610,8 +586,8 @@ html, body {
   display: inline-block;
   width: 540px;
   max-width: 90%;
-  background: #070744;
-  border: 2px solid #1a2570;
+  background: #1c0a14;
+  border: 2px solid #331222;
   border-radius: 8px;
   padding: 30px;
   text-align: center;
@@ -627,8 +603,8 @@ html, body {
   width: 100%;
   height: 60px;
   line-height: 56px;
-  background: #040428;
-  border: 2px solid #2a3a88;
+  background: #080206;
+  border: 2px solid #4a1525;
   border-radius: 6px;
   font-size: 22px;
   font-weight: bold;
@@ -637,15 +613,15 @@ html, body {
 }
 
 .dev-card.focused .dev-name-box {
-  border-color: #e52945;
-  box-shadow: 0 0 16px rgba(229, 41, 69, 0.8);
-  -webkit-box-shadow: 0 0 16px rgba(229, 41, 69, 0.8);
+  border-color: #8a2542;
+  box-shadow: 0 0 16px rgba(138, 37, 66, 0.8);
+  -webkit-box-shadow: 0 0 16px rgba(138, 37, 66, 0.8);
 }
 
 .dev-btn-ok {
   display: inline-block;
   padding: 12px 32px;
-  background: #0070d0;
+  background: #8a2542;
   border: 2px solid #ffffff;
   border-radius: 6px;
   color: #ffffff;
@@ -654,7 +630,7 @@ html, body {
   cursor: pointer;
 }
 
-/* ==================== REPRODUCTOR DE VIDEO A PANTALLA COMPLETA ==================== */
+/* ==================== REPRODUCTOR DE VIDEO A PANTALLA COMPLETA (Foto 2) ==================== */
 #player-container {
   position: absolute;
   top: 0;
@@ -666,9 +642,7 @@ html, body {
   z-index: 100;
 }
 
-#player-container.open {
-  display: block;
-}
+#player-container.open { display: block; }
 
 #video-el {
   width: 100%;
@@ -676,132 +650,243 @@ html, body {
   background: #000000;
 }
 
+/* Overlay Superior del Reproductor (Foto 2) */
 #player-overlay-top {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  padding: 18px 30px;
-  background: rgba(0, 0, 0, 0.85);
+  padding: 16px 24px;
+  background: linear-gradient(to bottom, rgba(20, 5, 13, 0.95), rgba(20, 5, 13, 0.4), transparent);
   color: #ffffff;
   display: block;
   z-index: 105;
 }
 
-#player-logo {
+.player-top-left {
   float: left;
-  width: 76px;
-  height: 44px;
+}
+
+#player-logo-box {
+  float: left;
+  width: 90px;
+  height: 48px;
   background: #000000;
-  margin-right: 16px;
+  margin-right: 14px;
+  overflow: hidden;
+  text-align: center;
+  line-height: 48px;
+}
+
+#player-logo {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.player-channel-meta {
+  float: left;
 }
 
 #player-title {
-  float: left;
-  font-size: 24px;
+  font-size: 20px;
   font-weight: bold;
-  line-height: 44px;
+  color: #ffffff;
+  line-height: 24px;
 }
 
-#player-clock {
+#player-epg-now {
+  font-size: 13px;
+  color: #a5929c;
+  line-height: 20px;
+}
+
+#player-res {
+  font-size: 12px;
+  color: #ffcc00;
+  margin-top: 2px;
+}
+
+.player-top-right {
   float: right;
-  font-size: 18px;
-  line-height: 44px;
-  color: #cccccc;
+  text-align: right;
 }
 
+/* Overlay Inferior del Reproductor (Foto 2) */
 #player-overlay-bot {
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 18px 30px;
-  background: rgba(0, 0, 0, 0.85);
+  height: 52px;
+  background: linear-gradient(to top, rgba(20, 5, 13, 0.98), rgba(20, 5, 13, 0.8), transparent);
   color: #ffffff;
   display: block;
   z-index: 105;
 }
 
-#player-epg-title {
-  font-size: 16px;
-  margin-bottom: 6px;
+.player-tab-drawer-btn {
+  float: left;
+  height: 52px;
+  line-height: 52px;
+  padding: 0 28px;
+  background: #8a2542;
+  color: #ffffff;
+  font-size: 20px;
+  cursor: pointer;
+  transform: skewX(-20deg);
+  -webkit-transform: skewX(-20deg);
+  margin-left: 12px;
 }
 
-#player-epg-bar {
-  height: 6px;
+.player-tab-drawer-btn span {
+  display: inline-block;
+  transform: skewX(20deg);
+  -webkit-transform: skewX(20deg);
+}
+
+.player-play-btn {
+  float: left;
+  height: 52px;
+  line-height: 52px;
+  padding: 0 24px;
+  font-size: 18px;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.player-progress-wrap {
+  overflow: hidden;
+  height: 52px;
+  line-height: 52px;
+  padding-right: 30px;
+}
+
+.player-progress-bar {
+  display: inline-block;
+  vertical-align: middle;
+  width: 70%;
+  height: 5px;
   background: rgba(255, 255, 255, 0.25);
   border-radius: 3px;
   overflow: hidden;
+  margin-right: 16px;
 }
 
 #player-epg-fill {
   height: 100%;
-  background: #ff9922;
-  width: 50%;
+  background: #e08868;
+  width: 35%;
 }
 
-/* Drawer lateral de canales durante reproducción */
+#player-time-text {
+  display: inline-block;
+  vertical-align: middle;
+  font-size: 14px;
+  color: #ffffff;
+}
+
+/* Drawer Lateral de Canales durante reproducción (Foto 3) */
 #player-drawer {
   position: absolute;
-  top: 0;
+  top: 68px;
   left: 0;
   bottom: 0;
-  width: 420px;
-  max-width: 80%;
-  background: rgba(8, 12, 24, 0.95);
-  border-right: 2px solid rgba(255, 255, 255, 0.2);
+  width: 380px;
+  max-width: 85%;
+  background: rgba(22, 6, 15, 0.96);
+  border-right: 2px solid #4a1525;
   display: none;
   z-index: 110;
   overflow-y: auto;
-  padding: 16px 0;
+  padding-bottom: 20px;
 }
 
-#player-drawer.open {
-  display: block;
-}
+#player-drawer.open { display: block; }
 
-.drawer-header {
-  padding: 12px 20px;
-  font-size: 18px;
+.drawer-nav-indicators {
+  padding: 10px 16px;
+  font-size: 14px;
   font-weight: bold;
   color: #ffcc00;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  text-align: center;
 }
 
 .drawer-row {
-  height: 46px;
-  line-height: 46px;
-  padding: 0 20px;
+  height: 54px;
+  padding: 6px 14px;
   cursor: pointer;
   color: #dddddd;
-  white-space: nowrap;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  position: relative;
   overflow: hidden;
-  text-overflow: ellipsis;
-  border-left: 4px solid transparent;
 }
 
 .drawer-row.focused {
-  background: rgba(229, 41, 69, 0.4);
-  border-left-color: #e52945;
+  background: #8a2542 !important;
   color: #ffffff;
-  font-weight: bold;
+}
+
+.drawer-row.focused .drawer-name {
+  color: #ffcc00;
 }
 
 .drawer-num {
-  color: #ffcc00;
+  float: left;
+  width: 28px;
+  font-size: 13px;
   font-weight: bold;
-  margin-right: 12px;
+  color: #ffffff;
+  line-height: 42px;
 }
 
-/* Mensaje Toast */
+.drawer-logo-box {
+  float: left;
+  width: 52px;
+  height: 38px;
+  background: #000000;
+  margin-right: 12px;
+  overflow: hidden;
+}
+
+.drawer-logo-box img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.drawer-info {
+  overflow: hidden;
+}
+
+.drawer-name {
+  font-size: 14px;
+  font-weight: bold;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.drawer-epg {
+  font-size: 11px;
+  color: #a5929c;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+
+/* Notificación Toast */
 #toast {
   position: absolute;
   top: 24px;
   left: 50%;
   transform: translateX(-50%);
   -webkit-transform: translateX(-50%);
-  background: rgba(20, 25, 45, 0.95);
-  border: 2px solid #2cd66d;
+  background: rgba(26, 8, 18, 0.95);
+  border: 2px solid #8a2542;
   color: #ffffff;
   padding: 12px 28px;
   border-radius: 6px;
@@ -816,21 +901,29 @@ html, body {
 <body>
 
 <div id="app">
-  <!-- BARRA SUPERIOR (Foto 1) -->
+  <!-- BARRA SUPERIOR (Fotos 1 y 4) -->
   <div id="topbar">
-    <div class="topbar-content">
-      <div class="title-main" id="screenTitle">Playlists</div>
-      <div class="top-icons-box">
-        <div class="round-btn" id="btnRefresh" title="Actualizar listas">↻</div>
-        <div class="round-btn" id="btnEdit" title="Editar">✎</div>
-        <div class="round-btn" id="btnSettings" title="Opciones">⚙</div>
-        <div class="round-btn" id="btnClose" title="Cerrar">✕</div>
+    <div class="topbar-title" id="screenTitle">Playlists</div>
+    <div class="topbar-right">
+      <div class="top-icons-row">
+        <div class="round-icon-btn" id="btnEpg" title="Guía EPG">◷</div>
+        <div class="round-icon-btn" id="btnFav" title="Favoritos">★</div>
+        <div class="round-icon-btn" id="btnSort" title="Ordenar">⇅</div>
+        <div class="round-icon-btn" id="btnSettings" title="Opciones">⚙</div>
+        <div class="round-icon-btn" id="btnClose" title="Volver">⮌</div>
       </div>
-      <div class="clock-text" id="liveClock">Cargando fecha y hora...</div>
+      <div class="color-strip">
+        <div class="color-strip-seg cs-white"></div>
+        <div class="color-strip-seg cs-red"></div>
+        <div class="color-strip-seg cs-green"></div>
+        <div class="color-strip-seg cs-yellow"></div>
+        <div class="color-strip-seg cs-blue"></div>
+      </div>
+      <div class="top-clock-text" id="liveClock">Thursday 24 September &nbsp; 10:37:29</div>
     </div>
   </div>
 
-  <!-- PANTALLA PRINCIPAL: PLAYLISTS / CANALES (Foto 1) -->
+  <!-- PANTALLA PRINCIPAL: PLAYLISTS / CANALES (Fotos 1 y 4) -->
   <div id="view-playlists">
     <div id="content-area"></div>
     <div id="bottom-tabs-bar"></div>
@@ -874,7 +967,7 @@ html, body {
         </div>
         <div class="opt-row" data-action="theme">
           <span class="opt-label">Color theme</span>
-          <span class="opt-value">&lt; Blue &gt;</span>
+          <span class="opt-value">&lt; Wine Red &gt;</span>
         </div>
         <div class="opt-btn-action" id="btnDoSave">
           Iniciar sesión y vincular TV
@@ -915,21 +1008,55 @@ html, body {
     </div>
   </div>
 
-  <!-- REPRODUCTOR DE VIDEO A PANTALLA COMPLETA -->
+  <!-- REPRODUCTOR DE VIDEO A PANTALLA COMPLETA (Foto 2 y 3) -->
   <div id="player-container">
     <video id="video-el" preload="auto" playsinline webkit-playsinline></video>
+    
+    <!-- Overlay Superior (Foto 2) -->
     <div id="player-overlay-top">
-      <img id="player-logo" src="" style="display:none;" />
-      <div id="player-title">Canal</div>
-      <div id="player-clock">12:00:00</div>
+      <div class="player-top-left">
+        <div id="player-logo-box">
+          <img id="player-logo" src="" style="display:none;" />
+        </div>
+        <div class="player-channel-meta">
+          <div id="player-title">Latina Televisión (PER)</div>
+          <div id="player-epg-now">--</div>
+          <div id="player-res">1280x720</div>
+        </div>
+      </div>
+      <div class="player-top-right">
+        <div class="top-icons-row">
+          <div class="round-icon-btn" id="btnPlayerRatio" title="Aspect Ratio">⧉</div>
+          <div class="round-icon-btn" id="btnPlayerEpg" title="Guía">◷</div>
+          <div class="round-icon-btn" id="btnPlayerAudio" title="Audio">🌐</div>
+          <div class="round-icon-btn" id="btnPlayerSubs" title="Subtítulos">🗖</div>
+          <div class="round-icon-btn" id="btnPlayerClose" title="Cerrar">⮌</div>
+        </div>
+        <div class="color-strip">
+          <div class="color-strip-seg cs-white"></div>
+          <div class="color-strip-seg cs-red"></div>
+          <div class="color-strip-seg cs-green"></div>
+          <div class="color-strip-seg cs-yellow"></div>
+          <div class="color-strip-seg cs-blue"></div>
+        </div>
+        <div class="top-clock-text" id="playerClock">Thursday 24 September &nbsp; 10:37:47</div>
+      </div>
       <div style="clear:both;"></div>
     </div>
+
+    <!-- Overlay Inferior (Foto 2) -->
     <div id="player-overlay-bot">
-      <div id="player-epg-title">Transmisión en vivo</div>
-      <div id="player-epg-bar"><div id="player-epg-fill"></div></div>
+      <div class="player-tab-drawer-btn" id="btnDrawerTrigger"><span>≡</span></div>
+      <div class="player-play-btn" id="btnPlayPause">▶❚❚</div>
+      <div class="player-progress-wrap">
+        <div class="player-progress-bar"><div id="player-epg-fill"></div></div>
+        <span id="player-time-text">0:37 of 1:00</span>
+      </div>
     </div>
+
+    <!-- Drawer Lateral de Canales (Foto 3) -->
     <div id="player-drawer">
-      <div class="drawer-header">Lista de canales (OK para ver)</div>
+      <div class="drawer-nav-indicators" id="drawerGroupName">&lt; Canales &gt;</div>
       <div id="player-drawer-list"></div>
     </div>
   </div>
@@ -974,7 +1101,7 @@ var KEY = {
 var state = {
   screen: 'playlists', // 'playlists', 'options', 'keyboard', 'device', 'player'
   currentFocusArea: 'content', // 'top', 'content', 'tabs'
-  topIconIdx: 2, // 0: refresh, 1: edit, 2: settings, 3: close
+  topIconIdx: 3, // 0: epg, 1: fav, 2: sort, 3: settings, 4: close
   tileIdx: 0,
   tabIdx: 0,
   optIdx: 0,
@@ -985,6 +1112,7 @@ var state = {
   drawerIdx: 0,
   drawerOpen: false,
   hideOverlayTimer: null,
+  isPaused: false,
   
   auth: {
     login: '',
@@ -1007,7 +1135,7 @@ var state = {
 function $(id) { return document.getElementById(id); }
 
 /* ==========================================================================
-   RELOJ EN VIVO (Formato Foto 1: Thursday 24 September 10:35:19)
+   RELOJ EN VIVO (Formato exacto de fotos: Thursday 24 September  10:37:29)
    ========================================================================== */
 var DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -1021,17 +1149,17 @@ function updateClock() {
   var mm = (d.getMinutes() < 10 ? '0' : '') + d.getMinutes();
   var ss = (d.getSeconds() < 10 ? '0' : '') + d.getSeconds();
   
-  var str = dayName + ' ' + dayNum + ' ' + monthName + ' ' + hh + ':' + mm + ':' + ss;
+  var str = dayName + ' ' + dayNum + ' ' + monthName + ' \u00A0 ' + hh + ':' + mm + ':' + ss;
   var el = $('liveClock');
-  if (el) el.textContent = str;
-  var pel = $('player-clock');
-  if (pel) pel.textContent = hh + ':' + mm + ':' + ss;
+  if (el) el.innerHTML = str;
+  var pel = $('playerClock');
+  if (pel) pel.innerHTML = str;
 }
 setInterval(updateClock, 1000);
 updateClock();
 
 /* ==========================================================================
-   STORAGE Y CONFIGURACIÓN
+   ALMACENAMIENTO LOCAL
    ========================================================================== */
 function loadStorage() {
   try {
@@ -1085,7 +1213,7 @@ function apiCall(method, path, body, callback) {
 }
 
 /* ==========================================================================
-   TECLADO VIRTUAL EN PANTALLA (Foto 3)
+   VISTA: TECLADO VIRTUAL EN PANTALLA (Foto 3)
    ========================================================================== */
 var KB_ROWS = [
   ['`','1','2','3','4','5','6','7','8','9','0','-','_'],
@@ -1126,7 +1254,7 @@ function openKeyboard(fieldTitle, currentVal, targetField) {
   $('kbTitle').textContent = fieldTitle;
   updateKeyboardDisplay();
   $('view-keyboard').style.display = 'block';
-  state.kbRow = 1; // Fila de letras
+  state.kbRow = 1;
   state.kbCol = 0;
   renderKeyboard();
 }
@@ -1274,14 +1402,14 @@ function openOptions() {
 function closeOptions() {
   $('view-options').style.display = 'none';
   $('view-playlists').style.display = 'block';
-  $('screenTitle').textContent = 'Playlists';
+  $('screenTitle').textContent = (state.currentPlaylist ? state.currentPlaylist.name : 'Playlists');
   state.screen = 'playlists';
   updateMainFocus();
 }
 
 function handleOptionsNav(kc) {
   var rows = document.getElementsByClassName('opt-row');
-  var totalItems = rows.length + 1; // filas + botón guardar
+  var totalItems = rows.length + 1;
 
   if (kc === KEY.UP) {
     state.optIdx = Math.max(0, state.optIdx - 1);
@@ -1407,6 +1535,7 @@ function loadDirectM3u(url) {
       state.channels = parseM3U(xhr.responseText);
       buildGroups();
       closeOptions();
+      state.currentPlaylist = { name: 'M3U Directo' };
       renderChannels();
       renderTabs();
       showToast(state.channels.length + ' canales disponibles.');
@@ -1461,6 +1590,7 @@ function renderPlaylistsView() {
     renderTabs();
   } else if (state.playlists.length > 0) {
     $('screenTitle').textContent = 'Playlists (' + state.playlists.length + ')';
+    $('bottom-tabs-bar').innerHTML = '';
     for (var i = 0; i < state.playlists.length; i++) {
       var d = document.createElement('div');
       d.className = 'folder-tile';
@@ -1473,17 +1603,19 @@ function renderPlaylistsView() {
     updateMainFocus();
   } else {
     $('screenTitle').textContent = 'Playlists';
-    area.innerHTML = '<div style="text-align: center; margin-top: 100px; font-size: 20px; color: #888899;">' +
-      'Sin listas cargadas.<br><br>Presiona el botón ⚙ (Settings) arriba para ingresar tu usuario y contraseña.</div>';
+    $('bottom-tabs-bar').innerHTML = '';
+    area.innerHTML = '<div style="text-align: center; margin-top: 100px; font-size: 20px; color: #a5929c;">' +
+      'Sin listas cargadas.<br><br>Presiona el icono ⚙ (Settings) arriba para ingresar tus datos.</div>';
   }
 }
 
+/* Barra de pestañas trapezoidales (Foto 4) */
 function renderTabs() {
   var bar = $('bottom-tabs-bar');
   bar.innerHTML = '';
   var allTabs = [
-    { id: '__fav', name: 'Favorites' },
-    { id: '__all', name: 'Todos' }
+    { id: '__all', name: 'All' },
+    { id: '__fav', name: 'Favoritos' }
   ];
   for (var i = 0; i < state.groups.length; i++) {
     allTabs.push({ id: state.groups[i], name: state.groups[i] });
@@ -1505,14 +1637,20 @@ function renderTabs() {
   }
 }
 
+/* Cuadrícula de 6 columnas exactas (Foto 1 y 4) */
 function renderChannels() {
   var area = $('content-area');
   area.innerHTML = '';
   var list = getFilteredChannels();
-  $('screenTitle').textContent = (state.currentPlaylist ? state.currentPlaylist.name : 'Canales') + ' (' + list.length + ')';
+  
+  var title = state.currentPlaylist ? state.currentPlaylist.name : 'Canales';
+  if (state.currentGroup !== '__all' && state.currentGroup !== '__fav') {
+    title += ' - ' + state.currentGroup;
+  }
+  $('screenTitle').textContent = title;
   
   if (list.length === 0) {
-    area.innerHTML = '<div style="text-align: center; margin-top: 100px; font-size: 18px; color: #888;">No hay canales en este grupo.</div>';
+    area.innerHTML = '<div style="text-align: center; margin-top: 100px; font-size: 18px; color: #a5929c;">No hay canales en este grupo.</div>';
     return;
   }
 
@@ -1521,7 +1659,7 @@ function renderChannels() {
     var tile = document.createElement('div');
     tile.className = 'tile-item';
     
-    var favHtml = state.favorites[c.id] ? '<div class="tile-fav">★</div>' : '';
+    var favHtml = state.favorites[c.id] ? '<div class="tile-fav-mark">★</div>' : '';
     var thumbHtml = c.logo ? '<div class="tile-thumb"><img src="' + c.logo + '" onerror="this.style.display=\'none\'" /></div>' : '<div class="tile-thumb">TV</div>';
     
     tile.innerHTML = '<div class="tile-num">' + (i + 1) + '</div>' + favHtml + thumbHtml +
@@ -1540,7 +1678,7 @@ function renderChannels() {
    NAVEGACIÓN CON CONTROL REMOTO / D-PAD (LG NETCAST)
    ========================================================================== */
 function updateMainFocus() {
-  var btns = document.getElementsByClassName('round-btn');
+  var btns = document.getElementsByClassName('round-icon-btn');
   for (var b = 0; b < btns.length; b++) btns[b].classList.remove('focused');
   var tiles = document.querySelectorAll('.tile-item, .folder-tile');
   for (var t = 0; t < tiles.length; t++) tiles[t].classList.remove('focused');
@@ -1548,7 +1686,7 @@ function updateMainFocus() {
   for (var tb = 0; tb < tabs.length; tb++) tabs[tb].classList.remove('focused');
 
   if (state.currentFocusArea === 'top') {
-    var topBtns = [$('btnRefresh'), $('btnEdit'), $('btnSettings'), $('btnClose')];
+    var topBtns = [$('btnEpg'), $('btnFav'), $('btnSort'), $('btnSettings'), $('btnClose')];
     if (topBtns[state.topIconIdx]) topBtns[state.topIconIdx].classList.add('focused');
   } else if (state.currentFocusArea === 'content') {
     if (tiles[state.tileIdx]) {
@@ -1570,14 +1708,14 @@ function updateMainFocus() {
 function handleMainNav(kc) {
   var tiles = document.querySelectorAll('.tile-item, .folder-tile');
   var tabs = document.getElementsByClassName('tab-skew');
-  var cols = 6; // 6 columnas por fila en resolución HD
+  var cols = 6; // 6 columnas por fila (Foto 1)
 
   if (state.currentFocusArea === 'top') {
     if (kc === KEY.LEFT) {
       state.topIconIdx = Math.max(0, state.topIconIdx - 1);
       updateMainFocus();
     } else if (kc === KEY.RIGHT) {
-      state.topIconIdx = Math.min(3, state.topIconIdx + 1);
+      state.topIconIdx = Math.min(4, state.topIconIdx + 1);
       updateMainFocus();
     } else if (kc === KEY.DOWN) {
       if (tiles.length > 0) {
@@ -1588,15 +1726,28 @@ function handleMainNav(kc) {
       }
       updateMainFocus();
     } else if (kc === KEY.ENTER) {
-      if (state.topIconIdx === 0) { fetchFeed(); }
-      else if (state.topIconIdx === 2) { openOptions(); }
-      else if (state.topIconIdx === 3) { window.history.back(); }
+      if (state.topIconIdx === 1) {
+        // Pestaña favoritos
+        state.currentGroup = (state.currentGroup === '__fav' ? '__all' : '__fav');
+        renderTabs();
+        renderChannels();
+      } else if (state.topIconIdx === 3) {
+        openOptions();
+      } else if (state.topIconIdx === 4) {
+        if (state.channels.length > 0 && state.playlists.length > 0) {
+          state.channels = [];
+          state.currentPlaylist = null;
+          renderPlaylistsView();
+        } else {
+          window.history.back();
+        }
+      }
     }
   } else if (state.currentFocusArea === 'content') {
     if (kc === KEY.UP) {
       if (state.tileIdx - cols < 0) {
         state.currentFocusArea = 'top';
-        state.topIconIdx = 2; // Focus en settings
+        state.topIconIdx = 3; // Focus en settings
       } else {
         state.tileIdx = Math.max(0, state.tileIdx - cols);
       }
@@ -1639,7 +1790,7 @@ function handleMainNav(kc) {
     }
   }
 
-  // Teclas directas de colores del control remoto
+  // Teclas directas de colores (Franja Foto 1)
   if (kc === KEY.RED) { fetchFeed(); }
   else if (kc === KEY.GREEN) { openOptions(); }
   else if (kc === KEY.YELLOW) {
@@ -1654,7 +1805,6 @@ function handleMainNav(kc) {
     }
   } else if (kc === KEY.BACK || kc === KEY.BACKSPACE || kc === KEY.ESC || kc === KEY.TIZEN_BACK) {
     if (state.channels.length > 0 && state.playlists.length > 0) {
-      // Regresar a la vista de listas/carpetas
       state.channels = [];
       state.currentPlaylist = null;
       renderPlaylistsView();
@@ -1665,7 +1815,7 @@ function handleMainNav(kc) {
 }
 
 /* ==========================================================================
-   REPRODUCTOR DE VIDEO A PANTALLA COMPLETA
+   REPRODUCTOR DE VIDEO A PANTALLA COMPLETA (Fotos 2 y 3)
    ========================================================================== */
 function playChannelAt(idx) {
   var list = getFilteredChannels();
@@ -1673,9 +1823,14 @@ function playChannelAt(idx) {
   state.currentChannelIdx = idx;
   var c = list[idx];
   
-  $('player-title').textContent = (idx + 1) + '. ' + c.name;
-  if (c.logo) { $('player-logo').src = c.logo; $('player-logo').style.display = 'block'; }
-  else { $('player-logo').style.display = 'none'; }
+  $('player-title').textContent = c.name;
+  $('player-epg-now').textContent = c.group;
+  if (c.logo) {
+    $('player-logo').src = c.logo;
+    $('player-logo').style.display = 'block';
+  } else {
+    $('player-logo').style.display = 'none';
+  }
   
   $('player-container').classList.add('open');
   state.screen = 'player';
@@ -1687,15 +1842,20 @@ function playChannelAt(idx) {
   v.removeAttribute('src');
   v.load();
   
+  // Detección de resolución dinámica (Foto 2: 873x480)
+  v.onloadedmetadata = function() {
+    if (v.videoWidth && v.videoHeight) {
+      $('player-res').textContent = v.videoWidth + 'x' + v.videoHeight;
+    }
+  };
+  
   if (window.Hls && Hls.isSupported() && /\.m3u8($|\?)/i.test(c.url)) {
     state.hlsInstance = new Hls({ maxBufferLength: 15, enableWorker: false });
     state.hlsInstance.loadSource(c.url);
     state.hlsInstance.attachMedia(v);
     state.hlsInstance.on(Hls.Events.MANIFEST_PARSED, function() { v.play(); });
     state.hlsInstance.on(Hls.Events.ERROR, function(evt, data) {
-      if (data.fatal) {
-        showToast('Error reproduciendo stream.');
-      }
+      if (data.fatal) showToast('Error reproduciendo stream.');
     });
   } else {
     v.src = c.url;
@@ -1708,8 +1868,10 @@ function showPlayerOverlay() {
   $('player-overlay-bot').style.display = 'block';
   clearTimeout(state.hideOverlayTimer);
   state.hideOverlayTimer = setTimeout(function() {
-    $('player-overlay-top').style.display = 'none';
-    $('player-overlay-bot').style.display = 'none';
+    if (!state.drawerOpen) {
+      $('player-overlay-top').style.display = 'none';
+      $('player-overlay-bot').style.display = 'none';
+    }
   }, 5000);
 }
 
@@ -1751,6 +1913,14 @@ function handlePlayerNav(kc) {
       var next = (state.currentChannelIdx + 1) % list.length;
       playChannelAt(next);
     }
+  } else if (kc === KEY.LEFT) {
+    if (state.drawerOpen) {
+      switchDrawerGroup(-1);
+    }
+  } else if (kc === KEY.RIGHT) {
+    if (state.drawerOpen) {
+      switchDrawerGroup(1);
+    }
   } else if (kc === KEY.ENTER) {
     if (!state.drawerOpen) {
       openChannelDrawer();
@@ -1762,14 +1932,27 @@ function handlePlayerNav(kc) {
   }
 }
 
+/* Drawer Lateral (Foto 3) */
 function openChannelDrawer() {
   var list = getFilteredChannels();
   var container = $('player-drawer-list');
   container.innerHTML = '';
+  
+  var groupLabel = (state.currentGroup === '__all' ? 'Todos' : (state.currentGroup === '__fav' ? 'Favoritos' : state.currentGroup));
+  $('drawerGroupName').innerHTML = '&lt; \u00A0 ' + groupLabel + ' \u00A0 &gt;';
+
   for (var i = 0; i < list.length; i++) {
     var row = document.createElement('div');
     row.className = 'drawer-row' + (i === state.currentChannelIdx ? ' focused' : '');
-    row.innerHTML = '<span class="drawer-num">' + (i + 1) + '</span><span class="drawer-name">' + list[i].name + '</span>';
+    
+    var logoHtml = list[i].logo ? '<img src="' + list[i].logo + '" onerror="this.style.display=\'none\'" />' : '';
+    row.innerHTML = '<span class="drawer-num">' + (i + 1) + '</span>' +
+      '<div class="drawer-logo-box">' + logoHtml + '</div>' +
+      '<div class="drawer-info">' +
+        '<div class="drawer-name">' + list[i].name + '</div>' +
+        '<div class="drawer-epg">...</div>' +
+      '</div>';
+      
     row.onclick = (function(idx) {
       return function() {
         playChannelAt(idx);
@@ -1796,13 +1979,22 @@ function updateDrawerFocus() {
   }
 }
 
+function switchDrawerGroup(dir) {
+  var allGroups = ['__all', '__fav'].concat(state.groups);
+  var curIdx = allGroups.indexOf(state.currentGroup);
+  if (curIdx < 0) curIdx = 0;
+  var nextIdx = (curIdx + dir + allGroups.length) % allGroups.length;
+  state.currentGroup = allGroups[nextIdx];
+  renderTabs();
+  openChannelDrawer();
+}
+
 /* ==========================================================================
    LISTENER MAESTRO DE TECLADO / CONTROL REMOTO (e.keyCode)
    ========================================================================== */
 document.addEventListener('keydown', function(e) {
   var kc = e.keyCode || e.which || 0;
   
-  // Prevenir scroll nativo de la TV en las flechas y back
   if (kc >= 37 && kc <= 40) { e.preventDefault(); }
   if (kc === KEY.BACK || kc === KEY.BACKSPACE) { e.preventDefault(); }
 
@@ -1833,10 +2025,22 @@ if (state.auth.token) {
   renderPlaylistsView();
 }
 
-// Eventos directos click (compatibilidad Magic Control)
-$('btnRefresh').onclick = function() { fetchFeed(); };
+// Clics directos para Magic Remote
+$('btnFav').onclick = function() {
+  state.currentGroup = (state.currentGroup === '__fav' ? '__all' : '__fav');
+  renderTabs();
+  renderChannels();
+};
 $('btnSettings').onclick = function() { openOptions(); };
-$('btnClose').onclick = function() { window.history.back(); };
+$('btnClose').onclick = function() {
+  if (state.channels.length > 0 && state.playlists.length > 0) {
+    state.channels = [];
+    state.currentPlaylist = null;
+    renderPlaylistsView();
+  } else {
+    window.history.back();
+  }
+};
 $('kbBtnBack').onclick = function() { closeKeyboard(false); };
 $('kbKeyCaps').onclick = function() { state.kbCaps = !state.kbCaps; renderKeyboard(); };
 $('kbKeySpace').onclick = function() { handleKeyClick(' '); };
@@ -1844,6 +2048,8 @@ $('kbKeyBack').onclick = function() { kbInputText = kbInputText.slice(0, -1); up
 $('kbKeyOk').onclick = function() { closeKeyboard(true); };
 $('devBtnOk').onclick = function() { closeDeviceSelection(); };
 $('btnDoSave').onclick = function() { doSaveAndLogin(); };
+$('btnDrawerTrigger').onclick = function() { openChannelDrawer(); };
+$('btnPlayerClose').onclick = function() { stopPlayer(); };
 
 var optRows = document.getElementsByClassName('opt-row');
 for (var or = 0; or < optRows.length; or++) {
