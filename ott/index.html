@@ -153,22 +153,22 @@ html, body {
   bottom: 48px;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 8px 12px;
+  padding: 6px 10px;
   text-align: left;
 }
 
-/* Cuadrícula de Canales: 6 columnas exactas (Foto 1) */
+/* Cuadrícula de Canales: 3 filas x 6 columnas exactas (18 canales por pantalla) */
 .tile-item {
   display: inline-block;
   vertical-align: top;
   width: 16.1%;
-  margin: 3px 0.28%;
+  margin: 4px 0.28%;
   background: #1c0a14;
   border: 2px solid #331222;
-  border-radius: 2px;
+  border-radius: 3px;
   padding: 4px;
   position: relative;
-  height: 142px;
+  height: 178px;
   cursor: pointer;
   box-sizing: border-box;
   -webkit-box-sizing: border-box;
@@ -183,9 +183,10 @@ html, body {
 
 .tile-num {
   position: absolute;
-  top: 2px;
-  left: 5px;
-  font-size: 12px;
+  top: 3px;
+  left: 6px;
+  font-size: 13px;
+  font-weight: bold;
   color: #ffffff;
   text-shadow: 1px 1px 2px #000000;
   z-index: 2;
@@ -193,9 +194,9 @@ html, body {
 
 .tile-fav-mark {
   position: absolute;
-  top: 2px;
-  right: 5px;
-  font-size: 12px;
+  top: 3px;
+  right: 6px;
+  font-size: 13px;
   color: #ffcc00;
   z-index: 2;
 }
@@ -203,11 +204,11 @@ html, body {
 .tile-thumb {
   position: relative;
   width: 100%;
-  height: 68px;
+  height: 100px;
   background: #000000;
   display: block;
   text-align: center;
-  line-height: 68px;
+  line-height: 100px;
   color: #666;
   font-size: 11px;
   overflow: hidden;
@@ -222,15 +223,15 @@ html, body {
 }
 
 .tile-title {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: bold;
-  margin-top: 4px;
+  margin-top: 6px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   color: #ffffff;
   text-align: center;
-  padding: 0 2px;
+  padding: 0 4px;
 }
 
 .tile-item.focused .tile-title {
@@ -238,14 +239,14 @@ html, body {
 }
 
 .tile-epg {
-  font-size: 11px;
+  font-size: 12px;
   color: #a5929c;
-  margin-top: 2px;
+  margin-top: 3px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   text-align: center;
-  padding: 0 2px;
+  padding: 0 4px;
 }
 
 .tile-bar {
@@ -653,6 +654,20 @@ html, body {
   z-index: 1;
 }
 
+/* Capa transparente de captura de clics y Magic Remote */
+#player-click-catcher {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 50;
+  background: transparent;
+  cursor: pointer;
+}
+
 /* Overlay Superior del Reproductor (Foto 2) */
 #player-overlay-top {
   position: absolute;
@@ -660,7 +675,9 @@ html, body {
   left: 0;
   right: 0;
   padding: 16px 24px;
-  background: linear-gradient(to bottom, rgba(20, 5, 13, 0.95), rgba(20, 5, 13, 0.4), transparent);
+  background: rgba(20, 5, 13, 0.94);
+  background: -webkit-linear-gradient(top, rgba(20, 5, 13, 0.96), rgba(20, 5, 13, 0.5), transparent);
+  background: linear-gradient(to bottom, rgba(20, 5, 13, 0.96), rgba(20, 5, 13, 0.5), transparent);
   color: #ffffff;
   display: block;
   z-index: 105;
@@ -722,6 +739,8 @@ html, body {
   left: 0;
   right: 0;
   height: 52px;
+  background: rgba(20, 5, 13, 0.94);
+  background: -webkit-linear-gradient(bottom, rgba(20, 5, 13, 0.98), rgba(20, 5, 13, 0.8), transparent);
   background: linear-gradient(to top, rgba(20, 5, 13, 0.98), rgba(20, 5, 13, 0.8), transparent);
   color: #ffffff;
   display: block;
@@ -1078,8 +1097,13 @@ html, body {
 
   <!-- REPRODUCTOR DE VIDEO A PANTALLA COMPLETA (Foto 2 y 3) -->
   <div id="player-container">
-    <video id="video-el" preload="auto" playsinline webkit-playsinline></video>
-    <object id="netcast-player" type="application/x-netcast-av" width="100%" height="100%" style="display:none;"></object>
+    <video id="video-el" preload="auto" playsinline webkit-playsinline tabindex="-1"></video>
+    <object id="netcast-player" type="application/x-netcast-av" width="100%" height="100%" style="display:none;" tabindex="-1">
+      <param name="wmode" value="transparent">
+    </object>
+    
+    <!-- Capa de captura de clics y toques para Magic Remote sobre el video -->
+    <div id="player-click-catcher"></div>
     
     <!-- Cartel SINTONIZANDO en el centro (Foto 2) -->
     <div id="player-tuning" class="player-tuning-modal">
@@ -1392,7 +1416,7 @@ function apiCall(method, path, body, callback) {
    VISTA: TECLADO VIRTUAL EN PANTALLA (Foto 3)
    ========================================================================== */
 var KB_ROWS = [
-  ['`','1','2','3','4','5','6','7','8','9','0','-','_'],
+  ['\u0060','1','2','3','4','5','6','7','8','9','0','-','_'],
   ['<','q','w','e','r','t','y','u','i','o','p','[',']'],
   ['>','a','s','d','f','g','h','j','k','l',';','\'','@'],
   ['{','}','z','x','c','v','b','n','m',',','.','/','\\']
@@ -2422,13 +2446,40 @@ function handlePlayerNav(kc) {
     return;
   }
 
-  // 2. Teclas directas de control remoto
-  if (kc === KEY.BACK || kc === KEY.BACKSPACE || kc === KEY.ESC || kc === KEY.TIZEN_BACK) {
-    if (state.playerHudVisible) {
-      hidePlayerOverlay();
-    } else {
+  // 2. Si el HUD está oculto: ¡CUALQUIER TECLA LO DESPIERTA!
+  if (!state.playerHudVisible) {
+    if (kc === KEY.BACK || kc === KEY.BACKSPACE || kc === KEY.ESC || kc === KEY.TIZEN_BACK) {
       stopPlayer();
+      return;
     }
+    if (kc === KEY.STOP) {
+      stopPlayer();
+      return;
+    }
+    if (kc === KEY.CH_UP) {
+      var prev = (state.currentChannelIdx - 1 + list.length) % list.length;
+      playChannelAt(prev);
+      return;
+    }
+    if (kc === KEY.CH_DOWN) {
+      var next = (state.currentChannelIdx + 1) % list.length;
+      playChannelAt(next);
+      return;
+    }
+    if (kc === KEY.BLUE || kc === KEY.BLUE_SAMSUNG || kc === 66) {
+      openChannelDrawer();
+      return;
+    }
+    // Despertar HUD con foco en la barra de canal / drawer inferior
+    state.playerArea = 'bottom';
+    state.playerBotIdx = 0;
+    showPlayerOverlay();
+    return;
+  }
+
+  // 3. Teclas de acción directa con el HUD visible
+  if (kc === KEY.BACK || kc === KEY.BACKSPACE || kc === KEY.ESC || kc === KEY.TIZEN_BACK) {
+    hidePlayerOverlay();
     return;
   }
   if (kc === KEY.PLAY || kc === KEY.PAUSE) {
@@ -2454,25 +2505,7 @@ function handlePlayerNav(kc) {
     return;
   }
 
-  // 3. Si el HUD está oculto: cualquier tecla lo despierta con foco en el selector inferior
-  if (!state.playerHudVisible) {
-    if (kc === KEY.CH_UP) {
-      var prev = (state.currentChannelIdx - 1 + list.length) % list.length;
-      playChannelAt(prev);
-      return;
-    }
-    if (kc === KEY.CH_DOWN) {
-      var next = (state.currentChannelIdx + 1) % list.length;
-      playChannelAt(next);
-      return;
-    }
-    state.playerArea = 'bottom';
-    state.playerBotIdx = 0;
-    showPlayerOverlay();
-    return;
-  }
-
-  // 4. Si el HUD está visible: navegación completa entre botones
+  // 4. Navegación con flechas cuando el HUD está visible
   showPlayerOverlay(); // renueva temporizador de ocultación
 
   if (state.playerArea === 'bottom') {
@@ -2582,11 +2615,16 @@ function switchDrawerGroup(dir) {
 /* ==========================================================================
    LISTENER MAESTRO DE TECLADO / CONTROL REMOTO (e.keyCode)
    ========================================================================== */
-document.addEventListener('keydown', function(e) {
-  var kc = e.keyCode || e.which || 0;
+function onGlobalKeyDown(e) {
+  var eObj = e || window.event;
+  var kc = eObj.keyCode || eObj.which || 0;
   
-  if (kc >= 37 && kc <= 40) { e.preventDefault(); }
-  if (kc === KEY.BACK || kc === KEY.BACKSPACE) { e.preventDefault(); }
+  if (kc >= 37 && kc <= 40) {
+    try { if (eObj.preventDefault) eObj.preventDefault(); } catch (err1) {}
+  }
+  if (kc === KEY.BACK || kc === KEY.BACKSPACE) {
+    try { if (eObj.preventDefault) eObj.preventDefault(); } catch (err2) {}
+  }
 
   if (state.screen === 'player') {
     handlePlayerNav(kc);
@@ -2601,7 +2639,12 @@ document.addEventListener('keydown', function(e) {
   } else if (state.screen === 'playlists') {
     handleMainNav(kc);
   }
-});
+}
+
+window.addEventListener('keydown', onGlobalKeyDown, false);
+document.addEventListener('keydown', onGlobalKeyDown, false);
+window.onkeydown = onGlobalKeyDown;
+document.onkeydown = onGlobalKeyDown;
 
 /* ==========================================================================
    INICIALIZACIÓN
@@ -2649,38 +2692,214 @@ $('kbKeyBack').onclick = function() { kbInputText = kbInputText.slice(0, -1); up
 $('kbKeyOk').onclick = function() { closeKeyboard(true); };
 $('devBtnOk').onclick = function() { closeDeviceSelection(); };
 $('btnDoSave').onclick = function() { doSaveAndLogin(); };
-$('btnDrawerTrigger').onclick = function() { openChannelDrawer(); };
-$('btnPlayerRatio').onclick = function() {
+
+// Magic Remote & Click handlers para el reproductor
+var catcher = $('player-click-catcher');
+if (catcher) {
+  catcher.onclick = function(e) {
+    if (e) {
+      if (e.stopPropagation) e.stopPropagation();
+      if (e.preventDefault) e.preventDefault();
+    }
+    if (state.drawerOpen) {
+      closeChannelDrawer();
+      showPlayerOverlay();
+      return;
+    }
+    if (state.playerHudVisible) {
+      hidePlayerOverlay();
+    } else {
+      state.playerArea = 'bottom';
+      state.playerBotIdx = 0;
+      showPlayerOverlay();
+    }
+  };
+  catcher.onmousemove = function() {
+    if (!state.playerHudVisible && !state.drawerOpen) {
+      state.playerArea = 'bottom';
+      state.playerBotIdx = 0;
+      showPlayerOverlay();
+    }
+  };
+}
+
+$('player-container').onclick = function(e) {
+  var ev = e || window.event;
+  var t = ev ? (ev.target || ev.srcElement) : null;
+  if (!t || t.id === 'player-container' || t.id === 'video-el' || t.id === 'netcast-player' || t.id === 'player-click-catcher') {
+    if (state.drawerOpen) {
+      closeChannelDrawer();
+      showPlayerOverlay();
+      return;
+    }
+    if (state.playerHudVisible) {
+      hidePlayerOverlay();
+    } else {
+      state.playerArea = 'bottom';
+      state.playerBotIdx = 0;
+      showPlayerOverlay();
+    }
+  }
+};
+
+$('player-overlay-top').onclick = function(e) {
+  var ev = e || window.event;
+  if (ev && ev.stopPropagation) ev.stopPropagation();
+  showPlayerOverlay();
+};
+$('player-overlay-bot').onclick = function(e) {
+  var ev = e || window.event;
+  if (ev && ev.stopPropagation) ev.stopPropagation();
+  showPlayerOverlay();
+};
+$('player-overlay-top').onmousemove = function() { showPlayerOverlay(); };
+$('player-overlay-bot').onmousemove = function() { showPlayerOverlay(); };
+
+// Botones del HUD del reproductor
+$('btnDrawerTrigger').onclick = function(e) {
+  var ev = e || window.event;
+  if (ev && ev.stopPropagation) ev.stopPropagation();
+  openChannelDrawer();
+};
+$('btnPlayerEpg').onclick = function(e) {
+  var ev = e || window.event;
+  if (ev && ev.stopPropagation) ev.stopPropagation();
+  openChannelDrawer();
+};
+$('btnPlayerRatio').onclick = function(e) {
+  var ev = e || window.event;
+  if (ev && ev.stopPropagation) ev.stopPropagation();
+  showPlayerOverlay();
   var v = $('video-el'), netcastObj = $('netcast-player');
   if (v.style.objectFit === 'fill') {
     v.style.objectFit = 'cover';
-    if (netcastObj) try { netcastObj.setAspectRatio('16:9'); } catch (e) {}
+    if (netcastObj) try { netcastObj.setAspectRatio('16:9'); } catch (e2) {}
     showToast('Aspect: Cover (16:9)');
   } else if (v.style.objectFit === 'cover') {
     v.style.objectFit = 'contain';
-    if (netcastObj) try { netcastObj.setAspectRatio('4:3'); } catch (e) {}
+    if (netcastObj) try { netcastObj.setAspectRatio('4:3'); } catch (e3) {}
     showToast('Aspect: Contain (4:3)');
   } else {
     v.style.objectFit = 'fill';
-    if (netcastObj) try { netcastObj.setAspectRatio('auto'); } catch (e) {}
-    showToast('Aspect: Full (Stretch)');
+    if (netcastObj) try { netcastObj.setAspectRatio('auto'); } catch (e4) {}
+    showToast('Aspect: Automático (Estirar)');
   }
 };
-$('btnPlayerEpg').onclick = function() { openChannelDrawer(); };
-$('btnPlayerAudio').onclick = function() { showToast('Pistas de audio nativas activas'); };
-$('btnPlayerSubs').onclick = function() { showToast('Subtítulos DVB/CC nativos'); };
-$('btnPlayPause').onclick = function() {
+
+$('btnPlayerAudio').onclick = function(e) {
+  var ev = e || window.event;
+  if (ev && ev.stopPropagation) ev.stopPropagation();
+  showPlayerOverlay();
+  var v = $('video-el');
+  if (state.hlsInstance && state.hlsInstance.audioTracks && state.hlsInstance.audioTracks.length > 1) {
+    var cur = state.hlsInstance.audioTrack;
+    var next = (cur + 1) % state.hlsInstance.audioTracks.length;
+    state.hlsInstance.audioTrack = next;
+    var aName = state.hlsInstance.audioTracks[next].name || ('Pista ' + (next + 1));
+    showToast('Audio: ' + aName);
+    return;
+  }
+  if (v && v.audioTracks && v.audioTracks.length > 1) {
+    var curA = 0;
+    for (var a = 0; a < v.audioTracks.length; a++) {
+      if (v.audioTracks[a].enabled) { curA = a; break; }
+    }
+    var nextA = (curA + 1) % v.audioTracks.length;
+    for (var b = 0; b < v.audioTracks.length; b++) {
+      v.audioTracks[b].enabled = (b === nextA);
+    }
+    var aLabel = v.audioTracks[nextA].label || v.audioTracks[nextA].language || ('Pista ' + (nextA + 1));
+    showToast('Audio: ' + aLabel);
+    return;
+  }
+  showToast('Audio estéreo principal');
+};
+
+$('btnPlayerSubs').onclick = function(e) {
+  var ev = e || window.event;
+  if (ev && ev.stopPropagation) ev.stopPropagation();
+  showPlayerOverlay();
+  var v = $('video-el');
+  if (state.hlsInstance && state.hlsInstance.subtitleTracks && state.hlsInstance.subtitleTracks.length > 0) {
+    var curSub = state.hlsInstance.subtitleTrack;
+    var nextSub = (curSub + 1 >= state.hlsInstance.subtitleTracks.length) ? -1 : (curSub + 1);
+    state.hlsInstance.subtitleTrack = nextSub;
+    if (nextSub === -1) {
+      showToast('Subtítulos: Desactivados');
+    } else {
+      var sName = state.hlsInstance.subtitleTracks[nextSub].name || ('Pista ' + (nextSub + 1));
+      showToast('Subtítulos: ' + sName);
+    }
+    return;
+  }
+  if (v && v.textTracks && v.textTracks.length > 0) {
+    var anyShowing = false;
+    for (var s = 0; s < v.textTracks.length; s++) {
+      if (v.textTracks[s].mode === 'showing') {
+        v.textTracks[s].mode = 'disabled';
+        anyShowing = true;
+        break;
+      }
+    }
+    if (!anyShowing && v.textTracks.length > 0) {
+      v.textTracks[0].mode = 'showing';
+      showToast('Subtítulos: Activados');
+    } else {
+      showToast('Subtítulos: Desactivados');
+    }
+    return;
+  }
+  showToast('Sin subtítulos disponibles');
+};
+
+$('btnPlayPause').onclick = function(e) {
+  var ev = e || window.event;
+  if (ev && ev.stopPropagation) ev.stopPropagation();
+  showPlayerOverlay();
   var netcastObj = $('netcast-player');
   if (netcastObj && netcastObj.style.display !== 'none') {
-    if (netcastObj.playState === 1) { try { netcastObj.pause(); $('btnPlayPause').textContent = '▶'; } catch (e) {} }
-    else { try { netcastObj.play(1); $('btnPlayPause').textContent = '▶❚❚'; } catch (e) {} }
+    if (netcastObj.playState === 1) { try { netcastObj.pause(); $('btnPlayPause').textContent = '▶'; } catch (e2) {} }
+    else { try { netcastObj.play(1); $('btnPlayPause').textContent = '▶❚❚'; } catch (e3) {} }
     return;
   }
   var v = $('video-el');
   if (v.paused) { v.play(); $('btnPlayPause').textContent = '▶❚❚'; }
   else { v.pause(); $('btnPlayPause').textContent = '▶'; }
 };
-$('btnPlayerClose').onclick = function() { stopPlayer(); };
+
+$('btnPlayerClose').onclick = function(e) {
+  var ev = e || window.event;
+  if (ev && ev.stopPropagation) ev.stopPropagation();
+  stopPlayer();
+};
+
+// Soporte de Magic Remote hover en botones superiores e inferiores
+var pTopBtns = [$('btnPlayerRatio'), $('btnPlayerEpg'), $('btnPlayerAudio'), $('btnPlayerSubs'), $('btnPlayerClose')];
+for (var pti = 0; pti < pTopBtns.length; pti++) {
+  (function(btn, idx) {
+    if (btn) {
+      btn.onmouseenter = function() {
+        state.playerArea = 'top';
+        state.playerTopIdx = idx;
+        updatePlayerFocus();
+        showPlayerOverlay();
+      };
+    }
+  })(pTopBtns[pti], pti);
+}
+var pBotBtns = [$('btnDrawerTrigger'), $('btnPlayPause')];
+for (var pbi = 0; pbi < pBotBtns.length; pbi++) {
+  (function(btn, idx) {
+    if (btn) {
+      btn.onmouseenter = function() {
+        state.playerArea = 'bottom';
+        state.playerBotIdx = idx;
+        updatePlayerFocus();
+        showPlayerOverlay();
+      };
+    }
+  })(pBotBtns[pbi], pbi);
+}
 
 var optRows = document.getElementsByClassName('opt-row');
 for (var or = 0; or < optRows.length; or++) {
