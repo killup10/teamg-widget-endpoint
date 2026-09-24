@@ -44,7 +44,8 @@ footer{border-top:2px solid #22c55e;padding:18px 34px;color:#777;font-size:13px;
 <div class="loginwrap" id="login">
   <div class="side">Login</div>
   <form class="login" id="f">
-    <input id="k" type="password" placeholder="admin key" />
+    <input id="u" type="text" placeholder="usuario" autocomplete="off" />
+    <input id="k" type="password" placeholder="password" />
     <div class="row"><button class="btn" type="submit">OK</button></div>
     <div class="err" id="e"></div>
   </form>
@@ -53,14 +54,17 @@ footer{border-top:2px solid #22c55e;padding:18px 34px;color:#777;font-size:13px;
 <script>
 document.getElementById("f").onsubmit=function(e){
   e.preventDefault();
-  var k=document.getElementById("k").value;
-  fetch("/api/ott/admin/overview",{headers:{"x-admin-key":k}}).then(function(r){
+  var u=document.getElementById("u").value.trim(),k=document.getElementById("k").value;
+  fetch("/api/ott/admin/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({login:u,password:k})}).then(function(r){
     if(!r.ok)throw new Error();
-    sessionStorage.setItem("ottkey",k);
+    return r.json();
+  }).then(function(j){
+    if(!j.ok)throw new Error();
+    sessionStorage.setItem("ottkey",j.token);
+    sessionStorage.setItem("ottname",j.name);
     location.href="/web/cabinet.html";
-  }).catch(function(){document.getElementById("e").textContent="Clave incorrecta.";});
+  }).catch(function(){document.getElementById("e").textContent="Credenciales incorrectas.";});
 };
-fetch("/api/ott/admin/overview",{headers:{"x-admin-key":"_"}}).catch(function(){});
 </script>
 </body>
 </html>

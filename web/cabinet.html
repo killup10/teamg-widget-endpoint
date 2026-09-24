@@ -9,33 +9,56 @@
 html,body{margin:0;padding:0;font-family:Arial,Helvetica,sans-serif;color:#333;background:#f6f8f6}
 nav.top{display:flex;align-items:center;gap:26px;padding:14px 34px;border-bottom:2px solid #22c55e;background:#fff;position:sticky;top:0;z-index:10}
 .logo{font-weight:800;font-size:22px;color:#22c55e}.logo small{display:block;font-size:11px;font-weight:400;letter-spacing:3px}
-.tabs{margin-left:auto;display:flex;gap:4px}
-.tabs button{background:none;border:0;padding:10px 16px;font-size:15px;color:#555;cursor:pointer;font-family:inherit}
+.userchip{font-size:14px;color:#555}
+.tabs{margin-left:auto;display:flex;gap:4px;flex-wrap:wrap}
+.tabs button{background:none;border:0;padding:10px 14px;font-size:15px;color:#555;cursor:pointer;font-family:inherit}
 .tabs button.sel{background:#22c55e;color:#fff;border-radius:4px}
 .wrap{max-width:1000px;margin:26px auto;padding:0 20px 60px}
 .card{background:#fff;border-radius:8px;box-shadow:0 1px 6px #0001;padding:20px;margin-bottom:18px}
 h2{margin:0 0 12px;font-weight:400;font-size:22px}
-input{background:#fff;border:1px solid #22c55e;border-radius:4px;color:#333;padding:10px;margin:3px;font-size:14px;font-family:inherit}
-button.act{background:#22c55e;border:0;color:#fff;padding:10px 18px;border-radius:4px;cursor:pointer;margin:3px;font-family:inherit}
+input,select{background:#fff;border:0;border-bottom:2px dotted #22c55e;border-radius:0;color:#333;padding:10px 4px;margin:3px;font-size:15px;font-family:inherit}
+button.act{background:#fff;border:0;box-shadow:0 2px 8px #0003;padding:10px 26px;font-size:13px;letter-spacing:1px;cursor:pointer;margin:3px;color:#333;font-family:inherit}
 button.danger{background:#fff;border:1px solid #e53935;color:#e53935;padding:7px 12px;border-radius:4px;cursor:pointer}
-button.plain{background:#fff;border:1px solid #aaa;color:#333;padding:7px 12px;border-radius:4px;cursor:pointer}
-table{border-collapse:collapse;width:100%;font-size:14px}td,th{border-bottom:1px solid #e0e0e0;padding:8px 6px;text-align:left}
+table{border-collapse:collapse;width:100%;font-size:14px}td,th{border-bottom:1px solid #eee;padding:8px 6px;text-align:left}
 .small{color:#888;font-size:12px}
 .chk{display:inline-block;margin:3px 10px 3px 0;font-size:14px}
-.dev{border:1px solid #e0e0e0;border-radius:6px;padding:12px;margin:10px 0}
-.msg{font-size:13px;color:#22c55e}
+.dev{border:1px solid #e4e4e4;border-radius:6px;padding:12px;margin:10px 0}
+.furow{box-shadow:0 1px 6px #0001;background:#fff;border-radius:6px;padding:16px 20px;margin:12px 0;cursor:pointer;font-size:19px}
+.furow .st{float:right;font-size:12px}
+.on{color:#fff;background:#22c55e;border-radius:3px;padding:3px 10px}
+.off{color:#fff;background:#bbb;border-radius:3px;padding:3px 10px}
+.seg{display:inline-block;border:1px solid #22c55e;border-radius:4px;overflow:hidden}
+.seg button{border:0;background:#fff;padding:8px 18px;cursor:pointer;font-family:inherit;font-size:14px}
+.seg button.selon{background:#22c55e;color:#fff}
+.modal{position:fixed;inset:0;background:#0008;display:none;align-items:center;justify-content:center;z-index:50}
+.modal.open{display:flex}
+.mbox{background:#fff;border-radius:8px;padding:26px;width:420px;max-width:92vw}
+.mbox h3{margin:0 0 14px;font-weight:400;font-size:22px}
+.mbox input{width:100%}
+.mrow{display:flex;justify-content:space-between;margin-top:18px}
+h4{font-weight:400;color:#555;margin:18px 0 6px}
 </style>
 </head>
 <body>
 <nav class="top">
   <div class="logo">OTT<small>player</small></div>
+  <div class="userchip" id="who"></div>
   <div class="tabs" id="tabs"></div>
 </nav>
 <div class="wrap" id="app"><p>Cargando...</p></div>
+<div class="modal" id="modal"><div class="mbox">
+  <h3>Create fake-user</h3>
+  <input id="mu" placeholder="username" autocomplete="off" />
+  <input id="mp" type="password" placeholder="password" />
+  <input id="mp2" type="password" placeholder="repeat password" />
+  <div class="mrow"><button class="act" id="mcancel">CANCEL</button><button class="act" id="msave">SAVE</button></div>
+  <p class="small" id="mmsg"></p>
+</div></div>
 <script>
 var KEY=sessionStorage.getItem("ottkey")||"";
 if(!KEY)location.href="/web/";
-var DATA=null,TAB="Home";
+document.getElementById("who").textContent=sessionStorage.getItem("ottname")||"";
+var DATA=null,TAB="Home",OPENFU=null;
 function api(p,m,b){
   return fetch(p,{method:m||"GET",headers:{"Content-Type":"application/json","x-admin-key":KEY},body:b?JSON.stringify(b):undefined})
     .then(function(r){if(r.status===403){location.href="/web/";throw new Error("auth");}if(!r.ok)throw new Error("HTTP "+r.status);return r.json();});
@@ -47,26 +70,23 @@ function render(){
   var t=document.getElementById("tabs");t.innerHTML="";
   TABS.forEach(function(x){
     var b=document.createElement("button");b.textContent=x;if(x===TAB)b.className="sel";
-    b.onclick=function(){
-      if(x==="Logout"){sessionStorage.removeItem("ottkey");location.href="/web/";return;}
-      TAB=x;render();
-    };
+    b.onclick=function(){if(x==="Logout"){sessionStorage.removeItem("ottkey");location.href="/web/";return;}TAB=x;OPENFU=null;render();};
     t.appendChild(b);
   });
   var a=document.getElementById("app"),un={};
   DATA.users.forEach(function(u){un[u.id]=u.login;});
   if(TAB==="Home"){
-    a.innerHTML="<div class='card'><h2>Home</h2><p>Usuarios: <b>"+DATA.users.length+"</b> · Dispositivos: <b>"+DATA.devices.length+"</b> · Playlists: <b>"+DATA.playlists.length+"</b> <span class='small'>(store: "+esc(DATA.mode)+")</span></p><p class='small'>1. Crea fake-users para tus clientes · 2. Agrega tus M3U en Playlists · 3. Asigna listas en Devices · 4. El cliente actualiza con el botón rojo del TV.</p></div>";
+    a.innerHTML="<div class='card'><h2>Home</h2><p>Fake-users: <b>"+DATA.users.length+"</b> · Devices: <b>"+DATA.devices.length+"</b> · Playlists: <b>"+DATA.playlists.length+"</b> <span class='small'>(store: "+esc(DATA.mode)+")</span></p><p class='small'>1. Crea fake-users · 2. Agrega M3U en Playlists · 3. Activa y asigna en Devices · 4. El cliente actualiza con el botón rojo.</p></div>";
   }
   if(TAB==="Cabinet"){
-    a.innerHTML="<div class='card'><h2>Cabinet</h2><p>Plan: <b>OTT TV local</b></p><p>Usuarios: <b>"+DATA.users.length+"</b><br/>Dispositivos: <b>"+DATA.devices.length+"</b><br/>Playlists: <b>"+DATA.playlists.length+"</b></p></div>";
+    a.innerHTML="<div class='card'><h2>Cabinet</h2><p>Admin: <b>"+esc(sessionStorage.getItem("ottname")||"")+"</b></p><p>Fake-users: <b>"+DATA.users.length+"</b><br/>Devices: <b>"+DATA.devices.length+"</b><br/>Playlists: <b>"+DATA.playlists.length+"</b></p></div>";
   }
   if(TAB==="Playlists"){
-    var h="<div class='card'><h2>Playlists</h2><input id='pn' placeholder='Nombre' style='width:200px'/><input id='pu' placeholder='URL M3U' style='width:280px'/><input id='pe' placeholder='URL EPG (opcional)' style='width:280px'/><button class='act' id='bp'>Agregar</button> <span class='msg' id='pm'></span><br/><br/><table><tr><th>Nombre</th><th>URL</th><th></th></tr>";
+    var h="<div class='card'><h2>Playlists</h2><input id='pn' placeholder='Nombre' style='width:200px'/><input id='pu' placeholder='URL M3U' style='width:280px'/><input id='pe' placeholder='URL EPG (opcional)' style='width:280px'/><button class='act' id='bp'>Agregar</button> <span class='small' id='pm'></span><br/><br/><table><tr><th>Nombre</th><th>URL</th><th></th></tr>";
     DATA.playlists.forEach(function(p){h+="<tr><td>"+esc(p.name)+"</td><td class='small'>"+esc(p.url)+"</td><td><button class='danger' data-dp='"+p.id+"'>Borrar</button></td></tr>";});
     a.innerHTML=h+"</table></div>";
     document.getElementById("bp").onclick=function(){
-      api("/api/ott/admin/playlist","POST",{name:document.getElementById("pn").value.trim(),url:document.getElementById("pu").value.trim(),epgUrl:document.getElementById("pe").value.trim()}).then(function(){refresh();}).catch(function(e){document.getElementById("pm").textContent=e.message;});
+      api("/api/ott/admin/playlist","POST",{name:document.getElementById("pn").value.trim(),url:document.getElementById("pu").value.trim(),epgUrl:document.getElementById("pe").value.trim()}).then(refresh).catch(function(e){document.getElementById("pm").textContent=e.message;});
     };
     bindDel("dp","playlist");
   }
@@ -74,7 +94,9 @@ function render(){
     var h="<div class='card'><h2>Devices</h2>";
     if(!DATA.devices.length)h+="<p class='small'>Sin dispositivos. Aparecen cuando el cliente se loguea y registra su TV.</p>";
     DATA.devices.forEach(function(d){
-      h+="<div class='dev'><b>"+esc(d.name)+"</b> <span class='small'>"+esc(d.id)+" · "+esc(un[d.userId]||d.userId)+" · "+esc(d.platform||"")+" · visto: "+esc(d.lastSeen||"-")+"</span> <button class='danger' data-dd='"+d.id+"'>Borrar</button><br/>";
+      h+="<div class='dev'><b>"+esc(d.note||d.name)+"</b> <span class='small'>TV: "+esc(d.name)+" · fake-user: "+esc(un[d.userId]||d.userId)+" · "+esc(d.platform||"")+" · visto: "+esc(d.lastSeen||"-")+"</span> <button class='danger' data-dd='"+d.id+"'>Borrar</button><br/>";
+      h+="<span class='small'>Nombre/nota (no afecta al cliente):</span> <input data-note='"+d.id+"' value='"+esc(d.note||"")+"' placeholder='Ej. javi larrea CELULAR vence 09-02-27 1 año FULL' style='width:320px'/>";
+      h+="<span class='small'>Fake-user:</span> <select data-fu='"+d.id+"'>"+DATA.users.map(function(u){return"<option value='"+u.id+"'"+(u.id===d.userId?" selected":"")+">"+esc(u.login)+"</option>";}).join("")+"</select><br/>";
       h+="<span class='small'>connected playlists:</span><br/>";
       DATA.playlists.forEach(function(p){
         var on=(d.playlists||[]).indexOf(p.id)>-1;
@@ -88,18 +110,74 @@ function render(){
     for(var i=0;i<s.length;i++)s[i].onclick=function(){
       var dev=this.getAttribute("data-save"),ids=[],c=document.querySelectorAll("input[data-dev='"+dev+"']");
       for(var j=0;j<c.length;j++)if(c[j].checked)ids.push(c[j].value);
-      api("/api/ott/admin/assign","POST",{deviceId:dev,playlistIds:ids}).then(function(){alert("Guardado. El cliente pulsa el botón rojo.");refresh();});
+      var note=document.querySelector("input[data-note='"+dev+"']").value;
+      var fu=document.querySelector("select[data-fu='"+dev+"']").value;
+      api("/api/ott/admin/device","PUT",{id:dev,note:note,userId:fu}).then(function(){
+        return api("/api/ott/admin/assign","POST",{deviceId:dev,playlistIds:ids});
+      }).then(function(){alert("Guardado. El cliente pulsa el botón rojo.");refresh();});
     };
   }
-  if(TAB==="Fake-users"){
-    var h="<div class='card'><h2>Fake-users</h2><p class='small'>Usuarios extra para clientes, sin email. Compárteles su login + password.</p><input id='fu' placeholder='usuario'/><input id='fp' placeholder='password'/><button class='act' id='bf'>Crear</button> <span class='msg' id='fm'></span><br/><br/><table><tr><th>Login</th><th>Creado</th><th></th></tr>";
-    DATA.users.forEach(function(u){h+="<tr><td>"+esc(u.login)+"</td><td class='small'>"+esc(u.created||"")+"</td><td><button class='danger' data-du='"+u.id+"'>Borrar</button></td></tr>";});
-    a.innerHTML=h+"</table></div>";
-    document.getElementById("bf").onclick=function(){
-      api("/api/ott/admin/user","POST",{login:document.getElementById("fu").value.trim(),password:document.getElementById("fp").value}).then(function(){refresh();}).catch(function(e){document.getElementById("fm").textContent=e.message;});
-    };
-    bindDel("du","user");
-  }
+  if(TAB==="Fake-users"){renderFU(a,un);}
+}
+function renderFU(a,un){
+  var h="<button class='act' id='bcreate'>⊕ CREATE</button><h2 style='margin-top:14px'>fake users</h2>";
+  DATA.users.forEach(function(u){
+    var nd=DATA.devices.filter(function(d){return d.userId===u.id;}).length;
+    h+="<div class='furow' data-fu-row='"+u.id+"'>"+esc(u.login)+
+      " <span class='st "+(u.active?"on":"off")+"'>"+(u.active?"ON":"OFF")+"</span>"+
+      " <span class='small'>"+nd+" devices"+(u.expires?" · vence "+esc(u.expires):"")+"</span></div>";
+    if(OPENFU===u.id){
+      h+="<div class='card' id='fudet'><h2>"+esc(u.login)+
+        " <button class='danger' data-du='"+u.id+"' style='float:right'>Borrar</button>"+
+        " <button class='plain' data-edit-dev='"+u.id+"' style='float:right;margin-right:6px'>✎ Devices</button></h2>";
+      h+="<h4>Activity</h4><div class='seg'><button data-act='1' class='"+(u.active?"selon":"")+"'>ON</button><button data-act='0' class='"+(!u.active?"selon":"")+"'>OFF</button></div>";
+      h+="<h4>Vence (opcional)</h4><input type='date' id='fexp' value='"+esc(u.expires||"")+"'/> <button class='act' id='bexp'>OK</button>";
+      h+="<h4>Change password</h4><input id='fp1' type='password' placeholder='password'/><input id='fp2' type='password' placeholder='repeat password'/> <button class='act' id='bpw'>SAVE</button> <span class='small' id='pwmsg'></span>";
+      h+="<h4>Devices <span class='small'>(marca para asociar a este fake-user)</span></h4><div id='fudev'></div><button class='act' id='bdev'>SAVE</button></div>";
+    }
+  });
+  a.innerHTML=h;
+  var rows=document.querySelectorAll("[data-fu-row]");
+  for(var i=0;i<rows.length;i++)rows[i].onclick=function(){OPENFU=(OPENFU===this.getAttribute("data-fu-row"))?null:this.getAttribute("data-fu-row");render();};
+  document.getElementById("bcreate").onclick=function(){document.getElementById("modal").className="modal open";};
+  if(OPENFU)bindDetail(OPENFU);
+}
+function bindDetail(uid){
+  var u=null;for(var i=0;i<DATA.users.length;i++)if(DATA.users[i].id===uid)u=DATA.users[i];
+  if(!u)return;
+  var segs=document.querySelectorAll("#fudet .seg button");
+  for(var i=0;i<segs.length;i++)segs[i].onclick=function(){
+    api("/api/ott/admin/user","POST",{id:uid,active:this.getAttribute("data-act")==="1"}).then(refresh);
+  };
+  document.getElementById("bexp").onclick=function(){
+    api("/api/ott/admin/user","POST",{id:uid,expires:document.getElementById("fexp").value}).then(refresh);
+  };
+  document.getElementById("bpw").onclick=function(){
+    var p1=document.getElementById("fp1").value,p2=document.getElementById("fp2").value;
+    if(!p1||p1!==p2){document.getElementById("pwmsg").textContent="No coinciden.";return;}
+    api("/api/ott/admin/user","POST",{id:uid,password:p1}).then(function(){document.getElementById("pwmsg").textContent="Guardado.";});
+  };
+  var box=document.getElementById("fudev"),h="";
+  DATA.devices.forEach(function(d){
+    var on=d.userId===uid;
+    h+="<label class='chk'><input type='checkbox' data-fdev='"+d.id+"'"+(on?" checked":"")+"/>"+esc(d.note||d.name)+" <span class='small'>("+esc(d.platform||"")+")</span></label><br/>";
+  });
+  box.innerHTML=h||"<p class='small'>Sin devices registrados.</p>";
+  document.getElementById("bdev").onclick=function(){
+    var c=box.querySelectorAll("input[data-fdev]"),jobs=[];
+    for(var j=0;j<c.length;j++){
+      var did=c[j].getAttribute("data-fdev"),want=c[j].checked;
+      var cur=null;for(var k=0;k<DATA.devices.length;k++)if(DATA.devices[k].id===did)cur=DATA.devices[k];
+      if(cur&&((cur.userId===uid)!==want)){
+        if(want)jobs.push(api("/api/ott/admin/device","PUT",{id:did,userId:uid}));
+      }
+    }
+    Promise.all(jobs).then(refresh);
+  };
+  var dd=document.querySelector("[data-du]");
+  if(dd)dd.onclick=function(e){e.stopPropagation();if(confirm("¿Borrar fake-user?"))api("/api/ott/admin/user?id="+uid,"DELETE").then(function(){OPENFU=null;refresh();});};
+  var ed=document.querySelector("[data-edit-dev]");
+  if(ed)ed.onclick=function(e){e.stopPropagation();TAB="Devices";OPENFU=null;render();};
 }
 function bindDel(attr,kind){
   var b=document.querySelectorAll("[data-"+attr+"]");
@@ -108,6 +186,17 @@ function bindDel(attr,kind){
     api("/api/ott/admin/"+kind+"?id="+this.getAttribute("data-"+attr),"DELETE").then(refresh);
   };
 }
+document.getElementById("mcancel").onclick=function(){document.getElementById("modal").className="modal";};
+document.getElementById("msave").onclick=function(){
+  var u=document.getElementById("mu").value.trim(),p1=document.getElementById("mp").value,p2=document.getElementById("mp2").value;
+  if(!u){document.getElementById("mmsg").textContent="Falta username.";return;}
+  if(!p1||p1!==p2){document.getElementById("mmsg").textContent="Passwords no coinciden.";return;}
+  api("/api/ott/admin/user","POST",{login:u,password:p1}).then(function(){
+    document.getElementById("modal").className="modal";
+    document.getElementById("mu").value="";document.getElementById("mp").value="";document.getElementById("mp2").value="";
+    refresh();
+  }).catch(function(e){document.getElementById("mmsg").textContent=e.message;});
+};
 refresh();
 </script>
 </body>

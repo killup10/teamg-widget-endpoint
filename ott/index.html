@@ -539,7 +539,7 @@ function doLink(){
   if(!l||!p){accStatus("Escribe usuario y password.");return;}
   accStatus("Verificando...");
   apiReq("POST","/api/ott/login",{login:l,password:p},function(st,j){
-    if(st!==200||!j||!j.ok){accStatus("Login incorrecto.");return;}
+    if(st!==200||!j||!j.ok){accStatus(((j&&j.error)||"Login incorrecto."));return;}
     ACC={token:j.token,login:l,deviceName:dn,deviceId:devId()};saveAcc();
     accStatus("Registrando TV...");
     apiReq("POST","/api/ott/device",{token:ACC.token,deviceId:ACC.deviceId,name:dn,platform:platformName()},function(st2,j2){

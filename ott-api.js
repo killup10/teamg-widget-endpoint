@@ -24,6 +24,44 @@ function verify(token) {
   } catch (e) { return null; }
 }
 
+// Admin real con usuario+password (vive en la misma colección users con role).
+// Se crea solo desde variables de entorno ADMIN_LOGIN/ADMIN_PASS (nunca en el repo).
+async function ensureAdmin(cols) {
+  const login = (process.env.ADMIN_LOGIN || '').trim();
+  const pass = process.env.ADMIN_PASS || '';
+  if (!login || !pass) return;
+  const prev = await cols.users.findOne({ login });
+  if (prev) { if (prev.role !== 'admin') await cols.users.updateOne({ _id: prev._id }, { $set: { role: 'admin' } }); return; }
+  const salt = crypto.randomBytes(8).toString('hex');
+  await cols.users.insertOne({ _id: store.uid(), login, salt, pass: store.hashPass(pass, salt), role: 'admin', active: true, created: store.nowIso() });
+  console.log('[OTT] admin creado: ' + login);
+}
+function admSign(uid) {
+  const exp = Date.now() + 1000 * 60 * 60 * 12; // 12h
+  const body = Buffer.from(JSON.stringify({ u: uid, e: exp, a: 1 })).toString('base64');
+  const sig = crypto.createHmac('sha256', secret()).update(body).digest('hex');
+  return 'adm.' + body + '.' + sig;
+}
+async function adminAuthed(cols, req) {
+  const h = req.headers['x-admin-key'] || '';
+  if (ADMIN() && h === ADMIN()) return true; // compatibilidad: ADMIN_KEY
+  try {
+    const p = String(h).split('.');
+    if (p.length !== 3 || p[0] !== 'adm') return false;
+    const sig = crypto.createHmac('sha256', secret()).update(p[1]).digest('hex');
+    if (sig !== p[2]) return false;
+    const d = JSON.parse(Buffer.from(p[1], 'base64').toString());
+    if (!d.u || !d.a || d.e < Date.now()) return false;
+    const u = await cols.users.findOne({ _id: d.u });
+    return !!(u && u.role === 'admin' && u.active !== false);
+  } catch (e) { return false; }
+}
+function expired(u) {
+  if (u.active === false) return 'desactivada';
+  if (u.expires) { const t = Date.parse(u.expires); if (!isNaN(t) && t < Date.now()) return 'vencida'; }
+  return null;
+}
+
 async function json(res, code, obj) {
   res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8' });
   res.end(JSON.stringify(obj));
@@ -45,6 +83,7 @@ async function authedDevice(body, query) {
   if (!uid) return { err: 'no-auth' };
   const user = await cols.users.findOne({ _id: uid });
   if (!user) return { err: 'no-user' };
+  if (expired(user)) return { err: 'blocked' };
   const devId = body.deviceId || query.deviceId;
   if (!devId) return { err: 'no-device' };
   const dev = await cols.devices.findOne({ _id: devId, userId: uid });
@@ -61,6 +100,8 @@ async function handle(req, res, pathname, query, body) {
     if (!u) return json(res, 401, { ok: false, error: 'Credenciales inválidas' });
     const h = store.hashPass(body.password || '', u.salt);
     if (h !== u.pass) return json(res, 401, { ok: false, error: 'Credenciales inválidas' });
+    const block = expired(u);
+    if (block) return json(res, 403, { ok: false, error: 'Cuenta ' + block + '. Contacta a tu proveedor.' });
     return json(res, 200, { ok: true, token: sign(u._id), name: u.login });
   }
 
@@ -109,25 +150,48 @@ async function handle(req, res, pathname, query, body) {
     return;
   }
 
-  // ---- ADMIN (header x-admin-key) ----
+  // ---- ADMIN: login con usuario+password (no ADMIN_KEY) ----
   if (pathname.indexOf('/api/ott/admin/') === 0) {
-    if (!ADMIN() || req.headers['x-admin-key'] !== ADMIN()) return json(res, 403, { ok: false, error: 'admin' });
+    await ensureAdmin(cols);
     const sub = pathname.replace('/api/ott/admin/', '');
+    if (sub === 'login' && req.method === 'POST') {
+      const u = await cols.users.findOne({ login: String(body.login || '').trim() });
+      if (!u || u.role !== 'admin') return json(res, 401, { ok: false, error: 'Credenciales inválidas' });
+      const h = store.hashPass(body.password || '', u.salt);
+      if (h !== u.pass) return json(res, 401, { ok: false, error: 'Credenciales inválidas' });
+      if (u.active === false) return json(res, 403, { ok: false, error: 'Desactivado' });
+      return json(res, 200, { ok: true, token: admSign(u._id), name: u.login });
+    }
+    if (!(await adminAuthed(cols, req))) return json(res, 403, { ok: false, error: 'admin' });
     if (sub === 'overview' && req.method === 'GET') {
       const [users, devices, playlists] = await Promise.all([cols.users.find({}), cols.devices.find({}), cols.playlists.find({})]);
       return json(res, 200, {
         ok: true, mode: cols.mode,
-        users: users.map((u) => ({ id: u._id, login: u.login, created: u.created })),
-        devices: devices.map((d) => ({ id: d._id, userId: d.userId, name: d.name, platform: d.platform, playlists: d.playlists || [], lastSeen: d.lastSeen })),
+        users: users.filter((u) => u.role !== 'admin').map((u) => ({ id: u._id, login: u.login, active: u.active !== false, expires: u.expires || '', created: u.created })),
+        devices: devices.map((d) => ({ id: d._id, userId: d.userId, name: d.name, note: d.note || '', platform: d.platform, playlists: d.playlists || [], lastSeen: d.lastSeen })),
         playlists: playlists.map((p) => ({ id: p._id, name: p.name, url: p.url, epgUrl: p.epgUrl || '' })),
       });
     }
     if (sub === 'user' && req.method === 'POST') {
+      // crear (sin id) o actualizar (con id): active, expires, password
+      if (body.id) {
+        const upd = {};
+        if (typeof body.active === 'boolean') upd.active = body.active;
+        if (typeof body.expires === 'string') upd.expires = body.expires.slice(0, 10);
+        if (body.password) {
+          const prev = await cols.users.findOne({ _id: String(body.id) });
+          if (!prev) return json(res, 404, { ok: false });
+          const salt = crypto.randomBytes(8).toString('hex');
+          upd.salt = salt; upd.pass = store.hashPass(body.password, salt);
+        }
+        await cols.users.updateOne({ _id: String(body.id) }, { $set: upd });
+        return json(res, 200, { ok: true });
+      }
       const login = String(body.login || '').trim();
       if (!login || !body.password) return json(res, 400, { ok: false, error: 'login+password' });
       if (await cols.users.findOne({ login })) return json(res, 409, { ok: false, error: 'Existe' });
       const salt = crypto.randomBytes(8).toString('hex');
-      const u = { _id: store.uid(), login, salt, pass: store.hashPass(body.password, salt), created: store.nowIso() };
+      const u = { _id: store.uid(), login, salt, pass: store.hashPass(body.password, salt), role: 'fake', active: body.active !== false, expires: String(body.expires || '').slice(0, 10), created: store.nowIso() };
       await cols.users.insertOne(u);
       return json(res, 200, { ok: true, id: u._id });
     }
@@ -152,6 +216,20 @@ async function handle(req, res, pathname, query, body) {
     }
     if (sub === 'device' && req.method === 'DELETE') {
       await cols.devices.deleteOne({ _id: String(query.id || '') });
+      return json(res, 200, { ok: true });
+    }
+    if (sub === 'device' && req.method === 'PUT') {
+      // edición admin: nota interna (no afecta al cliente) y/o reasignar fake-user
+      if (!body.id) return json(res, 400, { ok: false, error: 'id' });
+      const upd = {};
+      if (typeof body.note === 'string') upd.note = body.note.slice(0, 120);
+      if (typeof body.name === 'string' && body.name.trim()) upd.name = body.name.trim().slice(0, 60);
+      if (typeof body.userId === 'string') {
+        const nu = await cols.users.findOne({ _id: body.userId });
+        if (!nu) return json(res, 404, { ok: false, error: 'usuario' });
+        upd.userId = body.userId;
+      }
+      await cols.devices.updateOne({ _id: String(body.id) }, { $set: upd });
       return json(res, 200, { ok: true });
     }
     return json(res, 404, { ok: false });

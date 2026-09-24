@@ -20,8 +20,9 @@ table{border-collapse:collapse;width:100%;font-size:14px} td,th{border-bottom:1p
 <body>
 <div id="login">
   <h1>OTT TV Admin</h1>
-  <p class="small">Clave de administrador (ADMIN_KEY de Render).</p>
-  <input id="key" type="password" placeholder="admin key" style="width:100%;box-sizing:border-box" />
+  <p class="small">Usuario y password de administrador.</p>
+  <input id="user" placeholder="usuario" style="width:100%;box-sizing:border-box" />
+  <input id="key" type="password" placeholder="password" style="width:100%;box-sizing:border-box" />
   <br/><button id="btnIn">Entrar</button>
   <p class="small" id="lerr"></p>
 </div>
@@ -52,14 +53,23 @@ function api(path,method,body){
 }
 function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;");}
 document.getElementById("btnIn").onclick=function(){
-  KEY=document.getElementById("key").value;
+  var u=document.getElementById("user").value.trim(),p=document.getElementById("key").value;
+  fetch("/api/ott/admin/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({login:u,password:p})}).then(function(r){
+    if(!r.ok)throw new Error();
+    return r.json();
+  }).then(function(j){
+    if(!j.ok)throw new Error();
+    KEY=j.token;load();
+  }).catch(function(){document.getElementById("lerr").textContent="Credenciales incorrectas.";});
+};
+function load(){
   api("/api/ott/admin/overview").then(function(o){
     document.getElementById("login").style.display="none";
     document.getElementById("app").style.display="";
     document.getElementById("mode").textContent="· store: "+o.mode;
     render(o);
-  }).catch(function(){document.getElementById("lerr").textContent="Clave incorrecta.";});
-};
+  });
+}
 function refresh(){api("/api/ott/admin/overview").then(render).catch(function(e){alert(e.message);});}
 function render(o){
   var tU="<tr><th>Usuario</th><th>Creado</th><th></th></tr>";
