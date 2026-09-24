@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>OTT TV - Mi Lista</title>
+<meta http-equiv="Cache-Control" content="no-cache" />
+<style>
+:root{--bg:#0b0e14;--panel:#12161f;--card:#171c27;--line:#232a3a;--txt:#eef1f6;--muted:#9aa4b5;--accent:#22c55e}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--txt);font-family:Arial,Helvetica,sans-serif}
+#app{max-width:1280px;margin:0 auto;padding:16px}
+header{display:flex;align-items:center;gap:12px;padding:8px 4px}
+.logo{font-weight:700;font-size:22px}
+.logo span{color:var(--accent)}
+.hint{color:var(--muted);font-size:13px}
+#view-setup,#view-home{margin-top:12px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px}
+input[type=text],input[type=url]{width:100%;background:#0d1117;border:1px solid var(--line);color:var(--txt);padding:12px;border-radius:8px;font-size:15px}
+button{background:var(--accent);border:0;color:#04120a;font-weight:700;padding:12px 16px;border-radius:8px;font-size:15px;cursor:pointer;margin-top:8px}
+button.ghost{background:transparent;color:var(--txt);border:1px solid var(--line)}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.layout{display:grid;grid-template-columns:230px 1fr;gap:12px;margin-top:12px}
+@media(max-width:800px){.layout{grid-template-columns:1fr}}
+#groups{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px;max-height:70vh;overflow:auto}
+.gitem{padding:10px 12px;border-radius:8px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gitem.focused,.gitem:focus{background:#1d2536;outline:2px solid var(--accent)}
+#main{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;min-height:50vh}
+#search{margin-bottom:10px}
+#grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px;cursor:pointer;text-align:center}
+.card.focused,.card:focus{outline:3px solid var(--accent);border-color:var(--accent)}
+.card img{width:100%;height:80px;object-fit:contain;background:#0d1117;border-radius:6px}
+.card .t{font-size:13px;margin-top:6px;height:32px;overflow:hidden}
+.card .acts{margin-top:6px;display:flex;gap:4px;justify-content:center}
+.card .acts button{padding:4px 8px;font-size:12px;margin:0}
+#player{position:fixed;inset:0;background:#000;display:none;z-index:50}
+#player.open{display:block}
+#v{width:100%;height:100%;background:#000}
+#pbar{position:absolute;left:0;right:0;bottom:0;padding:12px;background:linear-gradient(transparent,rgba(0,0,0,.8));display:flex;gap:10px;align-items:center}
+#ptitle{font-size:14px}
+#status{color:var(--muted);font-size:13px;margin-top:8px}
+.focusable:focus{outline:3px solid var(--accent)}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="logo">OTT <span>TV</span></div>
+    <div class="hint">Réplica estilo OTTPlayer &middot; listas M3U propias &middot; funciona en Media Station X</div>
+  </header>
+
+  <div id="view-setup" class="panel">
+    <h2 style="margin:0 0 8px">1. Carga tu lista M3U</h2>
+    <p class="hint" style="margin:0 0 10px">Pega la URL de tu lista, sube un archivo .m3u/.m3u8, o usa la demo. Se guarda en este TV.</p>
+    <input id="m3uUrl" type="url" placeholder="https://tudominio.com/lista.m3u" />
+    <div class="row">
+      <button id="btnLoad" class="focusable">Cargar URL</button>
+      <button id="btnFile" class="ghost focusable">Subir archivo</button>
+      <button id="btnDemo" class="ghost focusable">Probar demo</button>
+      <input id="file" type="file" accept=".m3u,.m3u8,.txt" style="display:none" />
+    </div>
+    <div class="row">
+      <button id="btnGo" class="ghost focusable" style="display:none">Ir a canales &rarr;</button>
+    </div>
+    <div id="status">Sin lista cargada.</div>
+  </div>
+
+  <div id="view-home" style="display:none">
+    <div class="row">
+      <input id="search" type="text" placeholder="Buscar canal..." style="max-width:320px" />
+      <button id="btnChange" class="ghost focusable">Cambiar lista</button>
+      <button id="btnReload" class="ghost focusable">Recargar</button>
+    </div>
+    <div class="layout">
+      <div id="groups" tabindex="0"></div>
+      <div id="main"><div id="grid"></div></div>
+    </div>
+  </div>
+</div>
+
+<div id="player">
+  <video id="v" controls autoplay playsinline></video>
+  <div id="pbar">
+    <button id="btnBack" class="focusable">&larr; Volver</button>
+    <div id="ptitle">-</div>
+  </div>
+</div>
+
+<script src="//cdn.jsdelivr.net/npm/hls.js@1.5.13/dist/hls.min.js"></script>
+<script>
+(function(){
+"use strict";
+var LS_LIST="ott_clone_list_v1", LS_FAV="ott_clone_fav_v1", LS_HID="ott_clone_hid_v1", LS_URL="ott_clone_url_v1";
+var channels=[], groups=[], curGroup="__all", favs={}, hids={};
+try{ favs=JSON.parse(localStorage.getItem(LS_FAV)||"{}"); hids=JSON.parse(localStorage.getItem(LS_HID)||"{}"); }catch(e){}
+
+function $(id){return document.getElementById(id);}
+function status(t){$("status").textContent=t;}
+
+function parseM3U(text){
+  var lines=text.split(/\r?\n/), out=[], meta=null;
+  for(var i=0;i<lines.length;i++){
+    var ln=lines[i].replace(/^\uFEFF/,"").trim();
+    if(!ln) continue;
+    if(ln.indexOf("#EXTINF")===0){
+      var name=(ln.split(",").pop()||"Sin nombre").trim();
+      var logo="", group="General";
+      var m1=ln.match(/tvg-logo="([^"]*)"/); if(m1) logo=m1[1];
+      var m2=ln.match(/group-title="([^"]*)"/); if(m2&&m2[1]) group=m2[1];
+      meta={name:name,logo:logo,group:group};
+    } else if(ln.charAt(0)!=="#"){
+      if(meta){ meta.url=ln; meta.id=meta.group+"||"+meta.name+"||"+ln; out.push(meta); meta=null; }
+    }
+  }
+  return out;
+}
+function computeGroups(){
+  var map={}, i, c;
+  for(i=0;i<channels.length;i++){ c=channels[i]; if(hids[c.id]) continue; map[c.group]=true; }
+  groups=Object.keys(map).sort();
+}
+function saveList(text){ try{localStorage.setItem(LS_LIST,text);}catch(e){} }
+function loadSaved(){ return localStorage.getItem(LS_LIST); }
+
+function renderGroups(){
+  var g=$("groups"); g.innerHTML="";
+  var all=[["__all","Todos ("+visible().length+")"],["__fav","Favoritos ("+countFav()+")"],["__hid","Ocultos ("+countHid()+")"]].concat(groups.map(function(x){return [x,x];}));
+  all.forEach(function(it,idx){
+    var d=document.createElement("div");
+    d.className="gitem focusable"; d.tabIndex=0; d.textContent=it[1]; d.setAttribute("data-g",it[0]);
+    if(it[0]===curGroup) d.classList.add("focused");
+    d.onclick=function(){curGroup=it[0]; renderGroups(); renderGrid();};
+    d.onkeydown=function(e){ if(e.key==="Enter"){curGroup=it[0]; renderGroups(); renderGrid(); focusFirstCard();} };
+    g.appendChild(d);
+  });
+}
+function visible(){
+  return channels.filter(function(c){return !hids[c.id];});
+}
+function countFav(){var n=0,i;for(i=0;i<channels.length;i++) if(favs[channels[i].id]) n++;return n;}
+function countHid(){var n=0,k;for(k in hids) if(hids[k]) n++;return n;}
+function currentList(){
+  var q=$("search").value.toLowerCase(), base;
+  if(curGroup==="__all") base=visible();
+  else if(curGroup==="__fav") base=channels.filter(function(c){return favs[c.id]&&!hids[c.id];});
+  else if(curGroup==="__hid") base=channels.filter(function(c){return hids[c.id];});
+  else base=channels.filter(function(c){return c.group===curGroup&&!hids[c.id];});
+  if(q) base=base.filter(function(c){return (c.name+" "+c.group).toLowerCase().indexOf(q)>-1;});
+  return base.slice(0,400);
+}
+function renderGrid(){
+  var grid=$("grid"); grid.innerHTML="";
+  var list=currentList();
+  if(!list.length){grid.innerHTML='<p class="hint">Sin canales. Cambia de grupo o recarga la lista.</p>';return;}
+  list.forEach(function(c){
+    var d=document.createElement("div");
+    d.className="card focusable"; d.tabIndex=0;
+    var img=document.createElement("img"); img.alt=""; img.loading="lazy";
+    img.src=c.logo||"data:image/svg+xml,"+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="160" height="80"><rect width="160" height="80" fill="#0d1117"/><text x="80" y="45" fill="#9aa4b5" text-anchor="middle" font-size="14">TV</text></svg>');
+    img.onerror=function(){img.style.display="none";};
+    var t=document.createElement("div"); t.className="t"; t.textContent=c.name;
+    var acts=document.createElement("div"); acts.className="acts";
+    var bf=document.createElement("button"); bf.textContent=favs[c.id]?"★":"☆"; bf.title="Favorito";
+    bf.onclick=function(ev){ev.stopPropagation(); favs[c.id]=!favs[c.id]; if(!favs[c.id]) delete favs[c.id]; try{localStorage.setItem(LS_FAV,JSON.stringify(favs));}catch(e){} renderGroups(); renderGrid();};
+    var bh=document.createElement("button"); bh.textContent=hids[c.id]?"Mostrar":"Ocultar"; bh.title="Ocultar";
+    bh.onclick=function(ev){ev.stopPropagation(); if(hids[c.id]) delete hids[c.id]; else hids[c.id]=1; try{localStorage.setItem(LS_HID,JSON.stringify(hids));}catch(e){} computeGroups(); renderGroups(); renderGrid();};
+    acts.appendChild(bf); acts.appendChild(bh);
+    d.appendChild(img); d.appendChild(t); d.appendChild(acts);
+    d.onclick=function(){play(c);};
+    d.onkeydown=function(e){ if(e.key==="Enter") play(c); };
+    grid.appendChild(d);
+  });
+}
+function focusFirstCard(){var f=document.querySelector("#grid .card"); if(f) f.focus();}
+function showHome(){$("view-setup").style.display="none";$("view-home").style.display="block";computeGroups();renderGroups();renderGrid();var s=$("search"); if(s) s.focus();}
+function showSetup(){$("view-home").style.display="none";$("view-setup").style.display="block";}
+
+var hls=null;
+function play(c){
+  $("player").classList.add("open"); $("ptitle").textContent=c.name;
+  var v=$("v");
+  try{ if(hls){hls.destroy();hls=null;} }catch(e){}
+  v.pause(); v.removeAttribute("src"); v.load();
+  var isHls=/\.m3u8($|\?)/i.test(c.url);
+  if(isHls && window.Hls && Hls.isSupported()){ hls=new Hls({maxBufferLength:15}); hls.loadSource(c.url); hls.attachMedia(v); }
+  else { v.src=c.url; }
+  var p=v.play(); if(p&&p.catch) p.catch(function(){});
+  $("btnBack").focus();
+}
+function stop(){var v=$("v");v.pause();try{ if(hls){hls.destroy();hls=null;}}catch(e){}$("player").classList.remove("open");focusFirstCard();}
+
+function fetchText(u,cb){
+  if(window.fetch){fetch(u).then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.text();}).then(function(t){cb(null,t);}).catch(function(e){cb(e);});}
+  else{var x=new XMLHttpRequest();x.open("GET",u,true);x.onreadystatechange=function(){if(x.readyState===4){if(x.status>=200&&x.status<300)cb(null,x.responseText);else cb(new Error("HTTP "+x.status));}};x.onerror=function(){cb(new Error("network"));};x.send();}
+}
+function applyText(text,src){
+  channels=parseM3U(text);
+  if(!channels.length){status("No se encontraron canales en esa lista.");return false;}
+  saveList(text); try{if(src) localStorage.setItem(LS_URL,src);}catch(e){}
+  status(channels.length+" canales cargados"+(src?" desde "+src:"")+".");
+  $("btnGo").style.display=""; computeGroups(); return true;
+}
+
+$("btnLoad").onclick=function(){
+  var u=$("m3uUrl").value.trim();
+  if(!u){status("Pega primero la URL de tu lista M3U.");return;}
+  status("Descargando lista...");
+  fetchText(u,function(err,text){
+    if(err){status("Error: "+err.message+". Si falla por CORS, sube el archivo en vez de URL.");return;}
+    if(applyText(text,u)) showHome();
+  });
+};
+$("btnFile").onclick=function(){$("file").click();};
+$("file").onchange=function(e){
+  var f=e.target.files[0]; if(!f) return;
+  var r=new FileReader();
+  r.onload=function(){ if(applyText(r.result,"archivo: "+f.name)) showHome(); };
+  r.readAsText(f);
+};
+$("btnDemo").onclick=function(){
+  var demo='#EXTM3U\n#EXTINF:-1 tvg-logo="" group-title="Demo",Canal Demo 1 (HLS)\nhttps://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8\n#EXTINF:-1 group-title="Demo",Canal Demo 2\nhttps://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8\n';
+  if(applyText(demo,"demo")) showHome();
+};
+$("btnGo").onclick=showHome;
+$("btnChange").onclick=showSetup;
+$("btnReload").onclick=function(){var t=loadSaved();if(t){channels=parseM3U(t);computeGroups();renderGroups();renderGrid();status(channels.length+" canales recargados.");}};
+$("search").oninput=renderGrid;
+$("btnBack").onclick=stop;
+
+document.addEventListener("keydown",function(e){
+  var open=$("player").classList.contains("open");
+  if(open && (e.key==="Backspace"||e.key==="Escape"||e.keyCode===461||e.keyCode===10009)){e.preventDefault();stop();return;}
+  if(open) return;
+  var active=document.activeElement;
+  var card=active&&active.classList&&active.classList.contains("card")?active:null;
+  if(card){
+    if(e.key==="ArrowRight"){var n=card.nextElementSibling;if(n)n.focus();e.preventDefault();}
+    else if(e.key==="ArrowLeft"){var p=card.previousElementSibling;if(p)p.focus();e.preventDefault();}
+    else if(e.key==="ArrowDown"){var d=card.nextElementSibling;if(d)d.focus();e.preventDefault();}
+    else if(e.key==="ArrowUp"){var u=card.previousElementSibling;if(u)u.focus();e.preventDefault();}
+  }
+});
+
+(function init(){
+  var u=null; try{u=localStorage.getItem(LS_URL);}catch(e){}
+  if(u) $("m3uUrl").value=u;
+  var t=loadSaved();
+  if(t){channels=parseM3U(t);if(channels.length){status(channels.length+" canales guardados. Pulsa Ir a canales.");$("btnGo").style.display="";}}
+})();
+})();
+</script>
+</body>
+</html>
