@@ -1104,7 +1104,7 @@ html, body {
         <h3>Información</h3>
         <p id="optDescText">Usa tu usuario y contraseña otorgados por el administrador para vincular este televisor y descargar tus listas.</p>
         <div style="margin-top:22px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.4.0 [3x6 &amp; Player Fixes]
+          VERSIÓN: v2.4.1 [Latina &amp; Stream Fix]
         </div>
       </div>
     </div>
@@ -2349,13 +2349,17 @@ function playChannelAt(idx) {
   showTuning(c.name);
   showPlayerOverlay();
   
+  // Limpiar marcas de reintento para este canal
+  c._triedNetcast = false;
+  c._triedHtml5 = false;
+
   // 1. Resolver URL de reproducción: si es HTTPS o puerto especial, pasarlo por el stream proxy
   var streamUrl = c.url || '';
   var isHttps = (streamUrl.indexOf('https://') === 0);
   var isHls = (streamUrl.indexOf('.m3u8') !== -1 || streamUrl.indexOf('/chunks') !== -1 || streamUrl.indexOf('/playlist') !== -1);
   var playUrl = streamUrl;
   
-  if (isHttps || streamUrl.indexOf(':1936') !== -1 || streamUrl.indexOf('bitel.com.pe') !== -1 || streamUrl.indexOf('iptvperu.tv') !== -1) {
+  if (isHttps || streamUrl.indexOf(':1936') !== -1 || streamUrl.indexOf('cablered') !== -1 || streamUrl.indexOf('iptvperu.tv') !== -1 || streamUrl.indexOf('bitel.com.pe') !== -1 || streamUrl.indexOf('tv360') !== -1) {
     var ext = isHls ? '.m3u8' : '.ts';
     var httpHost = (window.location && window.location.host && window.location.host.indexOf('teamg.store') !== -1)
       ? window.location.host
@@ -2373,7 +2377,7 @@ function playChannelAt(idx) {
     preferNetcast = true;
   } else if (engine === 'auto') {
     var ua = navigator.userAgent || '';
-    if (!isHls && netcastObj && (typeof netcastObj.play === 'function' || ua.indexOf('NetCast') !== -1 || ua.indexOf('LG') !== -1)) {
+    if (netcastObj && (typeof netcastObj.play === 'function' || ua.indexOf('NetCast') !== -1 || ua.indexOf('LG') !== -1)) {
       preferNetcast = true;
     }
   }
@@ -2393,20 +2397,26 @@ function playChannelAt(idx) {
 }
 
 function startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c) {
+  c._triedNetcast = true;
   v.style.display = 'none';
   netcastObj.style.display = 'block';
   netcastObj.data = playUrl;
   try {
     netcastObj.play(1);
   } catch (errNetcast) {
-    playHtml5(v, netcastObj, playUrl, streamUrl, c);
+    if (!c._triedHtml5) {
+      playHtml5(v, netcastObj, playUrl, streamUrl, c);
+    } else {
+      hideTuning();
+      showToast('Error cargando señal.');
+    }
     return;
   }
 
   netcastObj.onPlayStateChange = function() {
     try {
       var ps = netcastObj.playState;
-      if (ps === 1) { // Reproduciendo
+      if (ps === 1 || ps === 4) { // Reproduciendo o Buffering
         hideTuning();
         $('btnPlayPause').textContent = '▶❚❚';
         var mi = netcastObj.mediaInformation;
@@ -2415,16 +2425,26 @@ function startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c) {
         }
       } else if (ps === 2) {
         $('btnPlayPause').textContent = '▶';
-      } else if (ps === 6) { // Error -> Conmutar automáticamente a HTML5
-        console.log('NetCast playState error, conmutando a HTML5...');
-        playHtml5(v, netcastObj, playUrl, streamUrl, c);
+      } else if (ps === 6) { // Error
+        console.log('NetCast playState error (6)');
+        if (!c._triedHtml5) {
+          console.log('Probando fallback a HTML5...');
+          playHtml5(v, netcastObj, playUrl, streamUrl, c);
+        } else {
+          hideTuning();
+          showToast('Error cargando señal.');
+        }
       }
     } catch (e) {}
   };
 }
 
 function playHtml5(v, netcastObj, playUrl, streamUrl, c) {
-  if (netcastObj) netcastObj.style.display = 'none';
+  c._triedHtml5 = true;
+  if (netcastObj) {
+    try { netcastObj.stop(); } catch(e0) {}
+    netcastObj.style.display = 'none';
+  }
   v.style.display = 'block';
 
   v.onloadeddata = function() { hideTuning(); };
@@ -2436,7 +2456,7 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c) {
     }
   };
   v.onerror = function() {
-    if (netcastObj && typeof netcastObj.play === 'function') {
+    if (netcastObj && !c._triedNetcast && (typeof netcastObj.play === 'function' || (navigator.userAgent && (navigator.userAgent.indexOf('NetCast') !== -1 || navigator.userAgent.indexOf('LG') !== -1)))) {
       console.log('HTML5 error, conmutando a NetCast...');
       startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c);
     } else {
@@ -2454,7 +2474,7 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c) {
     });
     state.hlsInstance.on(Hls.Events.ERROR, function(evt, data) {
       if (data.fatal) {
-        if (netcastObj && typeof netcastObj.play === 'function') {
+        if (netcastObj && !c._triedNetcast && typeof netcastObj.play === 'function') {
           startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c);
         } else {
           hideTuning();

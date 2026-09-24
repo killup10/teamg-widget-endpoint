@@ -422,6 +422,9 @@ function handleStream(req, res, query) {
 
         const { URL } = require('url');
         const lines = m3uData.split(/\r?\n/);
+        const hostHeader = (req && req.headers && req.headers['host']) ? req.headers['host'] : 'ott.teamg.store';
+        const streamBase = 'http://' + hostHeader;
+
         const rewritten = lines.map((line) => {
           const l = line.trim();
           if (!l) return line;
@@ -429,7 +432,7 @@ function handleStream(req, res, query) {
             return l.replace(/URI="(.*?)"/i, (match, uri) => {
               try {
                 const absKey = new URL(uri, targetUrl).href;
-                return 'URI="/api/ott/stream?url=' + encodeURIComponent(absKey) + '"';
+                return 'URI="' + streamBase + '/api/ott/stream?url=' + encodeURIComponent(absKey) + '"';
               } catch (e) { return match; }
             });
           }
@@ -437,7 +440,7 @@ function handleStream(req, res, query) {
           try {
             const absChunk = new URL(l, targetUrl).href;
             const ext = (absChunk.indexOf('.m3u8') !== -1 || absChunk.indexOf('chunks') !== -1 || absChunk.indexOf('playlist') !== -1) ? '.m3u8' : '.ts';
-            return '/api/ott/stream' + ext + '?url=' + encodeURIComponent(absChunk);
+            return streamBase + '/api/ott/stream' + ext + '?url=' + encodeURIComponent(absChunk);
           } catch (e) {
             return l;
           }
@@ -452,10 +455,18 @@ function handleStream(req, res, query) {
         res.end(rewritten);
       });
     } else {
+      let outContentType = 'video/mp2t';
+      if (contentType && contentType.indexOf('mpegurl') === -1) {
+        if (contentType.indexOf('m2ts') !== -1 || contentType.indexOf('mp2t') !== -1) {
+          outContentType = 'video/mp2t';
+        } else {
+          outContentType = contentType;
+        }
+      }
       const outHeaders = {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, OPTIONS',
-        'Content-Type': contentType || 'video/mp2t'
+        'Content-Type': outContentType
       };
       if (upRes.headers['content-length']) outHeaders['Content-Length'] = upRes.headers['content-length'];
       if (upRes.headers['content-range']) outHeaders['Content-Range'] = upRes.headers['content-range'];
