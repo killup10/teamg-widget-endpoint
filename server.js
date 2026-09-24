@@ -122,7 +122,10 @@ const server = http.createServer((req, res) => {
   }
 
   const parsedUrl = url.parse(req.url);
-  const pathname = parsedUrl.pathname;
+  // Algunos clientes embebidos (NetCast/MSX viejos) mandan path vacío:
+  // tratarlo como raíz en vez de 404.
+  const pathname = parsedUrl.pathname || '/';
+  console.log('[REQ]', req.method, getHost(req) + (req.url || '/'));
 
   // APP 2: OTT TV (nueva, separada de TeamG). Start Parameter en MSX:
   //   ott.teamg.store/ott   o   widget.teamg.store/ott
