@@ -147,6 +147,13 @@ const server = http.createServer((req, res) => {
   if (pathname === '/admin' || pathname === '/admin/') {
     return serveFile(path.join(__dirname, 'admin', 'index.html'), res);
   }
+  if (pathname === '/web' || pathname === '/web/') {
+    return serveFile(path.join(__dirname, 'web', 'index.html'), res);
+  }
+  if (pathname.indexOf('/web/') === 0) {
+    const relW = path.normalize(decodeURIComponent(pathname).replace(/^\/web\//, '')).replace(/^(\.\.(\/|\\|$))+/, '');
+    return serveFile(path.join(__dirname, 'web', relW || 'index.html'), res);
+  }
   if (pathname.indexOf('/admin/') === 0) {
     const relA = path.normalize(decodeURIComponent(pathname).replace(/^\/admin\//, '')).replace(/^(\.\.(\/|\\|$))+/, '');
     return serveFile(path.join(__dirname, 'admin', relA), res);
