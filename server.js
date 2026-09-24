@@ -144,6 +144,12 @@ const server = http.createServer((req, res) => {
   } catch (e) { pathname = '/'; }
   console.log('[REQ]', req.method, getHost(req) + (req.url || '/'));
 
+  // Health check / ping para keep-alive
+  if (pathname === '/ping' || pathname === '/health') {
+    res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+    return res.end('pong');
+  }
+
   // Favicon: responde el icono para no ensuciar logs con 404.
   if (pathname === '/favicon.ico') {
     return serveFile(path.join(__dirname, 'ott', 'icon.png'), res);
