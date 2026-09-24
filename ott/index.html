@@ -1509,6 +1509,7 @@ function fetchFeed() {
   showToast('Cargando listas...');
   apiCall('GET', '/api/ott/feed?token=' + encodeURIComponent(state.auth.token) + '&deviceId=' + encodeURIComponent(state.auth.deviceId), null, function(st, res) {
     if (st === 200 && res && res.ok) {
+      state._feedRetries = 0;
       state.playlists = res.playlists || [];
       closeOptions();
       if (state.playlists.length === 0) {
@@ -1528,6 +1529,18 @@ function fetchFeed() {
         showToast('Sesión vencida. Ingresa a Ajustes.');
         openOptions();
       }
+    } else if (st >= 500 || st === 0) {
+      if (!state._feedRetries) state._feedRetries = 0;
+      if (state._feedRetries < 4) {
+        state._feedRetries++;
+        showToast('Servidor iniciando... Reintentando (' + state._feedRetries + '/4)');
+        setTimeout(fetchFeed, 3500);
+        return;
+      }
+      state._feedRetries = 0;
+      showToast('Error de conexión HTTP ' + st + '. Presiona botón rojo para reintentar.');
+      closeOptions();
+      renderPlaylistsView();
     } else {
       showToast('Error al conectar: ' + ((res && res.error) || ('HTTP ' + st)));
       closeOptions();
@@ -1595,6 +1608,7 @@ function loadPlaylistContent(pl) {
   xhr.onreadystatechange = function() {
     if (xhr.readyState === 4) {
       if (xhr.status === 200) {
+        state._m3uRetries = 0;
         state.channels = parseM3U(xhr.responseText);
         buildGroups();
         state.currentGroup = '__all';
@@ -1604,12 +1618,30 @@ function loadPlaylistContent(pl) {
       } else if (xhr.status === 401 && state.auth.login && state.auth.password) {
         showToast('Renovando acceso...');
         doSaveAndLogin();
+      } else if (xhr.status >= 500 || xhr.status === 0) {
+        if (!state._m3uRetries) state._m3uRetries = 0;
+        if (state._m3uRetries < 3) {
+          state._m3uRetries++;
+          showToast('Conectando con playlist (' + state._m3uRetries + '/3)...');
+          setTimeout(function() { loadPlaylistContent(pl); }, 3500);
+          return;
+        }
+        state._m3uRetries = 0;
+        showToast('Error cargando playlist (' + xhr.status + ')');
       } else {
         showToast('Error cargando playlist (' + xhr.status + ')');
       }
     }
   };
   xhr.onerror = function() {
+    if (!state._m3uRetries) state._m3uRetries = 0;
+    if (state._m3uRetries < 3) {
+      state._m3uRetries++;
+      showToast('Reconectando (' + state._m3uRetries + '/3)...');
+      setTimeout(function() { loadPlaylistContent(pl); }, 3500);
+      return;
+    }
+    state._m3uRetries = 0;
     showToast('Error de conexión al descargar.');
   };
   xhr.send();
