@@ -1562,7 +1562,7 @@ video::cue {
         <h3>Información</h3>
         <p id="optDescText">Usa tu usuario y contraseña otorgados por el administrador para vincular este televisor y descargar tus listas.</p>
         <div style="margin-top:22px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.4.9 [Series Hub, Navegación OTTPlayer, Doble-Back &amp; Drawer Fluido]
+          VERSIÓN: v2.5.0 [Series Inteligente M3U, Consolidación de Episodios &amp; Drawer Fluido]
         </div>
       </div>
     </div>
@@ -2418,73 +2418,221 @@ function strHash(str) {
   return Math.abs(hash);
 }
 
-function parseSeriesInfo(name, group) {
+function isGenericCategory(str) {
+  if (!str) return true;
+  var s = str.trim().toLowerCase();
+  return (
+    s === 'general' ||
+    s === 'todos' ||
+    s === '__all' ||
+    s === '__fav' ||
+    s === 'canales' ||
+    s === 'tv' ||
+    s === 'en vivo' ||
+    s === 'live' ||
+    s === 'iptv' ||
+    s === 'canales en vivo' ||
+    s === 'radio'
+  );
+}
+
+function extractSeriesFromUrl(url) {
+  if (!url) return '';
+  try {
+    var clean = url.split('?')[0].split('#')[0];
+    var parts = clean.split('/');
+    var file = parts[parts.length - 1] || '';
+    file = file.replace(/\.[a-zA-Z0-9]+$/, '');
+    var m = file.match(/^(.*?)(?:[-_.]|(?=\d+x\d+)|(?=[sStT]\d+[eE]?\d+))(?:\d+x\d+|[sStT]\d+[eE]?\d+|\d{2,4})/i);
+    if (m && m[1] && m[1].length > 2) {
+      var s = m[1].replace(/[-_.]+/g, ' ').trim();
+      return s.charAt(0).toUpperCase() + s.slice(1);
+    }
+  } catch (e) {}
+  return '';
+}
+
+function parseSeriesInfo(c, optGroup) {
+  var name = '', group = '', extgrp = '', url = '';
+  if (typeof c === 'object' && c !== null) {
+    name = c.name || '';
+    group = c.group || '';
+    extgrp = c.extgrp || '';
+    url = c.url || '';
+  } else {
+    name = c || '';
+    group = optGroup || '';
+  }
   if (!name) return null;
-  var isSeriesGrp = group && /serie|anime|novela|dorama|drama|kdrama|temporada/i.test(group);
-  
-  // 1. Patron S01 E01 o S1E2 o S01E02
-  var m1 = name.match(/^(.*?)\s*[-_:]?\s*[sS](\d+)\s*[-_xX]?[eE](\d+)\s*[-_:]?\s*(.*)$/);
+
+  var isSeriesGrp = (group && /serie|anime|novela|dorama|drama|kdrama|temporada/i.test(group)) ||
+                    (extgrp && /serie|anime|novela|dorama|drama|kdrama|temporada/i.test(extgrp));
+
+  var seriesTitle = '';
+  var season = 1;
+  var episode = 1;
+  var episodeTitle = '';
+
+  // 1. Patron T1 E1 / S1 E1 / S01E02 / T1E02 / T1:E2 / T1-E2 / T01xE02 / S1.E1
+  // Ej: "T1 E1 - Éxodo", "ThunderCats T1 E1 - Éxodo", "S01E05 - Piloto"
+  var m1 = name.match(/^(.*?)(?:^|[\s\-_:\[\(])([sStT])\s*(\d{1,3})\s*[-_:/xX\s]?\s*(?:[eE]|cap|capitulo|capítulo|ep|episodio)\s*(\d{1,4})\]?\s*[-_:]?\s*(.*)$/i);
   if (m1) {
-    var title1 = m1[1].trim() || 'Serie';
+    var rawPrefix = (m1[1] || '').trim();
+    season = parseInt(m1[3], 10);
+    episode = parseInt(m1[4], 10);
+    var epRaw = (m1[5] || '').trim();
+    episodeTitle = epRaw ? epRaw.replace(/^[-_:]+\s*/, '').trim() : ('Episodio ' + episode);
+    
+    rawPrefix = rawPrefix.replace(/^\[SERIE\]\s*/i, '').replace(/[-_:\s]+$/, '').trim();
+    if (rawPrefix && rawPrefix.length > 1) {
+      seriesTitle = rawPrefix;
+    } else if (extgrp && !isGenericCategory(extgrp)) {
+      seriesTitle = extgrp.trim();
+    } else if (group && !isGenericCategory(group)) {
+      seriesTitle = group.trim();
+    } else {
+      var uTitle = extractSeriesFromUrl(url);
+      seriesTitle = uTitle || 'Serie';
+    }
+
     return {
-      seriesTitle: title1,
-      season: parseInt(m1[2], 10),
-      episode: parseInt(m1[3], 10),
-      episodeTitle: (m1[4] || ('Episodio ' + m1[3])).trim()
+      seriesTitle: seriesTitle,
+      season: season,
+      episode: episode,
+      episodeTitle: episodeTitle
     };
   }
-  // 2. Patron Season 1 Episode 2
-  var m5 = name.match(/^(.*?)\s*[-_:]?\s*Season\s*(\d+)\s*[-_:]?\s*Episode\s*(\d+)\s*[-_:]?\s*(.*)$/i);
-  if (m5) {
+
+  // 2. Patron Season 1 Episode 2 / Temporada 1 Capitulo 2
+  var m2 = name.match(/^(.*?)(?:^|[\s\-_:\[\(])(?:Temporada|Season|Temp)\s*(\d{1,3})\s*[-_:/xX\s]?\s*(?:Episodio|Capitulo|Capítulo|Episode|Cap|Ep)\s*(\d{1,4})\s*[-_:]?\s*(.*)$/i);
+  if (m2) {
+    var rawPrefix = (m2[1] || '').trim();
+    season = parseInt(m2[2], 10);
+    episode = parseInt(m2[3], 10);
+    var epRaw = (m2[4] || '').trim();
+    episodeTitle = epRaw ? epRaw.replace(/^[-_:]+\s*/, '').trim() : ('Episodio ' + episode);
+
+    rawPrefix = rawPrefix.replace(/^\[SERIE\]\s*/i, '').replace(/[-_:\s]+$/, '').trim();
+    if (rawPrefix && rawPrefix.length > 1) {
+      seriesTitle = rawPrefix;
+    } else if (extgrp && !isGenericCategory(extgrp)) {
+      seriesTitle = extgrp.trim();
+    } else if (group && !isGenericCategory(group)) {
+      seriesTitle = group.trim();
+    } else {
+      var uTitle = extractSeriesFromUrl(url);
+      seriesTitle = uTitle || 'Serie';
+    }
+
     return {
-      seriesTitle: m5[1].trim() || 'Serie',
-      season: parseInt(m5[2], 10),
-      episode: parseInt(m5[3], 10),
-      episodeTitle: (m5[4] || ('Episodio ' + m5[3])).trim()
+      seriesTitle: seriesTitle,
+      season: season,
+      episode: episode,
+      episodeTitle: episodeTitle
     };
   }
-  // 3. Patron 1x02 (season < 50)
-  var m2 = name.match(/^(.*?)\s*[-_:]?\s*(\d+)x(\d+)\s*[-_:]?\s*(.*)$/);
-  if (m2 && parseInt(m2[2], 10) < 50) {
+
+  // 3. Patron 1x02 / 01x09
+  var m3 = name.match(/^(.*?)(?:^|[\s\-_:\[\(])(\d{1,2})[xX](\d{1,4})\]?\s*[-_:]?\s*(.*)$/);
+  if (m3 && parseInt(m3[2], 10) < 60) {
+    var rawPrefix = (m3[1] || '').trim();
+    season = parseInt(m3[2], 10);
+    episode = parseInt(m3[3], 10);
+    var epRaw = (m3[4] || '').trim();
+    episodeTitle = epRaw ? epRaw.replace(/^[-_:]+\s*/, '').trim() : ('Episodio ' + episode);
+
+    rawPrefix = rawPrefix.replace(/^\[SERIE\]\s*/i, '').replace(/[-_:\s]+$/, '').trim();
+    if (rawPrefix && rawPrefix.length > 1) {
+      seriesTitle = rawPrefix;
+    } else if (extgrp && !isGenericCategory(extgrp)) {
+      seriesTitle = extgrp.trim();
+    } else if (group && !isGenericCategory(group)) {
+      seriesTitle = group.trim();
+    } else {
+      var uTitle = extractSeriesFromUrl(url);
+      seriesTitle = uTitle || 'Serie';
+    }
+
     return {
-      seriesTitle: m2[1].trim() || 'Serie',
-      season: parseInt(m2[2], 10),
-      episode: parseInt(m2[3], 10),
-      episodeTitle: (m2[4] || ('Episodio ' + m2[3])).trim()
+      seriesTitle: seriesTitle,
+      season: season,
+      episode: episode,
+      episodeTitle: episodeTitle
     };
   }
-  // 4. Patron T1 Cap 02 / T01 Capitulo 05
-  var m3 = name.match(/^(.*?)\s*[-_:]?\s*T(?:emp|emporada)?\s*(\d+)\s*[-_:]?\s*(?:Cap|Capitulo|Ep|Episodio)?\s*(\d+)\s*[-_:]?\s*(.*)$/i);
-  if (m3) {
-    return {
-      seriesTitle: m3[1].trim() || 'Serie',
-      season: parseInt(m3[2], 10),
-      episode: parseInt(m3[3], 10),
-      episodeTitle: (m3[4] || ('Episodio ' + m3[3])).trim()
-    };
-  }
-  // 5. Patron Capitulo 12 / Ep. 12
-  var m4 = name.match(/^(.*?)\s*[-_:]?\s*(?:Cap|Capitulo|Ep|Episodio|Cap\.|Ep\.)\s*(\d+)\s*[-_:]?\s*(.*)$/i);
+
+  // 4. Patron Capitulo 12 / Capitulo 12 / Ep. 12 / Cap 12
+  var m4 = name.match(/^(.*?)(?:^|[\s\-_:\[\(])(?:Capitulo|Capítulo|Cap\.|Cap|Episodio|Ep\.|Ep)\s*(\d{1,4})\s*[-_:]?\s*(.*)$/i);
   if (m4) {
+    var rawPrefix = (m4[1] || '').trim();
+    season = 1;
+    episode = parseInt(m4[2], 10);
+    var epRaw = (m4[3] || '').trim();
+    episodeTitle = epRaw ? epRaw.replace(/^[-_:]+\s*/, '').trim() : ('Capítulo ' + episode);
+
+    rawPrefix = rawPrefix.replace(/^\[SERIE\]\s*/i, '').replace(/[-_:\s]+$/, '').trim();
+    if (rawPrefix && rawPrefix.length > 1) {
+      seriesTitle = rawPrefix;
+    } else if (extgrp && !isGenericCategory(extgrp)) {
+      seriesTitle = extgrp.trim();
+    } else if (group && !isGenericCategory(group)) {
+      seriesTitle = group.trim();
+    } else {
+      var uTitle = extractSeriesFromUrl(url);
+      seriesTitle = uTitle || 'Serie';
+    }
+
     return {
-      seriesTitle: m4[1].trim() || 'Serie',
-      season: 1,
-      episode: parseInt(m4[2], 10),
-      episodeTitle: (m4[3] || ('Capítulo ' + m4[2])).trim()
+      seriesTitle: seriesTitle,
+      season: season,
+      episode: episode,
+      episodeTitle: episodeTitle
     };
   }
-  // 6. Si el grupo es Serie/Anime/Novela y termina en - 123
-  if (isSeriesGrp) {
-    var mg = name.match(/^(.*?)\s*[-_:]\s*(\d{1,4})$/);
-    if (mg) {
+
+  // 5. Patron E01 - Éxodo / E1 - Éxodo
+  var m5 = name.match(/^(.*?)(?:^|[\s\-_:\[\(])E\s*(\d{1,4})\s*[-_:]?\s*(.*)$/i);
+  if (m5) {
+    var rawPrefix = (m5[1] || '').trim();
+    season = 1;
+    episode = parseInt(m5[2], 10);
+    var epRaw = (m5[3] || '').trim();
+    episodeTitle = epRaw ? epRaw.replace(/^[-_:]+\s*/, '').trim() : ('Episodio ' + episode);
+
+    rawPrefix = rawPrefix.replace(/^\[SERIE\]\s*/i, '').replace(/[-_:\s]+$/, '').trim();
+    if (rawPrefix && rawPrefix.length > 1) {
+      seriesTitle = rawPrefix;
+    } else if (extgrp && !isGenericCategory(extgrp)) {
+      seriesTitle = extgrp.trim();
+    } else if (group && !isGenericCategory(group)) {
+      seriesTitle = group.trim();
+    } else {
+      var uTitle = extractSeriesFromUrl(url);
+      seriesTitle = uTitle || 'Serie';
+    }
+
+    return {
+      seriesTitle: seriesTitle,
+      season: season,
+      episode: episode,
+      episodeTitle: episodeTitle
+    };
+  }
+
+  // 6. Si el grupo o extgrp es Serie/Anime o el grupo no es generico, y el nombre es "01 - Éxodo" o "01. Éxodo"
+  var sGroup = (!isGenericCategory(extgrp) ? extgrp : (!isGenericCategory(group) ? group : ''));
+  if (sGroup && (isSeriesGrp || extgrp)) {
+    var m6 = name.match(/^(\d{1,4})\s*[-_.:]\s*(.+)$/);
+    if (m6) {
       return {
-        seriesTitle: mg[1].trim() || 'Serie',
+        seriesTitle: sGroup,
         season: 1,
-        episode: parseInt(mg[2], 10),
-        episodeTitle: 'Capítulo ' + mg[2]
+        episode: parseInt(m6[1], 10),
+        episodeTitle: m6[2].trim()
       };
     }
   }
+
   return null;
 }
 
@@ -2495,9 +2643,9 @@ function aggregateSeriesList(channels) {
 
   for (var i = 0; i < channels.length; i++) {
     var c = channels[i];
-    var sInfo = parseSeriesInfo(c.name, c.group);
+    var sInfo = parseSeriesInfo(c);
     if (sInfo) {
-      var sKey = (sInfo.seriesTitle + '___' + (c.group || '')).toLowerCase();
+      var sKey = sInfo.seriesTitle.trim().toLowerCase();
       if (!seriesMap[sKey]) {
         var sObj = {
           id: 'series_' + strHash(sKey),
@@ -2540,6 +2688,23 @@ function aggregateSeriesList(channels) {
       result.push(c);
     }
   }
+
+  // Ordenar temporadas y episodios cronologicamente
+  for (var k in seriesMap) {
+    if (seriesMap.hasOwnProperty(k)) {
+      var ser = seriesMap[k];
+      ser.seasonKeys.sort(function(a, b) { return a - b; });
+      var sortedAllEps = [];
+      for (var sk = 0; sk < ser.seasonKeys.length; sk++) {
+        var seasonNum = ser.seasonKeys[sk];
+        var sEps = ser.seasons[seasonNum] || [];
+        sEps.sort(function(a, b) { return (a.episode || 0) - (b.episode || 0); });
+        sortedAllEps = sortedAllEps.concat(sEps);
+      }
+      ser.episodes = sortedAllEps;
+    }
+  }
+
   return result;
 }
 
@@ -2830,11 +2995,14 @@ function parseM3U(text) {
       var mLogo = ln.match(/tvg-logo="([^"]*)"/i); if (mLogo) logo = resolveIconUrl(mLogo[1]);
       var mGroup = ln.match(/group-title="([^"]*)"/i); if (mGroup && mGroup[1].trim()) group = mGroup[1].trim();
       var mSubs = ln.match(/sub-tracks="([^"]*)"/i); if (mSubs) subs = mSubs[1];
-      meta = { name: name, logo: logo, group: group, subs: subs, id: 'ch-' + i };
+      meta = { name: name, logo: logo, group: group, subs: subs, extgrp: '', id: 'ch-' + i };
     } else if (ln.indexOf('#EXTGRP:') === 0) {
       if (meta) {
         var grp = ln.replace('#EXTGRP:', '').trim();
-        if (grp) meta.group = grp;
+        if (grp) {
+          meta.extgrp = grp;
+          meta.group = grp;
+        }
       }
     } else if (ln.indexOf('#EXTIMG:') === 0) {
       if (meta) {
@@ -3128,7 +3296,7 @@ function renderChannels() {
       ? '<img src="' + escapeHtml(logoSrc) + '" onerror="this.style.display=\'none\';" style="width:100%;height:100%;object-fit:contain;" />'
       : fallbackSvg;
 
-    var subText = c.isSeries ? (c.totalEpisodes + ' Caps • ' + (c.totalSeasons || 1) + ' Temp') : (c.group || 'Canal');
+    var subText = c.isSeries ? (c.totalEpisodes + ' episodios' + (c.totalSeasons > 1 ? (' • ' + c.totalSeasons + ' temp') : '')) : (c.group || 'Canal');
 
     tile.innerHTML = '<div class="tile-num">' + (globalIdx + 1) + '</div>' + favHtml + seriesBadge +
       '<div class="tile-thumb" style="height:' + dims.thumbH + 'px; line-height:' + dims.thumbH + 'px;">' + thumbContent + '</div>' +
@@ -3803,7 +3971,10 @@ function playChannelAt(idx) {
   var list = (state.activeSeriesEpisodes && state.activeSeriesEpisodes.length > 0) ? state.activeSeriesEpisodes : getFilteredChannels();
   if (!list[idx]) return;
   state.currentChannelIdx = idx;
-  if (!state.activeSeriesEpisodes) {
+  if (state.activeSeriesEpisodes && state.activeSeriesEpisodes.length > 0) {
+    state.activeSeriesEpIdx = idx;
+    if (state.currentSeries) saveSeriesProgress(state.currentSeries.id, list[idx]);
+  } else {
     state.currentSeries = null;
   }
   playItem(list[idx]);
@@ -4087,8 +4258,15 @@ function stopPlayer() {
   $('player-drawer').classList.remove('open');
   state.drawerOpen = false;
   hidePlayerOverlay();
-  state.screen = 'playlists';
-  updateMainFocus(false);
+  if (state.currentSeries && state.activeSeriesEpisodes && state.activeSeriesEpisodes.length > 0) {
+    state.screen = 'series-detail';
+    var view = $('view-series-detail');
+    if (view) view.style.display = 'block';
+    updateSeriesFocus();
+  } else {
+    state.screen = 'playlists';
+    updateMainFocus(false);
+  }
 }
 
 function handlePlayerNav(kc, eObj) {

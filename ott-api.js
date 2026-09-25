@@ -136,6 +136,7 @@ function parseM3uText(text) {
       if (current) {
         const grp = ln.replace('#EXTGRP:', '').trim();
         if (grp) {
+          current.extgrp = grp;
           current.group = grp;
           groupsSet.add(grp);
         }
