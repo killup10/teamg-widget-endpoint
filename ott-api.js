@@ -138,6 +138,7 @@ function serializeChannelsToM3u(channels) {
     const adultAttr = c.adult ? ' adult="1"' : '';
     m3u += `#EXTINF:-1${logoAttr}${groupAttr}${adultAttr},${c.name}\n`;
     if (c.group) m3u += `#EXTGRP:${c.group}\n`;
+    if (c.logo) m3u += `#EXTIMG:${c.logo}\n`;
     m3u += `${c.url}\n`;
   }
   return m3u;
@@ -236,6 +237,7 @@ async function handle(req, res, pathname, query, body) {
       const buf = Buffer.from(parts[1] || parts[0], 'base64');
       res.writeHead(200, {
         'Content-Type': mime,
+        'Access-Control-Allow-Origin': '*',
         'Cache-Control': 'public, max-age=31536000, immutable'
       });
       res.end(buf);
@@ -358,7 +360,10 @@ async function handle(req, res, pathname, query, body) {
       if (!body.data) return json(res, 400, { ok: false, error: 'Falta data' });
       const iconId = store.uid();
       await cols.icons.insertOne({ _id: iconId, data: body.data, created: store.nowIso() });
-      return json(res, 200, { ok: true, url: '/api/ott/icon/' + iconId });
+      const hostHeader = (req && req.headers && req.headers['host']) ? req.headers['host'] : 'ott.teamg.store';
+      const proto = (req.headers['x-forwarded-proto'] || 'https').split(',')[0].trim();
+      const fullUrl = proto + '://' + hostHeader + '/api/ott/icon/' + iconId;
+      return json(res, 200, { ok: true, url: fullUrl, id: iconId });
     }
 
     return json(res, 404, { ok: false });

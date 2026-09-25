@@ -65,17 +65,35 @@ h4{font-weight:400;color:#555;margin:18px 0 6px}
 .editor-main{flex:1;display:flex;flex-direction:column}
 .editor-main-header{display:flex;align-items:center;gap:12px;margin-bottom:12px}
 .btn-create-channel{background:#22c55e;color:#fff;border:0;padding:10px 18px;border-radius:4px;font-weight:bold;cursor:pointer;font-size:14px;display:flex;align-items:center;gap:6px}
+.view-mode-btns{display:flex;gap:0;border:1px solid #ccc;border-radius:4px;overflow:hidden}
+.view-mode-btn{border:0;background:#fff;padding:8px 12px;cursor:pointer;font-size:15px;color:#555}
+.view-mode-btn.sel{background:#22c55e;color:#fff}
 .search-channels{flex:1;border:1px solid #ddd;border-radius:4px;padding:8px 12px;font-size:14px}
 .channels-container{flex:1;background:#fff;border-radius:8px;box-shadow:0 1px 6px #0001;padding:12px;overflow-y:auto;max-height:640px}
 
-/* Filas de Canales Verde Estilo Foto 2 */
-.channel-row{background:#22c55e;color:#fff;border-radius:4px;display:flex;align-items:center;padding:6px 12px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,0.15)}
+/* Filas de Canales Verde Estilo Foto 2 con Drag and Drop */
+.channel-row{background:#22c55e;color:#fff;border-radius:4px;display:flex;align-items:center;padding:6px 12px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,0.15);cursor:grab;user-select:none;transition:transform 0.1s ease}
+.channel-row:active{cursor:grabbing}
+.channel-row.dragging{opacity:0.35;transform:scale(0.98);outline:2px dashed #ffffff}
+.channel-row.drag-over-top{border-top:3px solid #ffcc00 !important}
+.channel-row.drag-over-bottom{border-bottom:3px solid #ffcc00 !important}
+.drag-handle{font-size:18px;cursor:grab;padding:0 8px 0 2px;opacity:0.75;display:inline-flex;align-items:center}
+.drag-handle:hover{opacity:1}
+.channel-num{font-size:12px;background:rgba(0,0,0,0.25);padding:2px 6px;border-radius:3px;margin-right:10px;font-weight:bold}
 .channel-thumb{width:68px;height:42px;background:#000;border-radius:3px;margin-right:14px;object-fit:cover;display:block}
 .channel-name{flex:1;font-size:16px;font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.channel-actions{display:flex;gap:10px}
-.channel-btn{background:rgba(255,255,255,0.25);border:0;color:#fff;width:32px;height:32px;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px}
+.channel-actions{display:flex;gap:6px}
+.channel-btn{background:rgba(255,255,255,0.25);border:0;color:#fff;width:32px;height:32px;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px}
 .channel-btn:hover{background:#fff;color:#22c55e}
 .channel-btn.del:hover{background:#fff;color:#e53935}
+.group-item.drag-over{background:#dcfce7 !important;border:2px dashed #22c55e !important}
+
+/* Modo Cuadrícula */
+.channels-container.grid-view{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;padding:14px}
+.channels-container.grid-view .channel-row{flex-direction:column;align-items:center;text-align:center;padding:12px 8px;height:165px;box-sizing:border-box}
+.channels-container.grid-view .channel-thumb{width:110px;height:65px;margin-right:0;margin-bottom:8px}
+.channels-container.grid-view .channel-name{width:100%;font-size:14px;margin-bottom:8px}
+.channels-container.grid-view .drag-handle{display:none}
 
 /* Modal Edit Channel (Foto 3) */
 .modal-edit-channel{width:780px;max-width:95vw;background:#fff;border-radius:8px;padding:32px;display:flex;gap:36px;position:relative}
@@ -213,6 +231,7 @@ document.getElementById("who").textContent = sessionStorage.getItem("ottname") |
 
 var DATA = null, TAB = "Playlists", OPENFU = null;
 var CURRENT_PL = null, CURRENT_GROUP = null, EDITING_CH_IDX = -1;
+var CURRENT_VIEW_MODE = "list";
 
 function api(p, m, b) {
   return fetch(p, {
@@ -397,10 +416,14 @@ function renderPlaylistEditor(a) {
   h += "<div class='editor-main'>" +
     "<div class='editor-main-header'>" +
       "<button class='btn-create-channel' id='btnCreateChannel'>+ create channel</button>" +
+      "<div class='view-mode-btns'>" +
+        "<button class='view-mode-btn " + (CURRENT_VIEW_MODE === "list" ? "sel" : "") + "' id='btnViewModeList' title='Vista Lista'>☰</button>" +
+        "<button class='view-mode-btn " + (CURRENT_VIEW_MODE === "grid" ? "sel" : "") + "' id='btnViewModeGrid' title='Vista Cuadrícula'>☷</button>" +
+      "</div>" +
       "<input class='search-channels' id='chSearchInput' placeholder='Buscar en " + esc(CURRENT_GROUP) + "...' />" +
-      "<span class='small'>" + filteredChannels.length + " canales</span>" +
+      "<span class='small' id='chCountText'>" + filteredChannels.length + " canales</span>" +
     "</div>" +
-    "<div class='channels-container' id='channelsListContainer'>";
+    "<div class='channels-container " + (CURRENT_VIEW_MODE === "grid" ? "grid-view" : "") + "' id='channelsListContainer'>";
 
   if (!filteredChannels.length) {
     h += "<p style='text-align:center;color:#888;margin-top:40px;'>No hay canales en el grupo <b>" + esc(CURRENT_GROUP) + "</b>.<br>Haz clic en <b>+ create channel</b> para añadir uno.</p>";
@@ -408,10 +431,14 @@ function renderPlaylistEditor(a) {
     filteredChannels.forEach(function(c, idx) {
       var globalIdx = CURRENT_PL.channels.indexOf(c);
       var thumb = c.logo ? "<img class='channel-thumb' src='" + esc(c.logo) + "' onerror=\"this.style.display='none'\" />" : "<div class='channel-thumb' style='color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;'>SIN LOGO</div>";
-      h += "<div class='channel-row' data-ch-row='" + globalIdx + "'>" +
+      h += "<div class='channel-row' draggable='true' data-ch-row='" + globalIdx + "'>" +
+        "<span class='drag-handle' title='Arrastrar para reordenar'>☰</span>" +
+        "<span class='channel-num'>#" + (idx + 1) + "</span>" +
         thumb +
-        "<span class='channel-name'>" + esc(c.name) + "</span>" +
+        "<span class='channel-name' title='" + esc(c.name) + "'>" + esc(c.name) + "</span>" +
         "<div class='channel-actions'>" +
+          "<button class='channel-btn' title='Mover arriba' data-ch-move-up='" + globalIdx + "'>▲</button>" +
+          "<button class='channel-btn' title='Mover abajo' data-ch-move-down='" + globalIdx + "'>▼</button>" +
           "<button class='channel-btn' title='Setting (Editar canal)' data-ch-edit='" + globalIdx + "'>⚙</button>" +
           "<button class='channel-btn del' title='Borrar canal' data-ch-del='" + globalIdx + "'>🗑</button>" +
         "</div></div>";
@@ -486,6 +513,16 @@ function renderPlaylistEditor(a) {
     };
   }
 
+  // Toggles de Vista (Lista vs Cuadrícula)
+  document.getElementById("btnViewModeList").onclick = function() {
+    CURRENT_VIEW_MODE = "list";
+    render();
+  };
+  document.getElementById("btnViewModeGrid").onclick = function() {
+    CURRENT_VIEW_MODE = "grid";
+    render();
+  };
+
   document.getElementById("btnCreateChannel").onclick = function() {
     openChannelSettingModal(-1);
   };
@@ -511,16 +548,171 @@ function renderPlaylistEditor(a) {
     };
   }
 
+  // Mover canal Arriba (▲) dentro del grupo
+  var moveUpBtns = document.querySelectorAll("[data-ch-move-up]");
+  for (var i = 0; i < moveUpBtns.length; i++) {
+    moveUpBtns[i].onclick = function(e) {
+      e.stopPropagation();
+      var gIdx = parseInt(this.getAttribute("data-ch-move-up"), 10);
+      var ch = CURRENT_PL.channels[gIdx];
+      var fIdx = filteredChannels.indexOf(ch);
+      if (fIdx > 0) {
+        var prevCh = filteredChannels[fIdx - 1];
+        var prevGIdx = CURRENT_PL.channels.indexOf(prevCh);
+        CURRENT_PL.channels[gIdx] = prevCh;
+        CURRENT_PL.channels[prevGIdx] = ch;
+        savePlaylistToServer();
+      }
+    };
+  }
+
+  // Mover canal Abajo (▼) dentro del grupo
+  var moveDownBtns = document.querySelectorAll("[data-ch-move-down]");
+  for (var i = 0; i < moveDownBtns.length; i++) {
+    moveDownBtns[i].onclick = function(e) {
+      e.stopPropagation();
+      var gIdx = parseInt(this.getAttribute("data-ch-move-down"), 10);
+      var ch = CURRENT_PL.channels[gIdx];
+      var fIdx = filteredChannels.indexOf(ch);
+      if (fIdx < filteredChannels.length - 1) {
+        var nextCh = filteredChannels[fIdx + 1];
+        var nextGIdx = CURRENT_PL.channels.indexOf(nextCh);
+        CURRENT_PL.channels[gIdx] = nextCh;
+        CURRENT_PL.channels[nextGIdx] = ch;
+        savePlaylistToServer();
+      }
+    };
+  }
+
+  // Drag and Drop para reordenar canales o moverlos a otros grupos
+  var draggedGIdx = -1;
+  var chRows = document.querySelectorAll(".channel-row");
+  for (var i = 0; i < chRows.length; i++) {
+    var row = chRows[i];
+
+    row.ondragstart = function(e) {
+      draggedGIdx = parseInt(this.getAttribute("data-ch-row"), 10);
+      this.classList.add("dragging");
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", draggedGIdx);
+    };
+
+    row.ondragend = function(e) {
+      this.classList.remove("dragging");
+      chRows.forEach(function(r) {
+        r.classList.remove("drag-over-top", "drag-over-bottom");
+      });
+      gItems.forEach(function(g) {
+        g.classList.remove("drag-over");
+      });
+      draggedGIdx = -1;
+    };
+
+    row.ondragover = function(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      var rect = this.getBoundingClientRect();
+      var relY = e.clientY - rect.top;
+      if (relY < rect.height / 2) {
+        this.classList.add("drag-over-top");
+        this.classList.remove("drag-over-bottom");
+      } else {
+        this.classList.add("drag-over-bottom");
+        this.classList.remove("drag-over-top");
+      }
+    };
+
+    row.ondragleave = function(e) {
+      this.classList.remove("drag-over-top", "drag-over-bottom");
+    };
+
+    row.ondrop = function(e) {
+      e.preventDefault();
+      this.classList.remove("drag-over-top", "drag-over-bottom");
+      var srcGIdx = draggedGIdx >= 0 ? draggedGIdx : parseInt(e.dataTransfer.getData("text/plain"), 10);
+      var targetGIdx = parseInt(this.getAttribute("data-ch-row"), 10);
+      if (isNaN(srcGIdx) || isNaN(targetGIdx) || srcGIdx === targetGIdx) return;
+
+      var rect = this.getBoundingClientRect();
+      var insertAfter = (e.clientY - rect.top) >= (rect.height / 2);
+
+      var targetChannel = CURRENT_PL.channels[targetGIdx];
+      var itemToMove = CURRENT_PL.channels.splice(srcGIdx, 1)[0];
+      var newTargetGIdx = CURRENT_PL.channels.indexOf(targetChannel);
+      if (newTargetGIdx < 0) newTargetGIdx = 0;
+      var insertAt = insertAfter ? newTargetGIdx + 1 : newTargetGIdx;
+
+      CURRENT_PL.channels.splice(insertAt, 0, itemToMove);
+      savePlaylistToServer();
+    };
+  }
+
+  // Arrastrar canal hacia un grupo de la barra lateral
+  for (var i = 0; i < gItems.length; i++) {
+    var gi = gItems[i];
+    gi.ondragover = function(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      this.classList.add("drag-over");
+    };
+    gi.ondragleave = function(e) {
+      this.classList.remove("drag-over");
+    };
+    gi.ondrop = function(e) {
+      e.preventDefault();
+      this.classList.remove("drag-over");
+      var srcGIdx = draggedGIdx >= 0 ? draggedGIdx : parseInt(e.dataTransfer.getData("text/plain"), 10);
+      if (isNaN(srcGIdx) || !CURRENT_PL.channels[srcGIdx]) return;
+      var targetGroup = this.getAttribute("data-group-select");
+      if (targetGroup && CURRENT_PL.channels[srcGIdx].group !== targetGroup) {
+        CURRENT_PL.channels[srcGIdx].group = targetGroup;
+        savePlaylistToServer();
+      }
+    };
+  }
+
   // Buscador en tiempo real de canales
   var sInput = document.getElementById("chSearchInput");
   sInput.oninput = function() {
     var q = this.value.toLowerCase().trim();
     var rows = document.querySelectorAll(".channel-row");
+    var visibleCount = 0;
     for (var i = 0; i < rows.length; i++) {
       var name = rows[i].querySelector(".channel-name").textContent.toLowerCase();
-      rows[i].style.display = (name.indexOf(q) > -1 ? "flex" : "none");
+      var match = (name.indexOf(q) > -1);
+      rows[i].style.display = (match ? "flex" : "none");
+      if (match) visibleCount++;
     }
+    var countEl = document.getElementById("chCountText");
+    if (countEl) countEl.textContent = visibleCount + " canales";
   };
+}
+
+function resizeImageForUpload(file, maxW, maxH, callback) {
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var img = new Image();
+    img.onload = function() {
+      var w = img.width;
+      var h = img.height;
+      var ratio = Math.min(maxW / w, maxH / h, 1);
+      var canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(w * ratio));
+      canvas.height = Math.max(1, Math.round(h * ratio));
+      var ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      var resizedBase64 = canvas.toDataURL("image/png");
+      callback(null, resizedBase64);
+    };
+    img.onerror = function() {
+      callback(null, e.target.result);
+    };
+    img.src = e.target.result;
+  };
+  reader.onerror = function(err) {
+    callback(err);
+  };
+  reader.readAsDataURL(file);
 }
 
 /* ==================== MODAL CHANNEL'S SETTING (Foto 3) ==================== */
@@ -534,6 +726,12 @@ function openChannelSettingModal(channelIdx) {
   document.getElementById("mChName").value = ch.name || "";
   document.getElementById("mChUrl").value = ch.url || "";
   document.getElementById("mChIconUrl").value = ch.logo || "";
+  document.getElementById("mChIconFileInput").value = "";
+
+  var saveBtn = document.getElementById("btnSaveChModal");
+  saveBtn.disabled = false;
+  saveBtn.textContent = "SAVE";
+  saveBtn.style.opacity = "1";
 
   var sel = document.getElementById("mChGroupSelect");
   sel.innerHTML = "";
@@ -589,27 +787,45 @@ document.getElementById("btnToolUploadPic").onclick = function() {
 
 document.getElementById("btnToolDeletePic").onclick = function() {
   document.getElementById("mChIconUrl").value = "";
+  document.getElementById("mChIconFileInput").value = "";
   updateIconPreview("");
 };
 
 document.getElementById("mChIconFileInput").onchange = function() {
   if (this.files && this.files[0]) {
     var file = this.files[0];
-    var reader = new FileReader();
-    reader.onload = function(e) {
-      var base64 = e.target.result;
+    var saveBtn = document.getElementById("btnSaveChModal");
+    saveBtn.disabled = true;
+    saveBtn.textContent = "⏳ SUBIENDO IMAGEN...";
+    saveBtn.style.opacity = "0.6";
+
+    resizeImageForUpload(file, 400, 300, function(err, base64) {
+      if (err || !base64) {
+        alert("No se pudo procesar la imagen seleccionada.");
+        saveBtn.disabled = false;
+        saveBtn.textContent = "SAVE";
+        saveBtn.style.opacity = "1";
+        return;
+      }
+      // Mostrar vista previa inmediata
       updateIconPreview(base64);
-      // Subir al servidor inmediatamente
+      // Pre-asignar valor por si el usuario guarda
+      document.getElementById("mChIconUrl").value = base64;
+
+      // Subir al backend para obtener URL permanente /api/ott/icon/<id>
       api("/api/ott/admin/upload-image", "POST", { data: base64 }).then(function(res) {
         if (res && res.url) {
           document.getElementById("mChIconUrl").value = res.url;
           updateIconPreview(res.url);
         }
-      }).catch(function(err) {
-        alert("Error al subir imagen: " + err.message);
+      }).catch(function(uploadErr) {
+        console.warn("Fallo subida a /upload-image, manteniendo base64:", uploadErr);
+      }).finally(function() {
+        saveBtn.disabled = false;
+        saveBtn.textContent = "SAVE";
+        saveBtn.style.opacity = "1";
       });
-    };
-    reader.readAsDataURL(file);
+    });
   }
 };
 
