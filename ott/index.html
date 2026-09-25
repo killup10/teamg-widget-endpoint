@@ -842,11 +842,11 @@ html, body {
   float: left;
   height: 58px;
   line-height: 58px;
-  padding: 0 20px;
+  padding: 0 18px;
   font-size: 20px;
   color: #ffffff;
   cursor: pointer;
-  margin-right: 16px;
+  margin-right: 10px;
   user-select: none;
   -webkit-user-select: none;
 }
@@ -856,6 +856,77 @@ html, body {
   color: #000000 !important;
   border-radius: 4px;
   outline: 3px solid #ffffff;
+}
+
+.player-hud-btn {
+  float: left;
+  height: 38px;
+  line-height: 38px;
+  margin-top: 10px;
+  padding: 0 12px;
+  font-size: 14px;
+  font-weight: bold;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 5px;
+  cursor: pointer;
+  margin-right: 10px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.player-hud-btn.focused {
+  background: #ffcc00 !important;
+  color: #000000 !important;
+  border-color: #ffffff !important;
+  outline: 3px solid #ffffff;
+}
+
+#player-subtitles-overlay {
+  position: absolute;
+  bottom: 74px;
+  left: 6%;
+  right: 6%;
+  text-align: center;
+  pointer-events: none;
+  z-index: 104;
+  font-family: Arial, "Helvetica Neue", sans-serif;
+  font-size: 32px;
+  font-weight: bold;
+  line-height: 1.35;
+  color: #ffff66;
+  text-shadow: 2px 2px 0 #000000, -2px -2px 0 #000000, 2px -2px 0 #000000, -2px 2px 0 #000000, 0 3px 8px rgba(0,0,0,0.9);
+  padding: 6px 16px;
+  display: none;
+  white-space: pre-line;
+}
+
+#search-banner {
+  display: none;
+  background: #182230;
+  border-bottom: 2px solid #2196F3;
+  padding: 10px 24px;
+  align-items: center;
+  justify-content: space-between;
+  color: #ffffff;
+  font-size: 16px;
+}
+.sb-label {
+  font-weight: 500;
+  color: #ffffff;
+}
+.sb-clear-btn {
+  background: #e05560;
+  color: #ffffff;
+  padding: 5px 14px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: bold;
+  cursor: pointer;
+}
+.sb-clear-btn:hover {
+  background: #ff6677;
 }
 
 /* Modal / Banner SINTONIZANDO (Discreto / Desactivado tras inicio) */
@@ -917,6 +988,27 @@ html, body {
   align-items: center;
   padding-right: 28px;
   cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.15s ease;
+}
+
+.player-progress-wrap.focused {
+  background: rgba(255, 204, 0, 0.15);
+  outline: none;
+}
+
+.player-progress-wrap.focused .player-progress-bar {
+  background: #3b3b4a;
+  outline: 3px solid #ffcc00;
+  box-shadow: 0 0 16px rgba(255, 204, 0, 0.8);
+}
+
+.player-progress-wrap.focused #player-epg-thumb {
+  transform: scale(1.4);
+  -webkit-transform: scale(1.4);
+  background: #ffcc00;
+  border-color: #ffffff;
+  box-shadow: 0 0 14px #ffcc00;
 }
 
 .player-progress-bar {
@@ -1155,18 +1247,18 @@ video::cue {
     <div class="topbar-title" id="screenTitle">Playlists</div>
     <div class="topbar-right">
       <div class="top-icons-row">
-        <div class="round-icon-btn" id="btnEpg" title="Guía EPG"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg></div>
-        <div class="round-icon-btn" id="btnFav" title="Favoritos"><svg width="22" height="22" viewBox="0 0 24 24" fill="#000000" stroke="#000000" stroke-width="1"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>
-        <div class="round-icon-btn" id="btnSort" title="Ordenar"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="4" x2="7" y2="20"/><polyline points="4 7 7 4 10 7"/><line x1="17" y1="20" x2="17" y2="4"/><polyline points="14 17 17 20 20 17"/></svg></div>
-        <div class="round-icon-btn" id="btnSettings" title="Opciones"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></div>
+        <div class="round-icon-btn" id="btnSearch" title="Buscar canal o título (Botón Azul)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
+        <div class="round-icon-btn" id="btnRefresh" title="Actualizar lista y carátulas (Botón Rojo)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></div>
+        <div class="round-icon-btn" id="btnFav" title="Favoritos (Botón Amarillo)"><svg width="22" height="22" viewBox="0 0 24 24" fill="#000000" stroke="#000000" stroke-width="1"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>
+        <div class="round-icon-btn" id="btnSettings" title="Opciones (Botón Verde)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></div>
         <div class="round-icon-btn" id="btnClose" title="Volver"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg></div>
       </div>
       <div class="color-strip">
-        <div class="color-strip-seg cs-white"></div>
-        <div class="color-strip-seg cs-red"></div>
-        <div class="color-strip-seg cs-green"></div>
-        <div class="color-strip-seg cs-yellow"></div>
-        <div class="color-strip-seg cs-blue"></div>
+        <div class="color-strip-seg cs-blue" title="Azul: Buscar"></div>
+        <div class="color-strip-seg cs-red" title="Rojo: Actualizar"></div>
+        <div class="color-strip-seg cs-yellow" title="Amarillo: Favoritos"></div>
+        <div class="color-strip-seg cs-green" title="Verde: Opciones"></div>
+        <div class="color-strip-seg cs-white" title="Volver"></div>
       </div>
       <div class="top-clock-text" id="liveClock">Thursday 24 September &nbsp; 10:37:29</div>
     </div>
@@ -1174,6 +1266,10 @@ video::cue {
 
   <!-- PANTALLA PRINCIPAL: PLAYLISTS / CANALES (Fotos 1 y 4) -->
   <div id="view-playlists">
+    <div id="search-banner">
+      <span class="sb-label">🔍 Buscando: "<b id="searchQueryText"></b>" &nbsp; (<span id="searchResultCount">0</span> encontrados)</span>
+      <div class="sb-clear-btn" id="btnSearchClear">✕ Borrar búsqueda</div>
+    </div>
     <div id="content-area"></div>
     <div id="bottom-tabs-bar"></div>
   </div>
@@ -1226,7 +1322,7 @@ video::cue {
         <h3>Información</h3>
         <p id="optDescText">Usa tu usuario y contraseña otorgados por el administrador para vincular este televisor y descargar tus listas.</p>
         <div style="margin-top:22px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.4.6 [OTTPlayer Exact HUD &amp; Turbo Grid]
+          VERSIÓN: v2.4.8 [Control Tradicional, Buscador 🔍, Aspecto Real &amp; Subtítulos MKV]
         </div>
       </div>
     </div>
@@ -1266,6 +1362,9 @@ video::cue {
     <object id="netcast-player" type="application/x-netcast-av" width="100%" height="100%" style="display:none;" tabindex="-1">
       <param name="wmode" value="transparent">
     </object>
+    
+    <!-- Renderizado Universal de Subtítulos en Pantalla -->
+    <div id="player-subtitles-overlay"></div>
     
     <!-- Capa de captura de clics y toques para Magic Remote sobre el video -->
     <div id="player-click-catcher"></div>
@@ -1325,8 +1424,10 @@ video::cue {
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
         </span>
       </div>
+      <div class="player-hud-btn" id="btnSeekRewind" title="Retroceder 15s">⏪ -15s</div>
       <div class="player-play-btn" id="btnPlayPause" title="Pausar / Reanudar">▶❚❚</div>
-      <div class="player-progress-wrap" id="playerProgressWrap" title="Línea de tiempo (Clic o arrastre para avanzar)">
+      <div class="player-hud-btn" id="btnSeekForward" title="Adelantar 15s">⏩ +15s</div>
+      <div class="player-progress-wrap" id="playerProgressWrap" tabindex="0" title="Línea de tiempo (Clic o flechas ← → para avanzar)">
         <div class="player-progress-bar" id="playerProgressBar">
           <div id="player-epg-fill"></div>
           <div id="player-epg-thumb"></div>
@@ -1443,6 +1544,10 @@ var KEY = {
   GREEN_SAMSUNG: 20,
   YELLOW_SAMSUNG: 21,
   BLUE_SAMSUNG: 22,
+  RED_ANDROID: 183,
+  GREEN_ANDROID: 184,
+  YELLOW_ANDROID: 185,
+  BLUE_ANDROID: 186,
   PLAY: 415,
   PAUSE: 19,
   STOP: 413,
@@ -1454,26 +1559,41 @@ var KEY = {
   CH_DOWN_SAMSUNG: 517
 };
 
+function isRedKey(kc, e) {
+  return kc === KEY.RED || kc === KEY.RED_SAMSUNG || kc === KEY.RED_ANDROID || kc === 82 || (e && (e.key === 'Red' || e.key === 'ColorF0Red'));
+}
+function isGreenKey(kc, e) {
+  return kc === KEY.GREEN || kc === KEY.GREEN_SAMSUNG || kc === KEY.GREEN_ANDROID || kc === 71 || (e && (e.key === 'Green' || e.key === 'ColorF1Green'));
+}
+function isYellowKey(kc, e) {
+  return kc === KEY.YELLOW || kc === KEY.YELLOW_SAMSUNG || kc === KEY.YELLOW_ANDROID || kc === 89 || (e && (e.key === 'Yellow' || e.key === 'ColorF2Yellow'));
+}
+function isBlueKey(kc, e) {
+  return kc === KEY.BLUE || kc === KEY.BLUE_SAMSUNG || kc === KEY.BLUE_ANDROID || kc === 66 || (e && (e.key === 'Blue' || e.key === 'ColorF3Blue'));
+}
+
 /* ==========================================================================
    ESTADO GLOBAL
    ========================================================================== */
 var state = {
   screen: 'playlists', // 'playlists', 'options', 'keyboard', 'device', 'player'
   currentFocusArea: 'content', // 'top', 'content', 'tabs'
-  topIconIdx: 3, // 0: epg, 1: fav, 2: sort, 3: settings, 4: close
+  topIconIdx: 1, // 0: search, 1: refresh, 2: fav, 3: settings, 4: close
   tileIdx: 0,
   tabIdx: 0,
   optIdx: 0,
   kbRow: 0,
   kbCol: 0,
-  kbTargetField: 'password', // 'login', 'password', 'm3u'
+  kbTargetField: 'password', // 'login', 'password', 'm3u', 'search'
   kbCaps: false,
+  searchQuery: '',
+  subCues: [],
   drawerIdx: 0,
   drawerOpen: false,
   playerHudVisible: false,
-  playerArea: 'bottom', // 'bottom' o 'top'
+  playerArea: 'bottom', // 'bottom', 'progress', 'top'
   playerTopIdx: 4, // 0: ratio, 1: epg, 2: audio, 3: subs, 4: close
-  playerBotIdx: 1, // Por defecto en 1 (btnPlayPause) para evitar abrir el selector accidentalmente
+  playerBotIdx: 2, // Por defecto en 2 (btnPlayPause: 0=drawer, 1=rew, 2=play, 3=fwd)
   playerFocusedEl: null,
   hideOverlayTimer: null,
   isPaused: false,
@@ -1660,7 +1780,41 @@ function openKeyboard(fieldTitle, currentVal, targetField) {
   renderKeyboard();
 }
 
+function openSearch() {
+  openKeyboard('Buscar Canal o Película', state.searchQuery || '', 'search');
+}
+
+function updateSearchBanner() {
+  var b = $('search-banner');
+  if (!b) return;
+  if (state.searchQuery && state.searchQuery.length > 0) {
+    b.style.display = 'flex';
+    var qText = $('searchQueryText');
+    if (qText) qText.textContent = state.searchQuery;
+    var list = getFilteredChannels();
+    var cCount = $('searchResultCount');
+    if (cCount) cCount.textContent = list.length;
+  } else {
+    b.style.display = 'none';
+  }
+}
+
 function closeKeyboard(commit) {
+  if (state.kbTargetField === 'search') {
+    if (commit) {
+      state.searchQuery = (kbInputText || '').trim();
+    }
+    state.currentPage = 0;
+    state.tileIdx = 0;
+    updateSearchBanner();
+    renderChannels();
+    $('view-keyboard').style.display = 'none';
+    state.screen = 'playlists';
+    state.currentFocusArea = 'content';
+    updateMainFocus(true);
+    return;
+  }
+
   if (commit) {
     if (state.kbTargetField === 'login') {
       state.auth.login = kbInputText;
@@ -2116,15 +2270,20 @@ function buildGroups() {
 
 function getFilteredChannels() {
   var res = [];
+  var q = (state.searchQuery || '').trim().toLowerCase();
   for (var i = 0; i < state.channels.length; i++) {
     var c = state.channels[i];
     if (state.currentGroup === '__fav') {
-      if (state.favorites[c.id]) res.push(c);
-    } else if (state.currentGroup === '__all') {
-      res.push(c);
-    } else if (c.group === state.currentGroup) {
-      res.push(c);
+      if (!state.favorites[c.id]) continue;
+    } else if (state.currentGroup !== '__all' && c.group !== state.currentGroup) {
+      continue;
     }
+    if (q.length > 0) {
+      var nMatch = c.name && c.name.toLowerCase().indexOf(q) !== -1;
+      var gMatch = c.group && c.group.toLowerCase().indexOf(q) !== -1;
+      if (!nMatch && !gMatch) continue;
+    }
+    res.push(c);
   }
   return res;
 }
@@ -2279,7 +2438,7 @@ function updateMainFocus(shouldScroll) {
 
   var targetEl = null;
   if (state.currentFocusArea === 'top') {
-    var topBtns = [$('btnEpg'), $('btnFav'), $('btnSort'), $('btnSettings'), $('btnClose')];
+    var topBtns = [$('btnSearch'), $('btnRefresh'), $('btnFav'), $('btnSettings'), $('btnClose')];
     targetEl = topBtns[state.topIconIdx];
   } else if (state.currentFocusArea === 'content') {
     var area = $('content-area');
@@ -2302,7 +2461,7 @@ function updateMainFocus(shouldScroll) {
   }
 }
 
-function handleMainNav(kc) {
+function handleMainNav(kc, eObj) {
   var area = $('content-area');
   var totalTiles = (area && area.children) ? area.children.length : 0;
   var bar = $('bottom-tabs-bar');
@@ -2326,23 +2485,29 @@ function handleMainNav(kc) {
       updateMainFocus(true);
     } else if (kc === KEY.ENTER) {
       if (state.topIconIdx === 0) {
+        openSearch();
+      } else if (state.topIconIdx === 1) {
         if (state.currentPlaylist) {
-          showToast('🔄 Refrescando lista desde servidor...');
+          showToast('🔄 Actualizando lista y carátulas desde el servidor...');
           loadPlaylistContent(state.currentPlaylist, true);
         } else {
+          showToast('🔄 Actualizando playlists desde el servidor...');
           fetchFeed();
         }
-      } else if (state.topIconIdx === 1) {
+      } else if (state.topIconIdx === 2) {
         state.currentGroup = (state.currentGroup === '__fav' ? '__all' : '__fav');
         renderTabs();
         renderChannels();
-      } else if (state.topIconIdx === 2) {
-        state.channels.reverse();
-        renderChannels();
-        showToast('Orden invertido.');
       } else if (state.topIconIdx === 3) {
         openOptions();
       } else if (state.topIconIdx === 4) {
+        if (state.searchQuery) {
+          state.searchQuery = '';
+          state.currentPage = 0;
+          updateSearchBanner();
+          renderChannels();
+          return;
+        }
         if (state.channels.length > 0 && state.playlists.length > 1) {
           state.channels = [];
           state.currentPlaylist = null;
@@ -2454,16 +2619,17 @@ function handleMainNav(kc) {
   }
 
   // Teclas directas de colores (Franja Foto 1)
-  if (kc === KEY.RED || kc === KEY.RED_SAMSUNG || kc === 82) {
+  if (isRedKey(kc, eObj)) {
     if (state.currentPlaylist) {
-      showToast('🔄 Refrescando lista desde servidor...');
+      showToast('🔄 Actualizando lista y carátulas desde el servidor...');
       loadPlaylistContent(state.currentPlaylist, true);
     } else {
+      showToast('🔄 Actualizando playlists desde el servidor...');
       fetchFeed();
     }
-  } else if (kc === KEY.GREEN || kc === KEY.GREEN_SAMSUNG || kc === 71) {
+  } else if (isGreenKey(kc, eObj)) {
     openOptions();
-  } else if (kc === KEY.YELLOW || kc === KEY.YELLOW_SAMSUNG || kc === 89) {
+  } else if (isYellowKey(kc, eObj)) {
     // Alternar favorito
     var list = getFilteredChannels();
     if (list[state.tileIdx]) {
@@ -2473,9 +2639,17 @@ function handleMainNav(kc) {
       saveStorage();
       renderChannels();
     }
-  } else if (kc === KEY.BLUE || kc === KEY.BLUE_SAMSUNG || kc === 66) {
-    switchCategoryTab(1);
+  } else if (isBlueKey(kc, eObj)) {
+    openSearch();
   } else if (kc === KEY.BACK || kc === KEY.BACKSPACE || kc === KEY.ESC || kc === KEY.TIZEN_BACK) {
+    if (state.searchQuery) {
+      state.searchQuery = '';
+      state.currentPage = 0;
+      updateSearchBanner();
+      renderChannels();
+      updateMainFocus(true);
+      return;
+    }
     if (state.channels.length > 0 && state.playlists.length > 1) {
       state.channels = [];
       state.currentPlaylist = null;
@@ -2526,6 +2700,30 @@ function hideTuning() {
   if (t) t.style.display = 'none';
 }
 
+function seekRelative(step) {
+  var v = $('video-el');
+  var netcastObj = $('netcast-player');
+  var dur = state.activeDuration || (v && v.duration && isFinite(v.duration) ? v.duration : 0);
+
+  if (netcastObj && netcastObj.style.display !== 'none' && netcastObj.playTime > 0) {
+    try {
+      var curMs = netcastObj.playPosition || 0;
+      var newMs = Math.min(netcastObj.playTime, Math.max(0, curMs + step * 1000));
+      netcastObj.playPosition = newMs;
+      showToast((step > 0 ? ('⏩ +' + step + 's') : ('⏪ ' + step + 's')) + ' (' + formatTime(newMs / 1000) + ')');
+      showPlayerOverlay();
+      return;
+    } catch (eN) {}
+  }
+
+  if (v && dur > 0) {
+    v.currentTime = Math.min(dur, Math.max(0, v.currentTime + step));
+    updateProgressDisplay(v);
+    showPlayerOverlay();
+    showToast((step > 0 ? ('⏩ +' + step + 's') : ('⏪ ' + step + 's')) + ' (' + formatTime(v.currentTime) + ')');
+  }
+}
+
 function updatePlayerFocus() {
   if (state.playerFocusedEl) {
     state.playerFocusedEl.classList.remove('focused');
@@ -2535,8 +2733,10 @@ function updatePlayerFocus() {
 
   var targetEl = null;
   if (state.playerArea === 'bottom') {
-    var botBtns = [$('btnDrawerTrigger'), $('btnPlayPause')];
-    targetEl = botBtns[state.playerBotIdx] || botBtns[1];
+    var botBtns = [$('btnDrawerTrigger'), $('btnSeekRewind'), $('btnPlayPause'), $('btnSeekForward')];
+    targetEl = botBtns[state.playerBotIdx] || botBtns[2];
+  } else if (state.playerArea === 'progress') {
+    targetEl = $('playerProgressWrap');
   } else if (state.playerArea === 'top') {
     var topBtns = [$('btnPlayerRatio'), $('btnPlayerEpg'), $('btnPlayerAudio'), $('btnPlayerSubs'), $('btnPlayerClose')];
     targetEl = topBtns[state.playerTopIdx] || topBtns[0];
@@ -2720,6 +2920,30 @@ function startPlaybackTicker() {
       if (thumbEl) thumbEl.style.display = 'none';
       if (timeEl) timeEl.textContent = (cur > 0 ? formatTime(cur) : '00:00:00') + ' / EN VIVO';
     }
+
+    // Renderizado universal de subtítulos en pantalla (Overlay directo para cualquier Smart TV)
+    var subEl = $('player-subtitles-overlay');
+    if (subEl) {
+      if (state.selectedSubTrack === -1 || !state.subCues || state.subCues.length === 0) {
+        subEl.style.display = 'none';
+        subEl.textContent = '';
+      } else {
+        var foundCue = null;
+        for (var sc = 0; sc < state.subCues.length; sc++) {
+          if (cur >= state.subCues[sc].start && cur <= state.subCues[sc].end) {
+            foundCue = state.subCues[sc];
+            break;
+          }
+        }
+        if (foundCue) {
+          subEl.textContent = foundCue.text;
+          subEl.style.display = 'block';
+        } else {
+          subEl.textContent = '';
+          subEl.style.display = 'none';
+        }
+      }
+    }
   }, 250);
 }
 
@@ -2730,9 +2954,61 @@ function stopPlaybackTicker() {
   }
 }
 
-function probeSubtitles(playUrl, channelSubs) {
+function loadSubtitleCues(vttUrl) {
+  state.subCues = [];
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', vttUrl, true);
+  xhr.onreadystatechange = function() {
+    if (xhr.readyState === 4 && xhr.status === 200) {
+      parseVttText(xhr.responseText);
+    }
+  };
+  try { xhr.send(); } catch (e) {}
+}
+
+function parseVttText(txt) {
+  state.subCues = [];
+  if (!txt) return;
+  var lines = txt.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+  var timeRegex = /(\d{2}:\d{2}:\d{2}[\.,]\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2}[\.,]\d{3})/;
+
+  function toSec(tStr) {
+    tStr = tStr.replace(',', '.');
+    var p = tStr.split(':');
+    if (p.length === 3) {
+      return parseFloat(p[0]) * 3600 + parseFloat(p[1]) * 60 + parseFloat(p[2]);
+    }
+    return 0;
+  }
+
+  for (var i = 0; i < lines.length; i++) {
+    var match = lines[i].match(timeRegex);
+    if (match) {
+      var start = toSec(match[1]);
+      var end = toSec(match[2]);
+      var textArr = [];
+      i++;
+      while (i < lines.length && lines[i].trim().length > 0) {
+        textArr.push(lines[i].replace(/<[^>]+>/g, '').trim());
+        i++;
+      }
+      if (textArr.length > 0) {
+        state.subCues.push({
+          start: start,
+          end: end,
+          text: textArr.join('\n')
+        });
+      }
+    }
+  }
+}
+
+function probeSubtitles(rawUrl, channelSubs) {
   state.activeSubTracks = [];
   state.selectedSubTrack = -1;
+  state.subCues = [];
+  var subEl = $('player-subtitles-overlay');
+  if (subEl) { subEl.style.display = 'none'; subEl.textContent = ''; }
 
   if (channelSubs) {
     state.activeSubTracks.push({
@@ -2743,10 +3019,10 @@ function probeSubtitles(playUrl, channelSubs) {
     });
   }
 
-  var isVod = (playUrl.indexOf('.m3u8') === -1);
+  var isVod = (rawUrl.indexOf('.m3u8') === -1);
   if (isVod) {
     var xhr = new XMLHttpRequest();
-    xhr.open('GET', (API_BASE || '') + '/api/ott/tracks?url=' + encodeURIComponent(playUrl), true);
+    xhr.open('GET', (API_BASE || '') + '/api/ott/tracks?url=' + encodeURIComponent(rawUrl), true);
     xhr.onreadystatechange = function() {
       if (xhr.readyState === 4 && xhr.status === 200) {
         try {
@@ -2760,7 +3036,7 @@ function probeSubtitles(playUrl, channelSubs) {
                 type: 'mkv',
                 number: tr.number,
                 name: tName,
-                url: (API_BASE || '') + '/api/ott/subtitles?url=' + encodeURIComponent(playUrl) + '&track=' + tr.number
+                url: (API_BASE || '') + '/api/ott/subtitles?url=' + encodeURIComponent(rawUrl) + '&track=' + tr.number
               });
             }
           }
@@ -2877,7 +3153,7 @@ function playChannelAt(idx) {
     }
   }
 
-  probeSubtitles(playUrl, c.subs);
+  probeSubtitles(c.url || playUrl, c.subs);
 
   if (preferNetcast && netcastObj) {
     startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c);
@@ -3140,42 +3416,35 @@ function handlePlayerNav(kc, eObj) {
       stopPlayer();
       return;
     }
-    if (kc === KEY.BLUE || kc === KEY.BLUE_SAMSUNG || kc === 66) {
+    if (isBlueKey(kc, eObj)) {
       openChannelDrawer();
       return;
     }
-    // Si es VOD y presiona LEFT / RIGHT, adelantar / retroceder inmediatamente:
-    var v = $('video-el');
-    var netcastObj = $('netcast-player');
-    var dur = state.activeDuration || (v && v.duration && isFinite(v.duration) ? v.duration : 0);
+    if (isRedKey(kc, eObj)) {
+      playChannelAt(state.currentChannelIdx);
+      return;
+    }
+    if (isGreenKey(kc, eObj)) {
+      $('btnPlayerRatio').click();
+      return;
+    }
+    if (isYellowKey(kc, eObj)) {
+      $('btnPlayerSubs').click();
+      return;
+    }
+    // Si presiona LEFT / RIGHT, adelantar / retroceder inmediatamente con indicador OSD:
     if (kc === KEY.LEFT || kc === KEY.RIGHT) {
-      var step = (kc === KEY.RIGHT ? 15 : -10);
-      if (netcastObj && netcastObj.style.display !== 'none' && netcastObj.playTime > 0) {
-        try {
-          var curMs = netcastObj.playPosition || 0;
-          var newMs = Math.min(netcastObj.playTime, Math.max(0, curMs + step * 1000));
-          netcastObj.playPosition = newMs;
-          showToast((kc === KEY.RIGHT ? '⏩ +15s' : '⏪ -10s') + ' (' + formatTime(newMs / 1000) + ')');
-          showPlayerOverlay();
-          return;
-        } catch (eN2) {}
-      }
-      if (v && dur > 0) {
-        v.currentTime = Math.min(dur, Math.max(0, v.currentTime + step));
-        updateProgressDisplay(v);
-        showPlayerOverlay();
-        showToast((kc === KEY.RIGHT ? '⏩ +15s' : '⏪ -10s') + ' (' + formatTime(v.currentTime) + ')');
-        return;
-      }
+      seekRelative(kc === KEY.RIGHT ? 15 : -15);
+      return;
     }
     // Despertar HUD con foco en Play/Pause para evitar abrir el selector accidentalmente
     state.playerArea = 'bottom';
-    state.playerBotIdx = 1;
+    state.playerBotIdx = 2;
     showPlayerOverlay();
     return;
   }
 
-  // 4. Teclas de acción directa con el HUD visible
+  // 5. Teclas de acción directa con el HUD visible
   if (kc === KEY.BACK || kc === KEY.BACKSPACE || kc === KEY.ESC || kc === KEY.TIZEN_BACK) {
     hidePlayerOverlay();
     return;
@@ -3189,47 +3458,67 @@ function handlePlayerNav(kc, eObj) {
     stopPlayer();
     return;
   }
-  if (kc === KEY.GREEN || kc === KEY.GREEN_SAMSUNG || kc === 71) {
+  if (isGreenKey(kc, eObj)) {
     $('btnPlayerRatio').click();
     showPlayerOverlay();
     return;
   }
-  if (kc === KEY.YELLOW || kc === KEY.YELLOW_SAMSUNG || kc === 89) {
+  if (isYellowKey(kc, eObj)) {
     $('btnPlayerSubs').click();
     showPlayerOverlay();
     return;
   }
-  if (kc === KEY.BLUE || kc === KEY.BLUE_SAMSUNG || kc === 66) {
+  if (isBlueKey(kc, eObj)) {
     openChannelDrawer();
     return;
   }
-  if (kc === KEY.RED || kc === KEY.RED_SAMSUNG || kc === 82) {
+  if (isRedKey(kc, eObj)) {
     playChannelAt(state.currentChannelIdx);
     return;
   }
 
-  // 5. Navegación con flechas cuando el HUD está visible
+  // 6. Navegación con control tradicional (D-PAD) cuando el HUD está visible
   showPlayerOverlay(); // renueva temporizador de ocultación
 
   if (state.playerArea === 'bottom') {
+    // 0: btnDrawerTrigger, 1: btnSeekRewind, 2: btnPlayPause, 3: btnSeekForward
     if (kc === KEY.LEFT) {
       state.playerBotIdx = Math.max(0, state.playerBotIdx - 1);
       updatePlayerFocus();
     } else if (kc === KEY.RIGHT) {
-      state.playerBotIdx = Math.min(1, state.playerBotIdx + 1);
+      state.playerBotIdx = Math.min(3, state.playerBotIdx + 1);
       updatePlayerFocus();
     } else if (kc === KEY.UP) {
-      state.playerArea = 'top';
-      state.playerTopIdx = (state.playerBotIdx === 0 ? 0 : 4);
+      state.playerArea = 'progress';
       updatePlayerFocus();
     } else if (kc === KEY.DOWN) {
       hidePlayerOverlay();
     } else if (kc === KEY.ENTER) {
       if (state.playerBotIdx === 0) {
         openChannelDrawer();
-      } else {
+      } else if (state.playerBotIdx === 1) {
+        seekRelative(-15);
+      } else if (state.playerBotIdx === 2) {
         $('btnPlayPause').click();
+      } else if (state.playerBotIdx === 3) {
+        seekRelative(15);
       }
+    }
+  } else if (state.playerArea === 'progress') {
+    if (kc === KEY.LEFT) {
+      seekRelative(-15);
+    } else if (kc === KEY.RIGHT) {
+      seekRelative(15);
+    } else if (kc === KEY.UP) {
+      state.playerArea = 'top';
+      state.playerTopIdx = 0;
+      updatePlayerFocus();
+    } else if (kc === KEY.DOWN) {
+      state.playerArea = 'bottom';
+      state.playerBotIdx = 2; // Vuelve a Play/Pause
+      updatePlayerFocus();
+    } else if (kc === KEY.ENTER) {
+      $('btnPlayPause').click();
     }
   } else if (state.playerArea === 'top') {
     if (kc === KEY.LEFT) {
@@ -3239,8 +3528,7 @@ function handlePlayerNav(kc, eObj) {
       state.playerTopIdx = Math.min(4, state.playerTopIdx + 1);
       updatePlayerFocus();
     } else if (kc === KEY.DOWN) {
-      state.playerArea = 'bottom';
-      state.playerBotIdx = (state.playerTopIdx >= 3 ? 1 : 0);
+      state.playerArea = 'progress';
       updatePlayerFocus();
     } else if (kc === KEY.ENTER) {
       var topBtns = [$('btnPlayerRatio'), $('btnPlayerEpg'), $('btnPlayerAudio'), $('btnPlayerSubs'), $('btnPlayerClose')];
@@ -3411,7 +3699,7 @@ function onGlobalKeyDown(e) {
       closeDeviceSelection();
     }
   } else if (state.screen === 'playlists') {
-    handleMainNav(kc);
+    handleMainNav(kc, eObj);
   }
 }
 
@@ -3436,26 +3724,36 @@ if (state.auth.token) {
 }
 
 // Clics directos para Magic Remote y Mouse
-$('btnEpg').onclick = function() {
-  if (state.currentPlaylist) {
-    showToast('🔄 Refrescando lista desde servidor...');
-    loadPlaylistContent(state.currentPlaylist, true);
-  } else {
-    fetchFeed();
-  }
-};
+var bSearch = $('btnSearch');
+if (bSearch) {
+  bSearch.onclick = function() { openSearch(); };
+}
+var bRefresh = $('btnRefresh');
+if (bRefresh) {
+  bRefresh.onclick = function() {
+    if (state.currentPlaylist) {
+      showToast('🔄 Actualizando lista y carátulas desde el servidor...');
+      loadPlaylistContent(state.currentPlaylist, true);
+    } else {
+      showToast('🔄 Actualizando playlists desde el servidor...');
+      fetchFeed();
+    }
+  };
+}
 $('btnFav').onclick = function() {
   state.currentGroup = (state.currentGroup === '__fav' ? '__all' : '__fav');
   renderTabs();
   renderChannels();
 };
-$('btnSort').onclick = function() {
-  state.channels.reverse();
-  renderChannels();
-  showToast('Orden invertido.');
-};
 $('btnSettings').onclick = function() { openOptions(); };
 $('btnClose').onclick = function() {
+  if (state.searchQuery) {
+    state.searchQuery = '';
+    state.currentPage = 0;
+    updateSearchBanner();
+    renderChannels();
+    return;
+  }
   if (state.channels.length > 0 && state.playlists.length > 1) {
     state.channels = [];
     state.currentPlaylist = null;
@@ -3464,6 +3762,15 @@ $('btnClose').onclick = function() {
     window.history.back();
   }
 };
+var bClearSearch = $('btnSearchClear');
+if (bClearSearch) {
+  bClearSearch.onclick = function() {
+    state.searchQuery = '';
+    state.currentPage = 0;
+    updateSearchBanner();
+    renderChannels();
+  };
+}
 $('kbBtnBack').onclick = function() { closeKeyboard(false); };
 $('kbKeyCaps').onclick = function() { state.kbCaps = !state.kbCaps; renderKeyboard(); };
 $('kbKeySpace').onclick = function() { handleKeyClick(' '); };
@@ -3562,10 +3869,78 @@ $('btnPlayerEpg').onclick = function(e) {
 };
 
 var ASPECT_MODES = [
-  { name: 'Original (Ajustar)', fit: 'contain', width: '100%', left: '0', netcast: 'auto' },
-  { name: '16:9 Completa (Estirar)', fit: 'fill', width: '100%', left: '0', netcast: '16:9' },
-  { name: 'Zoom (Sin bordes)', fit: 'cover', width: '100%', left: '0', netcast: '16:9' },
-  { name: '4:3 Estándar', fit: 'contain', width: '75%', left: '12.5%', netcast: '4:3' }
+  {
+    name: 'Original (Ajustar)',
+    apply: function(v, netcast) {
+      if (v) {
+        v.style.objectFit = 'contain';
+        v.style.webkitObjectFit = 'contain';
+        v.style.width = '100%';
+        v.style.height = '100%';
+        v.style.top = '0';
+        v.style.left = '0';
+        v.style.transform = 'none';
+        v.style.webkitTransform = 'none';
+      }
+      if (netcast && typeof netcast.setAspectRatio === 'function') {
+        try { netcast.setAspectRatio('auto'); } catch (e) {}
+      }
+    }
+  },
+  {
+    name: 'Pantalla Completa 16:9 (Estirar)',
+    apply: function(v, netcast) {
+      if (v) {
+        v.style.objectFit = 'fill';
+        v.style.webkitObjectFit = 'fill';
+        v.style.width = '100%';
+        v.style.height = '100%';
+        v.style.top = '0';
+        v.style.left = '0';
+        v.style.transform = 'scale(1.0, 1.0)';
+        v.style.webkitTransform = 'scale(1.0, 1.0)';
+      }
+      if (netcast && typeof netcast.setAspectRatio === 'function') {
+        try { netcast.setAspectRatio('16:9'); } catch (e) {}
+      }
+    }
+  },
+  {
+    name: 'Zoom Cine (Sin barras negras)',
+    apply: function(v, netcast) {
+      if (v) {
+        v.style.objectFit = 'cover';
+        v.style.webkitObjectFit = 'cover';
+        v.style.width = '100%';
+        v.style.height = '135%';
+        v.style.top = '-17.5%';
+        v.style.left = '0';
+        v.style.transform = 'scale(1.0, 1.0)';
+        v.style.webkitTransform = 'scale(1.0, 1.0)';
+      }
+      if (netcast && typeof netcast.setAspectRatio === 'function') {
+        try { netcast.setAspectRatio('zoom'); } catch (e) {}
+      }
+    }
+  },
+  {
+    name: '4:3 Clásico (Centrado)',
+    apply: function(v, netcast) {
+      if (v) {
+        v.style.objectFit = 'contain';
+        v.style.webkitObjectFit = 'contain';
+        v.style.width = '75%';
+        v.style.height = '100%';
+        v.style.top = '0';
+        v.style.left = '12.5%';
+        v.style.transform = 'none';
+        v.style.webkitTransform = 'none';
+      }
+      if (netcast && typeof netcast.setAspectRatio === 'function') {
+        try { netcast.setAspectRatio('4:3'); } catch (e) {}
+      }
+    }
+  }
 ];
 var currentAspectIdx = 0;
 
@@ -3576,20 +3951,8 @@ $('btnPlayerRatio').onclick = function(e) {
   currentAspectIdx = (currentAspectIdx + 1) % ASPECT_MODES.length;
   var mode = ASPECT_MODES[currentAspectIdx];
   var v = $('video-el');
-  if (v) {
-    v.style.objectFit = mode.fit;
-    v.style.webkitObjectFit = mode.fit;
-    v.style.width = mode.width;
-    v.style.position = 'absolute';
-    v.style.left = mode.left;
-    v.style.top = '0';
-    v.style.transform = 'none';
-    v.style.webkitTransform = 'none';
-  }
   var netcastObj = $('netcast-player');
-  if (netcastObj && typeof netcastObj.setAspectRatio === 'function') {
-    try { netcastObj.setAspectRatio(mode.netcast); } catch (eNet) {}
-  }
+  mode.apply(v, netcastObj);
   showToast('Aspecto: ' + mode.name);
 };
 
@@ -3640,10 +4003,15 @@ $('btnPlayerSubs').onclick = function(e) {
     }
 
     if (state.selectedSubTrack === -1) {
+      state.subCues = [];
+      var subEl = $('player-subtitles-overlay');
+      if (subEl) { subEl.style.display = 'none'; subEl.textContent = ''; }
       showToast('Subtítulos: Desactivados');
     } else {
       var sub = state.activeSubTracks[state.selectedSubTrack];
+      loadSubtitleCues(sub.url);
       if (v) {
+        try { v.setAttribute('crossorigin', 'anonymous'); } catch (eCr) {}
         var trk = document.createElement('track');
         trk.kind = 'subtitles';
         trk.label = sub.name;
@@ -3693,8 +4061,26 @@ $('btnPlayerSubs').onclick = function(e) {
     return;
   }
 
-  showToast('Sin subtítulos en este video');
+  showToast('Sin subtítulos para este video');
 };
+
+var bRew = $('btnSeekRewind');
+if (bRew) {
+  bRew.onclick = function(e) {
+    var ev = e || window.event;
+    if (ev && ev.stopPropagation) ev.stopPropagation();
+    seekRelative(-15);
+  };
+}
+
+var bFwd = $('btnSeekForward');
+if (bFwd) {
+  bFwd.onclick = function(e) {
+    var ev = e || window.event;
+    if (ev && ev.stopPropagation) ev.stopPropagation();
+    seekRelative(15);
+  };
+}
 
 $('btnPlayPause').onclick = function(e) {
   var ev = e || window.event;

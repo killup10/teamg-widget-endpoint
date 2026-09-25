@@ -267,35 +267,90 @@ async function handle(req, res, pathname, query, body) {
     return;
   }
 
-  // ---- Detección de pistas (subtítulos y audio embebido MKV) ----
+// Helper para realizar peticiones HTTP/HTTPS siguiendo redirecciones (301, 302, 307, 308)
+function fetchWithRedirects(targetUrl, options, maxRedirects, callback) {
+  if (typeof maxRedirects === 'function') {
+    callback = maxRedirects;
+    maxRedirects = 5;
+  }
+  if (maxRedirects <= 0) {
+    return callback(new Error('Demasiadas redirecciones'));
+  }
+
+  // Desempaquetar si viene envuelto en /api/ott/stream?url=
+  let cleanUrl = targetUrl;
+  if (cleanUrl.indexOf('api/ott/stream') !== -1 && cleanUrl.indexOf('url=') !== -1) {
+    try {
+      const u = new URL(cleanUrl, 'http://localhost');
+      const inner = u.searchParams.get('url');
+      if (inner) cleanUrl = inner;
+    } catch (eU) {}
+  }
+
+  try {
+    const parsed = new URL(cleanUrl);
+    const isHttps = parsed.protocol === 'https:';
+    const mod = isHttps ? require('https') : require('http');
+    const reqHeaders = Object.assign({
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    }, options.headers || {});
+
+    const req = mod.request(cleanUrl, {
+      method: options.method || 'GET',
+      headers: reqHeaders,
+      rejectUnauthorized: false,
+      timeout: options.timeout || 30000
+    }, (res) => {
+      // Manejar redirecciones 301, 302, 303, 307, 308
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        const redirectUrl = new URL(res.headers.location, cleanUrl).toString();
+        res.resume();
+        return fetchWithRedirects(redirectUrl, options, maxRedirects - 1, callback);
+      }
+      callback(null, res, req, cleanUrl);
+    });
+
+    req.on('error', (err) => callback(err));
+    req.on('timeout', () => {
+      try { req.destroy(); } catch (e) {}
+      callback(new Error('Timeout de conexion'));
+    });
+    req.end();
+  } catch (err) {
+    callback(err);
+  }
+}
+
+  // ---- Deteccion de pistas (subtitulos y audio embebido MKV) ----
   if (pathname === '/api/ott/tracks' && req.method === 'GET') {
-    const targetUrl = String(query.url || '').trim();
+    let targetUrl = String(query.url || '').trim();
     if (!targetUrl) return json(res, 400, { ok: false, error: 'Falta url' });
     if (!SubtitleParser) return json(res, 200, { ok: true, tracks: [], audioTracks: [] });
-    try {
-      const isHttps = targetUrl.indexOf('https://') === 0;
-      const mod = isHttps ? require('https') : require('http');
-      const parser = new SubtitleParser();
-      let responded = false;
 
-      const timer = setTimeout(() => {
+    let responded = false;
+    const timer = setTimeout(() => {
+      if (!responded) {
+        responded = true;
+        return json(res, 200, { ok: true, tracks: [], audioTracks: [] });
+      }
+    }, 12000);
+
+    fetchWithRedirects(targetUrl, {
+      headers: {
+        'Range': 'bytes=0-10485760' // primeros 10MB para capturar cabecera Tracks de Matroska
+      },
+      timeout: 10000
+    }, 5, (err, upRes, upReq) => {
+      if (err || !upRes) {
         if (!responded) {
           responded = true;
-          try { upReq.destroy(); } catch (e) {}
+          clearTimeout(timer);
           return json(res, 200, { ok: true, tracks: [], audioTracks: [] });
         }
-      }, 6000);
+        return;
+      }
 
-      const upReq = mod.request(targetUrl, {
-        method: 'GET',
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
-          'Range': 'bytes=0-3145728'
-        },
-        rejectUnauthorized: false
-      }, (upRes) => {
-        upRes.pipe(parser);
-      });
+      const parser = new SubtitleParser();
 
       parser.once('tracks', (tracks) => {
         if (!responded) {
@@ -308,24 +363,31 @@ async function handle(req, res, pathname, query, body) {
         }
       });
 
-      upReq.on('error', () => {
+      upRes.pipe(parser);
+
+      upRes.on('error', () => {
         if (!responded) {
           responded = true;
           clearTimeout(timer);
           return json(res, 200, { ok: true, tracks: [], audioTracks: [] });
         }
       });
-
-      upReq.end();
-    } catch (e) {
-      return json(res, 200, { ok: true, tracks: [], audioTracks: [] });
-    }
+      upRes.on('end', () => {
+        setTimeout(() => {
+          if (!responded) {
+            responded = true;
+            clearTimeout(timer);
+            return json(res, 200, { ok: true, tracks: [], audioTracks: [] });
+          }
+        }, 1000);
+      });
+    });
     return;
   }
 
-  // ---- Subtítulos en formato WebVTT ----
+  // ---- Subtitulos en formato WebVTT ----
   if (pathname === '/api/ott/subtitles' && req.method === 'GET') {
-    const targetUrl = String(query.url || '').trim();
+    let targetUrl = String(query.url || '').trim();
     const trackNum = parseInt(query.track, 10) || 0;
     if (!targetUrl) {
       res.writeHead(400, { 'Content-Type': 'text/plain', 'Access-Control-Allow-Origin': '*' });
@@ -334,40 +396,41 @@ async function handle(req, res, pathname, query, body) {
 
     // Archivo .srt o .vtt externo
     if (targetUrl.toLowerCase().indexOf('.vtt') !== -1 || targetUrl.toLowerCase().indexOf('.srt') !== -1) {
-      try {
-        const isHttps = targetUrl.indexOf('https://') === 0;
-        const mod = isHttps ? require('https') : require('http');
-        mod.get(targetUrl, { rejectUnauthorized: false }, (upRes) => {
-          let data = '';
-          upRes.on('data', (c) => { data += c; });
-          upRes.on('end', () => {
-            let vtt = data;
-            if (targetUrl.toLowerCase().indexOf('.srt') !== -1 && data.indexOf('WEBVTT') === -1) {
-              vtt = 'WEBVTT\n\n' + data.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, '$1.$2');
-            }
-            res.writeHead(200, {
-              'Content-Type': 'text/vtt; charset=utf-8',
-              'Access-Control-Allow-Origin': '*',
-              'Cache-Control': 'public, max-age=86400'
-            });
-            res.end(vtt);
-          });
-        }).on('error', () => {
+      fetchWithRedirects(targetUrl, { timeout: 15000 }, 5, (err, upRes) => {
+        if (err || !upRes) {
           res.writeHead(200, { 'Content-Type': 'text/vtt; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
-          res.end('WEBVTT\n\n');
+          return res.end('WEBVTT\n\n');
+        }
+        let data = '';
+        upRes.on('data', (c) => { data += c; });
+        upRes.on('end', () => {
+          let vtt = data;
+          if (targetUrl.toLowerCase().indexOf('.srt') !== -1 && data.indexOf('WEBVTT') === -1) {
+            vtt = 'WEBVTT\n\n' + data.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, '$1.$2');
+          }
+          res.writeHead(200, {
+            'Content-Type': 'text/vtt; charset=utf-8',
+            'Access-Control-Allow-Origin': '*',
+            'Cache-Control': 'public, max-age=86400'
+          });
+          res.end(vtt);
         });
-        return;
-      } catch (e) {}
+      });
+      return;
     }
 
-    // Extracción de subtítulos embebidos de MKV
+    // Extraccion de subtitulos embebidos de MKV
     if (!SubtitleParser) {
       res.writeHead(200, { 'Content-Type': 'text/vtt; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
       return res.end('WEBVTT\n\n');
     }
-    try {
-      const isHttps = targetUrl.indexOf('https://') === 0;
-      const mod = isHttps ? require('https') : require('http');
+
+    fetchWithRedirects(targetUrl, { timeout: 45000 }, 5, (err, upRes, upReq) => {
+      if (err || !upRes) {
+        res.writeHead(200, { 'Content-Type': 'text/vtt; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
+        return res.end('WEBVTT\n\n');
+      }
+
       const parser = new SubtitleParser();
       let cues = [];
 
@@ -396,36 +459,22 @@ async function handle(req, res, pathname, query, body) {
         }
       });
 
-      const upReq = mod.request(targetUrl, {
-        method: 'GET',
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
-        },
-        rejectUnauthorized: false,
-        timeout: 45000
-      }, (upRes) => {
-        upRes.pipe(parser);
-        upRes.on('end', () => {
-          res.writeHead(200, {
-            'Content-Type': 'text/vtt; charset=utf-8',
-            'Access-Control-Allow-Origin': '*',
-            'Cache-Control': 'public, max-age=86400'
-          });
-          res.end('WEBVTT\n\n' + cues.join(''));
+      upRes.pipe(parser);
+      upRes.on('end', () => {
+        res.writeHead(200, {
+          'Content-Type': 'text/vtt; charset=utf-8',
+          'Access-Control-Allow-Origin': '*',
+          'Cache-Control': 'public, max-age=86400'
         });
+        res.end('WEBVTT\n\n' + cues.join(''));
       });
-
-      upReq.on('error', () => {
+      upRes.on('error', () => {
         if (!res.headersSent) {
           res.writeHead(200, { 'Content-Type': 'text/vtt; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
           res.end('WEBVTT\n\n');
         }
       });
-      upReq.end();
-    } catch (e) {
-      res.writeHead(200, { 'Content-Type': 'text/vtt; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
-      res.end('WEBVTT\n\n');
-    }
+    });
     return;
   }
 
