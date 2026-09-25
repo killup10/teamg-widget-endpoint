@@ -3,6 +3,13 @@
 const crypto = require('crypto');
 const store = require('./ott-store');
 
+let SubtitleParser = null;
+try {
+  SubtitleParser = require('matroska-subtitles').SubtitleParser;
+} catch (e) {
+  console.warn('[Subtitles] matroska-subtitles no disponible:', e.message);
+}
+
 const secret = () => process.env.TOKEN_SECRET || process.env.ADMIN_KEY || 'dev-secret';
 const ADMIN = () => process.env.ADMIN_KEY || '';
 
@@ -264,10 +271,10 @@ async function handle(req, res, pathname, query, body) {
   if (pathname === '/api/ott/tracks' && req.method === 'GET') {
     const targetUrl = String(query.url || '').trim();
     if (!targetUrl) return json(res, 400, { ok: false, error: 'Falta url' });
+    if (!SubtitleParser) return json(res, 200, { ok: true, tracks: [], audioTracks: [] });
     try {
       const isHttps = targetUrl.indexOf('https://') === 0;
       const mod = isHttps ? require('https') : require('http');
-      const { SubtitleParser } = require('matroska-subtitles');
       const parser = new SubtitleParser();
       let responded = false;
 
@@ -354,10 +361,13 @@ async function handle(req, res, pathname, query, body) {
     }
 
     // Extracción de subtítulos embebidos de MKV
+    if (!SubtitleParser) {
+      res.writeHead(200, { 'Content-Type': 'text/vtt; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
+      return res.end('WEBVTT\n\n');
+    }
     try {
       const isHttps = targetUrl.indexOf('https://') === 0;
       const mod = isHttps ? require('https') : require('http');
-      const { SubtitleParser } = require('matroska-subtitles');
       const parser = new SubtitleParser();
       let cues = [];
 
