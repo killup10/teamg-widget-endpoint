@@ -446,6 +446,8 @@ html, body {
   margin-bottom: 12px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.15);
   padding-bottom: 8px;
+}
+
 /* ==================== VISTA: DETALLE DE SERIE / ANIME / NOVELA ==================== */
 #view-series-detail {
   position: absolute;
@@ -2163,7 +2165,20 @@ function updateKeyboardFocus() {
   }
 }
 
-function handleKeyboardNav(kc) {
+function handleKeyboardNav(kc, eObj) {
+  // Soporte directo para teclado físico (PC / Emulador)
+  if (eObj && eObj.key) {
+    if (eObj.key === 'Backspace') {
+      kbInputText = kbInputText.slice(0, -1);
+      updateKeyboardDisplay();
+      return;
+    }
+    if (eObj.key.length === 1 && !eObj.ctrlKey && !eObj.altKey && !eObj.metaKey) {
+      handleKeyClick(eObj.key);
+      return;
+    }
+  }
+
   if (kc === KEY.LEFT) {
     if (state.kbRow === -1) {}
     else if (state.kbRow < 4) { state.kbCol = Math.max(0, state.kbCol - 1); }
@@ -2199,13 +2214,13 @@ function handleKeyboardNav(kc) {
       else if (state.kbCol === 3) { kbInputText = kbInputText.slice(0, -1); updateKeyboardDisplay(); }
       else if (state.kbCol === 4) { closeKeyboard(true); }
     }
-  } else if (isBackKey(kc)) {
+  } else if (isBackKey(kc, eObj)) {
     closeKeyboard(false);
-  } else if (kc === KEY.RED) {
+  } else if (isRedKey(kc, eObj)) {
     state.kbCaps = !state.kbCaps; renderKeyboard();
-  } else if (kc === KEY.YELLOW) {
+  } else if (isYellowKey(kc, eObj)) {
     handleKeyClick(' ');
-  } else if (kc === KEY.BLUE) {
+  } else if (isBlueKey(kc, eObj)) {
     closeKeyboard(true);
   }
 }
@@ -2257,7 +2272,7 @@ function closeOptions() {
   updateMainFocus();
 }
 
-function handleOptionsNav(kc) {
+function handleOptionsNav(kc, eObj) {
   var rows = document.getElementsByClassName('opt-row');
   var totalItems = rows.length + 1;
 
@@ -2295,7 +2310,7 @@ function handleOptionsNav(kc) {
     } else if (state.optIdx === totalItems - 1) {
       doSaveAndLogin();
     }
-  } else if (isBackKey(kc)) {
+  } else if (isBackKey(kc, eObj)) {
     closeOptions();
   }
 }
@@ -4676,9 +4691,9 @@ function onGlobalKeyDown(e) {
   } else if (state.screen === 'series-detail') {
     handleSeriesDetailNav(kc, eObj);
   } else if (state.screen === 'keyboard') {
-    handleKeyboardNav(kc);
+    handleKeyboardNav(kc, eObj);
   } else if (state.screen === 'options') {
-    handleOptionsNav(kc);
+    handleOptionsNav(kc, eObj);
   } else if (state.screen === 'device') {
     if (kc === KEY.ENTER || isBackKey(kc, eObj)) {
       closeDeviceSelection();
