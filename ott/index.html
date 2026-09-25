@@ -1600,7 +1600,7 @@ video::cue {
         <h3>Información</h3>
         <p id="optDescText">Usa tu usuario y contraseña otorgados por el administrador para vincular este televisor y descargar tus listas.</p>
         <div style="margin-top:22px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.5.1 [Iconos Grandes TV, Volver Seguro a Home, Configuración Interactiva &amp; Trailer Real]
+          VERSIÓN: v2.5.2 [Trailers Integrados en Series &amp; Sin Tarjetas Duplicadas]
         </div>
       </div>
     </div>
@@ -1626,7 +1626,8 @@ video::cue {
   </div>
 
   <!-- PANTALLA: DETALLE DE SERIE / ANIME / NOVELA -->
-  <div id="view-series-detail" style="display:none;">
+  <div id="view-series-detail" style="display:none; position:relative;">
+    <div id="btnSeriesClose" class="round-icon-btn" style="position:absolute; top:20px; right:28px; width:44px; height:44px; line-height:40px; background:#e52945; border:1px solid #e52945; color:#ffffff; font-size:20px; cursor:pointer; text-align:center; border-radius:50%; z-index:99;" title="Cerrar (Retroceder)">✕</div>
     <div class="series-container">
       <div class="series-left">
         <div class="series-poster-box">
@@ -1673,7 +1674,8 @@ video::cue {
       <div id="btnTrailerClose" class="round-icon-btn" style="width:48px; height:48px; line-height:44px; background:#e52945; border-color:#e52945; color:#ffffff; font-size:22px; cursor:pointer;" title="Cerrar Trailer (Retroceder)">✕</div>
     </div>
     <div style="width:100%; height:calc(100% - 64px); display:flex; display:-webkit-flex; justify-content:center; align-items:center;">
-      <iframe id="trailerIframe" style="width:90%; height:86%; border:2px solid rgba(255,255,255,0.25); border-radius:8px; background:#000000;" src="" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+      <video id="trailerVideo" style="display:none; width:90%; height:86%; border:2px solid rgba(255,255,255,0.25); border-radius:8px; background:#000000;" controls autoplay playsinline webkit-playsinline></video>
+      <iframe id="trailerIframe" style="display:none; width:90%; height:86%; border:2px solid rgba(255,255,255,0.25); border-radius:8px; background:#000000;" src="" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
     </div>
   </div>
 
@@ -2789,21 +2791,96 @@ function parseSeriesInfo(c, optGroup) {
         episodeTitle: m6[2].trim()
       };
     }
+    // 7. Especiales de serie (ej: "T5 ESPECIAL GARY")
+    var m7 = name.match(/^([sStT])\s*(\d{1,3})\s*[-_:\s]+(.*)$/i);
+    if (m7) {
+      return {
+        seriesTitle: sGroup,
+        season: parseInt(m7[2], 10),
+        episode: 99,
+        episodeTitle: m7[3].trim()
+      };
+    }
   }
 
   return null;
+}
+
+function cleanTitleKey(str) {
+  if (!str) return '';
+  return str.toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s*\(\d{4}\).*$/, '')
+    .replace(/\b(?:tr[aá]iler|trailer|serie|series|temporada|season)\b/gi, '')
+    .replace(/[^a-z0-9]/g, '')
+    .trim();
+}
+
+function extractTrailerInfo(c) {
+  if (!c || !c.name) return null;
+  var name = c.name.trim();
+  var group = (c.group || '').trim();
+  var extgrp = (c.extgrp || '').trim();
+
+  var isTrailer = false;
+  var targetTitle = '';
+
+  var m1 = name.match(/^(?:tr[aá]iler|trailer)\s*[:\-_]?\s*(.*)$/i);
+  var m2 = name.match(/^\[(?:tr[aá]iler|trailer)\]\s*(.*)$/i);
+  var m3 = name.match(/^(.*?)\s*[-_:(]\s*(?:tr[aá]iler|trailer|official trailer)\s*\)?$/i);
+
+  if (m1) {
+    isTrailer = true;
+    targetTitle = m1[1];
+  } else if (m2) {
+    isTrailer = true;
+    targetTitle = m2[1];
+  } else if (m3) {
+    isTrailer = true;
+    targetTitle = m3[1];
+  } else if (/\btr[aá]iler\b/i.test(name) || /\btrailer\b/i.test(name)) {
+    isTrailer = true;
+    targetTitle = name.replace(/\b(?:tr[aá]iler|trailer)\b/gi, '').trim();
+  }
+
+  if (!isTrailer) return null;
+
+  if (extgrp && !isGenericCategory(extgrp)) {
+    targetTitle = extgrp;
+  } else if (group && !isGenericCategory(group)) {
+    targetTitle = group;
+  }
+
+  targetTitle = targetTitle.replace(/\s*\(\d{4}\).*$/, '').replace(/[-_:\s]+$/, '').trim();
+
+  return {
+    isTrailer: true,
+    targetTitle: targetTitle,
+    rawName: name,
+    url: c.url,
+    item: c
+  };
 }
 
 function aggregateSeriesList(channels) {
   if (!channels || channels.length === 0) return [];
   var result = [];
   var seriesMap = {};
+  var trailersList = [];
 
+  // Paso 1: Separar trailers para que NUNCA aparezcan como tarjetas sueltas
   for (var i = 0; i < channels.length; i++) {
     var c = channels[i];
+
+    var trInfo = extractTrailerInfo(c);
+    if (trInfo) {
+      trailersList.push(trInfo);
+      continue; // ¡NO se añade al catálogo como tarjeta independiente!
+    }
+
     var sInfo = parseSeriesInfo(c);
     if (sInfo) {
-      var sKey = sInfo.seriesTitle.trim().toLowerCase();
+      var sKey = cleanTitleKey(sInfo.seriesTitle);
       if (!seriesMap[sKey]) {
         var sObj = {
           id: 'series_' + strHash(sKey),
@@ -2811,11 +2888,13 @@ function aggregateSeriesList(channels) {
           name: sInfo.seriesTitle,
           logo: c.logo || '',
           group: c.group || 'Series',
+          extgrp: c.extgrp || '',
           seasons: {},
           seasonKeys: [],
           episodes: [],
           totalEpisodes: 0,
-          totalSeasons: 0
+          totalSeasons: 0,
+          trailerUrl: ''
         };
         seriesMap[sKey] = sObj;
         result.push(sObj);
@@ -2847,7 +2926,71 @@ function aggregateSeriesList(channels) {
     }
   }
 
-  // Ordenar temporadas y episodios cronologicamente
+  // Paso 2: Asociar trailers a sus respectivas series o películas
+  for (var t = 0; t < trailersList.length; t++) {
+    var tr = trailersList[t];
+    var trKey = cleanTitleKey(tr.targetTitle);
+    
+    // Buscar en series creadas
+    var matchedSeries = seriesMap[trKey];
+    if (!matchedSeries) {
+      for (var sk in seriesMap) {
+        if (seriesMap.hasOwnProperty(sk)) {
+          if (sk.length >= 3 && trKey.length >= 3 && (sk.indexOf(trKey) > -1 || trKey.indexOf(sk) > -1)) {
+            matchedSeries = seriesMap[sk];
+            break;
+          }
+        }
+      }
+    }
+
+    if (matchedSeries) {
+      matchedSeries.trailerUrl = tr.url;
+      matchedSeries.trailerItem = tr.item;
+      if (!matchedSeries.logo && tr.item.logo) matchedSeries.logo = tr.item.logo;
+    } else {
+      // Buscar si pertenece a una película en result
+      var matchedMovie = null;
+      for (var r = 0; r < result.length; r++) {
+        if (!result[r].isSeries && result[r].name) {
+          var mKey = cleanTitleKey(result[r].name);
+          if (mKey === trKey || (mKey.length >= 3 && trKey.length >= 3 && (mKey.indexOf(trKey) > -1 || trKey.indexOf(mKey) > -1))) {
+            matchedMovie = result[r];
+            result[r].trailerUrl = tr.url;
+            result[r].trailerItem = tr.item;
+            break;
+          }
+        }
+      }
+
+      // Si no se encontró serie ni película (ej: estreno próximo que por ahora solo tiene trailer en el M3U)
+      if (!matchedMovie) {
+        var orphanKey = trKey || cleanTitleKey(tr.rawName);
+        if (orphanKey) {
+          var cleanName = tr.targetTitle || tr.rawName.replace(/\b(?:tr[aá]iler|trailer)\b/gi, '').replace(/\s*\(\d{4}\).*$/, '').trim();
+          var sObj = {
+            id: 'series_' + strHash(orphanKey),
+            isSeries: true,
+            name: cleanName || 'Estreno',
+            logo: tr.item.logo || '',
+            group: tr.item.group || 'Series',
+            extgrp: tr.item.extgrp || '',
+            seasons: {},
+            seasonKeys: [],
+            episodes: [],
+            totalEpisodes: 0,
+            totalSeasons: 0,
+            trailerUrl: tr.url,
+            trailerItem: tr.item
+          };
+          seriesMap[orphanKey] = sObj;
+          result.push(sObj);
+        }
+      }
+    }
+  }
+
+  // Ordenar temporadas y episodios cronológicamente
   for (var k in seriesMap) {
     if (seriesMap.hasOwnProperty(k)) {
       var ser = seriesMap[k];
@@ -2925,14 +3068,33 @@ function openSeriesDetail(s) {
     state._seriesResumeEp = saved;
   } else {
     var firstEp = s.episodes && s.episodes.length > 0 ? s.episodes[0] : null;
-    resumeLabel.textContent = firstEp ? ('Reproducir S' + (firstEp.season || 1) + ':E' + (firstEp.episode || 1)) : 'Reproducir';
+    resumeLabel.textContent = firstEp ? ('Reproducir S' + (firstEp.season || 1) + ':E' + (firstEp.episode || 1)) : (s.trailerUrl ? 'Ver Trailer' : 'Próximamente');
     state._seriesResumeEp = firstEp;
+  }
+
+  var btnResume = $('btnSeriesResume');
+  if (btnResume) {
+    btnResume.onclick = function() {
+      var targetEp = state._seriesResumeEp || (s.episodes && s.episodes[0]);
+      if (targetEp) {
+        playSeriesEpisode(s, targetEp);
+      } else if (s.trailerUrl) {
+        openTrailerModal(s.name, s.trailerUrl);
+      }
+    };
   }
 
   var btnTrailer = $('btnSeriesTrailer');
   if (btnTrailer) {
     btnTrailer.onclick = function() {
-      openTrailerModal(s.name);
+      openTrailerModal(s.name, s.trailerUrl);
+    };
+  }
+
+  var btnClose = $('btnSeriesClose');
+  if (btnClose) {
+    btnClose.onclick = function() {
+      closeSeriesDetail();
     };
   }
 
@@ -2948,16 +3110,47 @@ function closeSeriesDetail() {
   updateMainFocus(true);
 }
 
-function openTrailerModal(title) {
-  var sTitle = title || (state.currentSeries ? state.currentSeries.name : '');
+function openTrailerModal(title, optUrl) {
+  var s = state.currentSeries;
+  var sTitle = title || (s ? s.name : '');
   if (!sTitle) return;
+
+  var directUrl = optUrl || (s && s.trailerUrl ? s.trailerUrl : '');
+  var m = $('trailer-modal');
+  var ifr = $('trailerIframe');
+  var vid = $('trailerVideo');
+
+  if (directUrl) {
+    showToast('🎬 Reproduciendo trailer de ' + sTitle + '...');
+    if ($('trailerModalTitle')) $('trailerModalTitle').textContent = '🎬 Trailer Oficial: ' + sTitle;
+    if (ifr) { ifr.style.display = 'none'; ifr.src = ''; }
+    if (vid) {
+      vid.style.display = 'block';
+      vid.src = directUrl;
+      vid.onerror = function() {
+        console.log('Error en stream directo del trailer, recurriendo a YouTube...');
+        searchAndPlayYouTubeTrailer(sTitle, vid, ifr, m);
+      };
+      try { vid.play(); } catch (vpErr) {}
+    }
+    if (m) m.style.display = 'block';
+    state.screen = 'trailer';
+    return;
+  }
+
+  searchAndPlayYouTubeTrailer(sTitle, vid, ifr, m);
+}
+
+function searchAndPlayYouTubeTrailer(sTitle, vid, ifr, m) {
   showToast('🎬 Buscando trailer oficial de ' + sTitle + '...');
   apiCall('GET', '/api/ott/trailer?q=' + encodeURIComponent(sTitle), null, function(status, res) {
     if (status === 200 && res && res.ok && res.embedUrl) {
-      if ($('trailerModalTitle')) $('trailerModalTitle').textContent = '🎬 Trailer: ' + sTitle;
-      var ifr = $('trailerIframe');
-      if (ifr) ifr.src = res.embedUrl;
-      var m = $('trailer-modal');
+      if ($('trailerModalTitle')) $('trailerModalTitle').textContent = '🎬 Trailer Oficial: ' + sTitle;
+      if (vid) { vid.style.display = 'none'; try { vid.pause(); } catch(e){} vid.src = ''; }
+      if (ifr) {
+        ifr.style.display = 'block';
+        ifr.src = res.embedUrl;
+      }
       if (m) m.style.display = 'block';
       state.screen = 'trailer';
       showToast('▶ Reproduciendo trailer');
@@ -2969,11 +3162,18 @@ function openTrailerModal(title) {
 
 function closeTrailerModal() {
   var ifr = $('trailerIframe');
-  if (ifr) ifr.src = '';
+  if (ifr) { ifr.src = ''; ifr.style.display = 'none'; }
+  var vid = $('trailerVideo');
+  if (vid) { try { vid.pause(); } catch(e){} vid.src = ''; vid.style.display = 'none'; }
   var m = $('trailer-modal');
   if (m) m.style.display = 'none';
-  state.screen = 'series-detail';
-  updateSeriesFocus();
+  if (state.currentSeries) {
+    state.screen = 'series-detail';
+    updateSeriesFocus();
+  } else {
+    state.screen = 'playlists';
+    updateMainFocus(true);
+  }
 }
 
 function renderSeriesSeasons() {
@@ -3100,9 +3300,13 @@ function handleSeriesDetailNav(kc, eObj) {
     } else if (kc === KEY.ENTER) {
       if (state.seriesActionIdx === 0) {
         var targetEp = state._seriesResumeEp || (s.episodes && s.episodes[0]);
-        if (targetEp) playSeriesEpisode(s, targetEp);
+        if (targetEp) {
+          playSeriesEpisode(s, targetEp);
+        } else if (s.trailerUrl) {
+          openTrailerModal(s.name, s.trailerUrl);
+        }
       } else if (state.seriesActionIdx === 1) {
-        openTrailerModal(s.name);
+        openTrailerModal(s.name, s.trailerUrl);
       }
     }
   } else if (state.seriesArea === 'seasons') {
