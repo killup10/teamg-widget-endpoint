@@ -422,8 +422,6 @@ function handleStream(req, res, query) {
 
         const { URL } = require('url');
         const lines = m3uData.split(/\r?\n/);
-        const hostHeader = (req && req.headers && req.headers['host']) ? req.headers['host'] : 'ott.teamg.store';
-        const streamBase = 'http://' + hostHeader;
 
         const rewritten = lines.map((line) => {
           const l = line.trim();
@@ -432,7 +430,7 @@ function handleStream(req, res, query) {
             return l.replace(/URI="(.*?)"/i, (match, uri) => {
               try {
                 const absKey = new URL(uri, targetUrl).href;
-                return 'URI="' + streamBase + '/api/ott/stream?url=' + encodeURIComponent(absKey) + '"';
+                return 'URI="/api/ott/stream?url=' + encodeURIComponent(absKey) + '"';
               } catch (e) { return match; }
             });
           }
@@ -440,7 +438,7 @@ function handleStream(req, res, query) {
           try {
             const absChunk = new URL(l, targetUrl).href;
             const ext = (absChunk.indexOf('.m3u8') !== -1 || absChunk.indexOf('chunks') !== -1 || absChunk.indexOf('playlist') !== -1) ? '.m3u8' : '.ts';
-            return streamBase + '/api/ott/stream' + ext + '?url=' + encodeURIComponent(absChunk);
+            return '/api/ott/stream' + ext + '?url=' + encodeURIComponent(absChunk);
           } catch (e) {
             return l;
           }

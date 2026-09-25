@@ -78,25 +78,28 @@ html, body {
 .round-icon-btn {
   display: inline-block;
   vertical-align: middle;
-  width: 44px;
-  height: 44px;
-  line-height: 40px;
+  width: 52px;
+  height: 52px;
+  line-height: 48px;
   text-align: center;
   border-radius: 50%;
   background: #ffffff;
   color: #000000;
   border: 2px solid #ffffff;
   cursor: pointer;
-  margin-left: 10px;
+  margin-left: 12px;
   padding: 0;
   transition: all 0.12s ease;
   -webkit-transition: all 0.12s ease;
+  box-sizing: border-box;
 }
 
 .round-icon-btn svg {
   display: inline-block;
   vertical-align: middle;
   pointer-events: none;
+  width: 26px;
+  height: 26px;
 }
 
 .round-icon-btn.focused, .round-icon-btn:hover {
@@ -741,7 +744,7 @@ html, body {
   bottom: 0;
   left: 0;
   right: 0;
-  height: 52px;
+  height: 60px;
   background: rgba(20, 5, 13, 0.94);
   background: -webkit-linear-gradient(bottom, rgba(20, 5, 13, 0.98), rgba(20, 5, 13, 0.8), transparent);
   background: linear-gradient(to top, rgba(20, 5, 13, 0.98), rgba(20, 5, 13, 0.8), transparent);
@@ -752,17 +755,17 @@ html, body {
 
 .player-tab-drawer-btn {
   float: left;
-  height: 52px;
-  line-height: 52px;
-  padding: 0 24px;
+  height: 60px;
+  line-height: 60px;
+  padding: 0 28px;
   background: #8a2542;
   color: #ffffff;
-  font-size: 16px;
+  font-size: 18px;
   cursor: pointer;
   transform: skewX(-20deg);
   -webkit-transform: skewX(-20deg);
-  margin-left: 16px;
-  margin-right: 32px;
+  margin-left: 18px;
+  margin-right: 34px;
 }
 
 .player-tab-drawer-btn * {
@@ -776,8 +779,8 @@ html, body {
 }
 
 .player-tab-drawer-btn .btn-drawer-text {
-  margin-left: 8px;
-  font-size: 15px;
+  margin-left: 10px;
+  font-size: 17px;
   letter-spacing: 1px;
   vertical-align: middle;
 }
@@ -798,13 +801,13 @@ html, body {
 
 .player-play-btn {
   float: left;
-  height: 52px;
-  line-height: 52px;
-  padding: 0 24px;
-  font-size: 18px;
+  height: 60px;
+  line-height: 60px;
+  padding: 0 26px;
+  font-size: 22px;
   color: #ffffff;
   cursor: pointer;
-  margin-left: 10px;
+  margin-left: 12px;
 }
 
 .player-play-btn.focused {
@@ -896,13 +899,13 @@ html, body {
   color: #ffffff;
 }
 
-/* Drawer Lateral de Canales durante reproducción (Foto 3) */
+/* Drawer Lateral de Canales durante reproducción (Foto 3) - Máximo 5 canales por vista */
 #player-drawer {
   position: absolute;
   top: 0;
   left: 0;
   bottom: 0;
-  width: 420px;
+  width: 480px;
   max-width: 85%;
   background: #14050d;
   background: rgba(20, 5, 13, 0.98);
@@ -917,10 +920,10 @@ html, body {
 #player-drawer.open { display: block; }
 
 .drawer-nav-indicators {
-  height: 48px;
-  line-height: 48px;
+  height: 52px;
+  line-height: 52px;
   padding: 0 16px;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: bold;
   color: #ffcc00;
   background: #2a0b18;
@@ -932,27 +935,37 @@ html, body {
 
 #player-drawer-list {
   position: absolute;
-  top: 48px;
+  top: 52px;
   left: 0;
   right: 0;
   bottom: 0;
   overflow-y: auto;
-  padding-bottom: 25px;
+  padding: 8px 10px 25px 10px;
+  box-sizing: border-box;
 }
 
 .drawer-row {
-  height: 54px;
-  padding: 6px 14px;
+  height: 116px;
+  min-height: 116px;
+  padding: 10px 14px;
+  margin-bottom: 8px;
   cursor: pointer;
   color: #dddddd;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.04);
+  border: 2px solid transparent;
+  border-radius: 8px;
+  box-sizing: border-box;
   position: relative;
   overflow: hidden;
+  transition: all 0.1s ease;
+  -webkit-transition: all 0.1s ease;
 }
 
 .drawer-row.focused {
   background: #8a2542 !important;
   color: #ffffff;
+  border-color: #ffcc00 !important;
+  outline: 2px solid #ffffff;
 }
 
 .drawer-row.focused .drawer-name {
@@ -961,20 +974,26 @@ html, body {
 
 .drawer-num {
   float: left;
-  width: 28px;
-  font-size: 13px;
+  width: 34px;
+  font-size: 20px;
   font-weight: bold;
   color: #ffffff;
-  line-height: 42px;
+  line-height: 92px;
+  text-align: center;
 }
 
 .drawer-logo-box {
   float: left;
-  width: 52px;
-  height: 38px;
+  width: 120px;
+  height: 92px;
   background: #000000;
-  margin-right: 12px;
+  border-radius: 6px;
+  margin-right: 14px;
   overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .drawer-logo-box img {
@@ -985,24 +1004,26 @@ html, body {
 
 .drawer-info {
   overflow: hidden;
+  padding-top: 14px;
 }
 
 .drawer-name {
-  font-size: 14px;
+  font-size: 20px;
   font-weight: bold;
   color: #ffffff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  line-height: 28px;
 }
 
 .drawer-epg {
-  font-size: 11px;
-  color: #a5929c;
+  font-size: 15px;
+  color: #ffcc00;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  margin-top: 2px;
+  margin-top: 8px;
 }
 
 /* Notificación Toast */
@@ -1104,7 +1125,7 @@ html, body {
         <h3>Información</h3>
         <p id="optDescText">Usa tu usuario y contraseña otorgados por el administrador para vincular este televisor y descargar tus listas.</p>
         <div style="margin-top:22px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.4.1 [Latina &amp; Stream Fix]
+          VERSIÓN: v2.4.2 [5-Canales &amp; Streams Fix]
         </div>
       </div>
     </div>
@@ -1231,9 +1252,9 @@ window.onerror = function(msg, url, line) {
   return false;
 };
 
-var API_BASE = (window.location && window.location.host && window.location.host.indexOf('teamg.store') > -1)
-  ? ('http://' + window.location.host)
-  : 'http://ott.teamg.store';
+var API_BASE = (window.location && window.location.protocol && window.location.host)
+  ? (window.location.protocol + '//' + window.location.host)
+  : 'https://ott.teamg.store';
 
 function escapeHtml(str) {
   if (!str) return '';
@@ -1301,7 +1322,11 @@ var KEY = {
   PAUSE: 19,
   STOP: 413,
   CH_UP: 33,
-  CH_DOWN: 34
+  CH_DOWN: 34,
+  CH_UP_LG: 427,
+  CH_DOWN_LG: 428,
+  CH_UP_SAMSUNG: 516,
+  CH_DOWN_SAMSUNG: 517
 };
 
 /* ==========================================================================
@@ -2357,14 +2382,16 @@ function playChannelAt(idx) {
   var streamUrl = c.url || '';
   var isHttps = (streamUrl.indexOf('https://') === 0);
   var isHls = (streamUrl.indexOf('.m3u8') !== -1 || streamUrl.indexOf('/chunks') !== -1 || streamUrl.indexOf('/playlist') !== -1);
+  var isPageHttps = (window.location && window.location.protocol === 'https:');
   var playUrl = streamUrl;
   
-  if (isHttps || streamUrl.indexOf(':1936') !== -1 || streamUrl.indexOf('cablered') !== -1 || streamUrl.indexOf('iptvperu.tv') !== -1 || streamUrl.indexOf('bitel.com.pe') !== -1 || streamUrl.indexOf('tv360') !== -1) {
+  if (isHttps || (isPageHttps && isHls) || streamUrl.indexOf(':1936') !== -1 || streamUrl.indexOf('cablered') !== -1 || streamUrl.indexOf('iptvperu.tv') !== -1 || streamUrl.indexOf('bitel.com.pe') !== -1 || streamUrl.indexOf('tv360') !== -1) {
     var ext = isHls ? '.m3u8' : '.ts';
+    var proto = isPageHttps ? 'https:' : 'http:';
     var httpHost = (window.location && window.location.host && window.location.host.indexOf('teamg.store') !== -1)
       ? window.location.host
       : 'ott.teamg.store';
-    playUrl = 'http://' + httpHost + '/api/ott/stream' + ext + '?url=' + encodeURIComponent(streamUrl);
+    playUrl = proto + '//' + httpHost + '/api/ott/stream' + ext + '?url=' + encodeURIComponent(streamUrl);
   }
 
   // 2. Detección de motor: MediaPlayer (LG NetCast plugin) o HTML5
@@ -2377,7 +2404,7 @@ function playChannelAt(idx) {
     preferNetcast = true;
   } else if (engine === 'auto') {
     var ua = navigator.userAgent || '';
-    if (netcastObj && (typeof netcastObj.play === 'function' || ua.indexOf('NetCast') !== -1 || ua.indexOf('LG') !== -1)) {
+    if (!isHls && netcastObj && (typeof netcastObj.play === 'function' || ua.indexOf('NetCast') !== -1 || ua.indexOf('LG') !== -1)) {
       preferNetcast = true;
     }
   }
@@ -2506,8 +2533,12 @@ function stopPlayer() {
   updateMainFocus(false);
 }
 
-function handlePlayerNav(kc) {
+function handlePlayerNav(kc, eObj) {
   var list = getFilteredChannels();
+  if (!list || list.length === 0) return;
+
+  var isChUp = (kc === KEY.CH_UP || kc === KEY.CH_UP_LG || kc === KEY.CH_UP_SAMSUNG || (eObj && (eObj.key === 'ChannelUp' || eObj.key === 'PageUp')));
+  var isChDown = (kc === KEY.CH_DOWN || kc === KEY.CH_DOWN_LG || kc === KEY.CH_DOWN_SAMSUNG || (eObj && (eObj.key === 'ChannelDown' || eObj.key === 'PageDown')));
 
   // 1. Si el drawer lateral de canales está abierto
   if (state.drawerOpen) {
@@ -2516,12 +2547,12 @@ function handlePlayerNav(kc) {
       showPlayerOverlay();
       return;
     }
-    if (kc === KEY.UP || kc === KEY.CH_UP) {
+    if (kc === KEY.UP || isChUp) {
       state.drawerIdx = Math.max(0, state.drawerIdx - 1);
       updateDrawerFocus();
       return;
     }
-    if (kc === KEY.DOWN || kc === KEY.CH_DOWN) {
+    if (kc === KEY.DOWN || isChDown) {
       state.drawerIdx = Math.min(list.length - 1, state.drawerIdx + 1);
       updateDrawerFocus();
       return;
@@ -2543,24 +2574,22 @@ function handlePlayerNav(kc) {
     return;
   }
 
-  // 2. Si el HUD está oculto: ¡CUALQUIER TECLA LO DESPIERTA!
+  // 2. Cambio directo de canal con botones físicos del control remoto (CH+ / CH-): SIEMPRE ACTIVO
+  if (isChUp) {
+    var prev = (state.currentChannelIdx - 1 + list.length) % list.length;
+    playChannelAt(prev);
+    return;
+  }
+  if (isChDown) {
+    var next = (state.currentChannelIdx + 1) % list.length;
+    playChannelAt(next);
+    return;
+  }
+
+  // 3. Si el HUD está oculto: ¡CUALQUIER TECLA LO DESPIERTA!
   if (!state.playerHudVisible) {
-    if (kc === KEY.BACK || kc === KEY.BACKSPACE || kc === KEY.ESC || kc === KEY.TIZEN_BACK) {
+    if (kc === KEY.BACK || kc === KEY.BACKSPACE || kc === KEY.ESC || kc === KEY.TIZEN_BACK || kc === KEY.STOP) {
       stopPlayer();
-      return;
-    }
-    if (kc === KEY.STOP) {
-      stopPlayer();
-      return;
-    }
-    if (kc === KEY.CH_UP) {
-      var prev = (state.currentChannelIdx - 1 + list.length) % list.length;
-      playChannelAt(prev);
-      return;
-    }
-    if (kc === KEY.CH_DOWN) {
-      var next = (state.currentChannelIdx + 1) % list.length;
-      playChannelAt(next);
       return;
     }
     if (kc === KEY.BLUE || kc === KEY.BLUE_SAMSUNG || kc === 66) {
@@ -2574,7 +2603,7 @@ function handlePlayerNav(kc) {
     return;
   }
 
-  // 3. Teclas de acción directa con el HUD visible
+  // 4. Teclas de acción directa con el HUD visible
   if (kc === KEY.BACK || kc === KEY.BACKSPACE || kc === KEY.ESC || kc === KEY.TIZEN_BACK) {
     hidePlayerOverlay();
     return;
@@ -2602,7 +2631,7 @@ function handlePlayerNav(kc) {
     return;
   }
 
-  // 4. Navegación con flechas cuando el HUD está visible
+  // 5. Navegación con flechas cuando el HUD está visible
   showPlayerOverlay(); // renueva temporizador de ocultación
 
   if (state.playerArea === 'bottom') {
@@ -2743,7 +2772,7 @@ function onGlobalKeyDown(e) {
   }
 
   if (state.screen === 'player') {
-    handlePlayerNav(kc);
+    handlePlayerNav(kc, eObj);
   } else if (state.screen === 'keyboard') {
     handleKeyboardNav(kc);
   } else if (state.screen === 'options') {
