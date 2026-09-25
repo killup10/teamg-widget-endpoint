@@ -871,12 +871,15 @@ document.getElementById("btnSaveChModal").onclick = function() {
   savePlaylistToServer();
 };
 
-function savePlaylistToServer() {
+function savePlaylistToServer(silent) {
   api("/api/ott/admin/playlist/save-channels", "POST", {
     id: CURRENT_PL.id,
     channels: CURRENT_PL.channels
   }).then(function(res) {
     render();
+    if (!silent) {
+      alert("✓ Lista guardada con éxito (" + (res.count || CURRENT_PL.channels.length) + " canales).\n\nEn tu Smart TV, presiona el BOTÓN ROJO del control remoto o el icono de refrescar para ver inmediatamente los cambios e imágenes.");
+    }
   }).catch(function(err) {
     alert("Error al guardar: " + err.message);
   });

@@ -81,6 +81,22 @@ async function fetchText(url) {
   } finally { clearTimeout(t); }
 }
 
+const m3uCache = new Map(); // key: url, value: { text, ts }
+const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutos en memoria para apertura instantánea en TV
+
+async function getCachedOrFetchText(url, forceFresh = false) {
+  const now = Date.now();
+  if (!forceFresh && m3uCache.has(url)) {
+    const entry = m3uCache.get(url);
+    if (now - entry.ts < CACHE_TTL_MS) {
+      return entry.text;
+    }
+  }
+  const text = await fetchText(url);
+  m3uCache.set(url, { text, ts: now });
+  return text;
+}
+
 function parseM3uText(text) {
   const lines = String(text || '').split(/\r?\n/);
   const channels = [];
@@ -211,15 +227,24 @@ async function handle(req, res, pathname, query, body) {
     const pl = await a.cols.playlists.findOne({ _id: String(query.pid || '') });
     if (!pl || (a.dev.playlists || []).indexOf(pl._id) < 0) return json(res, 403, { ok: false, error: 'No asignada' });
     if (pathname === '/api/ott/m3u' && pl.customM3u) {
-      res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+      res.writeHead(200, {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      });
       res.end(pl.customM3u);
       return;
     }
     let target = pathname === '/api/ott/m3u' ? pl.url : (pl.epgUrl || '');
     if (!target) return json(res, 404, { ok: false, error: 'Sin URL' });
     try {
-      const text = await fetchText(target);
-      res.writeHead(200, { 'Content-Type': pathname === '/api/ott/m3u' ? 'text/plain; charset=utf-8' : 'application/xml; charset=utf-8' });
+      const isFresh = (query.refresh === '1' || !!query._cb);
+      const text = await getCachedOrFetchText(target, isFresh);
+      res.writeHead(200, {
+        'Content-Type': pathname === '/api/ott/m3u' ? 'text/plain; charset=utf-8' : 'application/xml; charset=utf-8',
+        'Cache-Control': 'public, max-age=300'
+      });
       res.end(text);
     } catch (e) { return json(res, 502, { ok: false, error: 'No se pudo descargar: ' + e.message }); }
     return;
@@ -335,7 +360,7 @@ async function handle(req, res, pathname, query, body) {
       let text = pl.customM3u || '';
       if (!text && pl.url) {
         try {
-          text = await fetchText(pl.url);
+          text = await getCachedOrFetchText(pl.url, query.refresh === '1');
         } catch (e) {
           return json(res, 502, { ok: false, error: 'No se pudo descargar la lista original: ' + e.message });
         }
@@ -351,6 +376,8 @@ async function handle(req, res, pathname, query, body) {
 
     if (sub === 'playlist/save-channels' && req.method === 'POST') {
       if (!body.id || !Array.isArray(body.channels)) return json(res, 400, { ok: false, error: 'id+channels' });
+      const prevPl = await cols.playlists.findOne({ _id: String(body.id) });
+      if (prevPl && prevPl.url) m3uCache.delete(prevPl.url);
       const m3uText = serializeChannelsToM3u(body.channels);
       await cols.playlists.updateOne({ _id: String(body.id) }, { $set: { customM3u: m3uText, count: body.channels.length, updatedAt: store.nowIso() } });
       return json(res, 200, { ok: true, count: body.channels.length });
