@@ -10,6 +10,7 @@
     "deploy": "vercel --prod"
   },
   "dependencies": {
+    "matroska-subtitles": "^3.3.2",
     "mongodb": "^6.9.0"
   },
   "keywords": [

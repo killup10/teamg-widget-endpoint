@@ -120,7 +120,10 @@ function parseM3uText(text) {
       if (mGroup && mGroup[1].trim()) group = mGroup[1].trim();
       if (/adult="1"|censored="1"/i.test(ln) || /18\+|adult/i.test(group)) adult = true;
 
-      current = { id: 'c_' + (chId++), name, logo, group, adult };
+      const mSubs = ln.match(/sub-tracks="([^"]*)"/i);
+      let subs = mSubs ? mSubs[1] : '';
+
+      current = { id: 'c_' + (chId++), name, logo, group, adult, subs };
       groupsSet.add(group);
     } else if (ln.indexOf('#EXTGRP:') === 0) {
       if (current) {
@@ -134,6 +137,11 @@ function parseM3uText(text) {
       if (current) {
         const img = ln.replace('#EXTIMG:', '').trim();
         if (img) current.logo = img;
+      }
+    } else if (ln.indexOf('#EXTSUB:') === 0) {
+      if (current) {
+        const sub = ln.replace('#EXTSUB:', '').trim();
+        if (sub) current.subs = sub;
       }
     } else if (ln.charAt(0) !== '#') {
       if (current) {
@@ -152,9 +160,11 @@ function serializeChannelsToM3u(channels) {
     const logoAttr = c.logo ? ` tvg-logo="${c.logo}"` : '';
     const groupAttr = c.group ? ` group-title="${c.group}"` : '';
     const adultAttr = c.adult ? ' adult="1"' : '';
-    m3u += `#EXTINF:-1${logoAttr}${groupAttr}${adultAttr},${c.name}\n`;
+    const subAttr = c.subs ? ` sub-tracks="${c.subs}"` : '';
+    m3u += `#EXTINF:-1${logoAttr}${groupAttr}${adultAttr}${subAttr},${c.name}\n`;
     if (c.group) m3u += `#EXTGRP:${c.group}\n`;
     if (c.logo) m3u += `#EXTIMG:${c.logo}\n`;
+    if (c.subs) m3u += `#EXTSUB:${c.subs}\n`;
     m3u += `${c.url}\n`;
   }
   return m3u;
@@ -247,6 +257,165 @@ async function handle(req, res, pathname, query, body) {
       });
       res.end(text);
     } catch (e) { return json(res, 502, { ok: false, error: 'No se pudo descargar: ' + e.message }); }
+    return;
+  }
+
+  // ---- Detección de pistas (subtítulos y audio embebido MKV) ----
+  if (pathname === '/api/ott/tracks' && req.method === 'GET') {
+    const targetUrl = String(query.url || '').trim();
+    if (!targetUrl) return json(res, 400, { ok: false, error: 'Falta url' });
+    try {
+      const isHttps = targetUrl.indexOf('https://') === 0;
+      const mod = isHttps ? require('https') : require('http');
+      const { SubtitleParser } = require('matroska-subtitles');
+      const parser = new SubtitleParser();
+      let responded = false;
+
+      const timer = setTimeout(() => {
+        if (!responded) {
+          responded = true;
+          try { upReq.destroy(); } catch (e) {}
+          return json(res, 200, { ok: true, tracks: [], audioTracks: [] });
+        }
+      }, 6000);
+
+      const upReq = mod.request(targetUrl, {
+        method: 'GET',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+          'Range': 'bytes=0-3145728'
+        },
+        rejectUnauthorized: false
+      }, (upRes) => {
+        upRes.pipe(parser);
+      });
+
+      parser.once('tracks', (tracks) => {
+        if (!responded) {
+          responded = true;
+          clearTimeout(timer);
+          try { upReq.destroy(); } catch (e) {}
+          const subTracks = (tracks || []).filter(t => t.type === 'subtitle');
+          const audTracks = (tracks || []).filter(t => t.type === 'audio');
+          return json(res, 200, { ok: true, tracks: subTracks, audioTracks: audTracks });
+        }
+      });
+
+      upReq.on('error', () => {
+        if (!responded) {
+          responded = true;
+          clearTimeout(timer);
+          return json(res, 200, { ok: true, tracks: [], audioTracks: [] });
+        }
+      });
+
+      upReq.end();
+    } catch (e) {
+      return json(res, 200, { ok: true, tracks: [], audioTracks: [] });
+    }
+    return;
+  }
+
+  // ---- Subtítulos en formato WebVTT ----
+  if (pathname === '/api/ott/subtitles' && req.method === 'GET') {
+    const targetUrl = String(query.url || '').trim();
+    const trackNum = parseInt(query.track, 10) || 0;
+    if (!targetUrl) {
+      res.writeHead(400, { 'Content-Type': 'text/plain', 'Access-Control-Allow-Origin': '*' });
+      return res.end('Falta url');
+    }
+
+    // Archivo .srt o .vtt externo
+    if (targetUrl.toLowerCase().indexOf('.vtt') !== -1 || targetUrl.toLowerCase().indexOf('.srt') !== -1) {
+      try {
+        const isHttps = targetUrl.indexOf('https://') === 0;
+        const mod = isHttps ? require('https') : require('http');
+        mod.get(targetUrl, { rejectUnauthorized: false }, (upRes) => {
+          let data = '';
+          upRes.on('data', (c) => { data += c; });
+          upRes.on('end', () => {
+            let vtt = data;
+            if (targetUrl.toLowerCase().indexOf('.srt') !== -1 && data.indexOf('WEBVTT') === -1) {
+              vtt = 'WEBVTT\n\n' + data.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, '$1.$2');
+            }
+            res.writeHead(200, {
+              'Content-Type': 'text/vtt; charset=utf-8',
+              'Access-Control-Allow-Origin': '*',
+              'Cache-Control': 'public, max-age=86400'
+            });
+            res.end(vtt);
+          });
+        }).on('error', () => {
+          res.writeHead(200, { 'Content-Type': 'text/vtt; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
+          res.end('WEBVTT\n\n');
+        });
+        return;
+      } catch (e) {}
+    }
+
+    // Extracción de subtítulos embebidos de MKV
+    try {
+      const isHttps = targetUrl.indexOf('https://') === 0;
+      const mod = isHttps ? require('https') : require('http');
+      const { SubtitleParser } = require('matroska-subtitles');
+      const parser = new SubtitleParser();
+      let cues = [];
+
+      function msToVtt(ms) {
+        if (!ms || ms < 0) ms = 0;
+        const s = Math.floor(ms / 1000);
+        const remMs = Math.floor(ms % 1000);
+        const h = Math.floor(s / 3600);
+        const m = Math.floor((s % 3600) / 60);
+        const sec = s % 60;
+        const hh = (h < 10 ? '0' : '') + h;
+        const mm = (m < 10 ? '0' : '') + m;
+        const ss = (sec < 10 ? '0' : '') + sec;
+        const mss = (remMs < 10 ? '00' : (remMs < 100 ? '0' : '')) + remMs;
+        return hh + ':' + mm + ':' + ss + '.' + mss;
+      }
+
+      parser.on('subtitle', (sub, track) => {
+        if (trackNum === 0 || track === trackNum) {
+          const startTime = msToVtt(sub.time);
+          const endTime = msToVtt(sub.time + (sub.duration || 3000));
+          const text = (sub.text || '').replace(/\\N/g, '\n').replace(/\{.*?\}/g, '').trim();
+          if (text) {
+            cues.push(startTime + ' --> ' + endTime + '\n' + text + '\n\n');
+          }
+        }
+      });
+
+      const upReq = mod.request(targetUrl, {
+        method: 'GET',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+        },
+        rejectUnauthorized: false,
+        timeout: 45000
+      }, (upRes) => {
+        upRes.pipe(parser);
+        upRes.on('end', () => {
+          res.writeHead(200, {
+            'Content-Type': 'text/vtt; charset=utf-8',
+            'Access-Control-Allow-Origin': '*',
+            'Cache-Control': 'public, max-age=86400'
+          });
+          res.end('WEBVTT\n\n' + cues.join(''));
+        });
+      });
+
+      upReq.on('error', () => {
+        if (!res.headersSent) {
+          res.writeHead(200, { 'Content-Type': 'text/vtt; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
+          res.end('WEBVTT\n\n');
+        }
+      });
+      upReq.end();
+    } catch (e) {
+      res.writeHead(200, { 'Content-Type': 'text/vtt; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
+      res.end('WEBVTT\n\n');
+    }
     return;
   }
 
@@ -389,8 +558,8 @@ async function handle(req, res, pathname, query, body) {
       await cols.icons.insertOne({ _id: iconId, data: body.data, created: store.nowIso() });
       const hostHeader = (req && req.headers && req.headers['host']) ? req.headers['host'] : 'ott.teamg.store';
       const proto = (req.headers['x-forwarded-proto'] || 'https').split(',')[0].trim();
-      const fullUrl = proto + '://' + hostHeader + '/api/ott/icon/' + iconId;
-      return json(res, 200, { ok: true, url: fullUrl, id: iconId });
+      const relUrl = '/api/ott/icon/' + iconId;
+      return json(res, 200, { ok: true, url: fullUrl, relUrl: relUrl, id: iconId });
     }
 
     return json(res, 404, { ok: false });

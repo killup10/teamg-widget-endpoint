@@ -207,6 +207,13 @@ h4{font-weight:400;color:#555;margin:18px 0 6px}
       </div>
 
       <div class="form-field-row">
+        <div class="form-field-label">subtitles</div>
+        <div class="form-field-input">
+          <input id="mChSubs" placeholder="https://... o archivo .srt / .vtt (Opcional)" />
+        </div>
+      </div>
+
+      <div class="form-field-row">
         <div class="form-field-label">adult (18+)</div>
         <div class="form-field-input">
           <div class="adult-toggle-row">
@@ -726,6 +733,7 @@ function openChannelSettingModal(channelIdx) {
   document.getElementById("mChName").value = ch.name || "";
   document.getElementById("mChUrl").value = ch.url || "";
   document.getElementById("mChIconUrl").value = ch.logo || "";
+  document.getElementById("mChSubs").value = ch.subs || "";
   document.getElementById("mChIconFileInput").value = "";
 
   var saveBtn = document.getElementById("btnSaveChModal");
@@ -814,9 +822,10 @@ document.getElementById("mChIconFileInput").onchange = function() {
 
       // Subir al backend para obtener URL permanente /api/ott/icon/<id>
       api("/api/ott/admin/upload-image", "POST", { data: base64 }).then(function(res) {
-        if (res && res.url) {
-          document.getElementById("mChIconUrl").value = res.url;
-          updateIconPreview(res.url);
+        if (res && (res.relUrl || res.url)) {
+          var targetVal = res.relUrl || res.url;
+          document.getElementById("mChIconUrl").value = targetVal;
+          updateIconPreview(res.url || res.relUrl);
         }
       }).catch(function(uploadErr) {
         console.warn("Fallo subida a /upload-image, manteniendo base64:", uploadErr);
@@ -845,6 +854,7 @@ document.getElementById("btnSaveChModal").onclick = function() {
   var url = document.getElementById("mChUrl").value.trim();
   var group = document.getElementById("mChGroupSelect").value;
   var logo = document.getElementById("mChIconUrl").value.trim();
+  var subs = document.getElementById("mChSubs").value.trim();
   var adult = document.getElementById("btnAdultYes").classList.contains("sel");
 
   if (!name) { alert("Ingresa el nombre del canal o película."); return; }
@@ -857,6 +867,7 @@ document.getElementById("btnSaveChModal").onclick = function() {
       url: url,
       group: group,
       logo: logo,
+      subs: subs,
       adult: adult
     });
   } else {
@@ -864,6 +875,7 @@ document.getElementById("btnSaveChModal").onclick = function() {
     CURRENT_PL.channels[EDITING_CH_IDX].url = url;
     CURRENT_PL.channels[EDITING_CH_IDX].group = group;
     CURRENT_PL.channels[EDITING_CH_IDX].logo = logo;
+    CURRENT_PL.channels[EDITING_CH_IDX].subs = subs;
     CURRENT_PL.channels[EDITING_CH_IDX].adult = adult;
   }
 
