@@ -210,7 +210,7 @@ const server = http.createServer((req, res) => {
     const startJson = isOtt
       ? {
           "name": "OTT TV",
-          "version": "2.4.2",
+          "version": "2.4.3",
           "parameter": "content:" + base + "/msx/ott.json?v=" + Date.now()
         }
       : {
@@ -231,7 +231,7 @@ const server = http.createServer((req, res) => {
     const base = baseOf(req);
     const ottContent = {
       "type": "list",
-      "headline": "OTT TV v2.4.2 [5-Canales & Streams Fix]",
+      "headline": "OTT TV v2.4.3 [Latina Direct & Stability Fix]",
       "template": { "type": "default", "layout": "0,0,3,2", "imageFiller": "width-center" },
       "items": [
         {

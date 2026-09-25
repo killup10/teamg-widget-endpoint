@@ -1125,7 +1125,7 @@ html, body {
         <h3>Información</h3>
         <p id="optDescText">Usa tu usuario y contraseña otorgados por el administrador para vincular este televisor y descargar tus listas.</p>
         <div style="margin-top:22px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.4.2 [5-Canales &amp; Streams Fix]
+          VERSIÓN: v2.4.3 [Latina Direct &amp; Stability Fix]
         </div>
       </div>
     </div>
@@ -2353,12 +2353,63 @@ function hidePlayerOverlay() {
   }
 }
 
+var lastChannelChangeTime = 0;
+
+function cleanPlayerEngines() {
+  hideTuning();
+  if (state.tuningWatchdog) {
+    clearInterval(state.tuningWatchdog);
+    state.tuningWatchdog = null;
+  }
+
+  var v = $('video-el');
+  if (v) {
+    v.onloadeddata = null;
+    v.onplaying = null;
+    v.onloadedmetadata = null;
+    v.onerror = null;
+    v.ontimeupdate = null;
+    try { v.pause(); } catch (e1) {}
+  }
+
+  if (state.hlsInstance) {
+    try {
+      state.hlsInstance.stopLoad();
+      state.hlsInstance.detachMedia();
+      state.hlsInstance.destroy();
+    } catch (eHls) {}
+    state.hlsInstance = null;
+  }
+
+  if (v) {
+    try {
+      v.removeAttribute('src');
+      v.src = '';
+    } catch (eV) {}
+  }
+
+  var netcastObj = $('netcast-player');
+  if (netcastObj) {
+    try { netcastObj.onPlayStateChange = null; } catch (eN1) {}
+    try { netcastObj.stop(); } catch (eN2) {}
+    try { netcastObj.data = ''; } catch (eN3) {}
+    netcastObj.style.display = 'none';
+  }
+}
+
 function playChannelAt(idx) {
+  var nowTime = (new Date()).getTime();
+  if (nowTime - lastChannelChangeTime < 400) return;
+  lastChannelChangeTime = nowTime;
+
   var list = getFilteredChannels();
   if (!list[idx]) return;
   state.currentChannelIdx = idx;
   var c = list[idx];
   
+  // Limpiar completamente cualquier motor previo antes de iniciar nuevo canal
+  cleanPlayerEngines();
+
   $('player-title').textContent = c.name;
   $('player-epg-now').textContent = c.group || '--';
   $('player-res').textContent = '--';
@@ -2378,14 +2429,18 @@ function playChannelAt(idx) {
   c._triedNetcast = false;
   c._triedHtml5 = false;
 
-  // 1. Resolver URL de reproducción: si es HTTPS o puerto especial, pasarlo por el stream proxy
+  // 1. Resolver URL de reproducción
   var streamUrl = c.url || '';
   var isHttps = (streamUrl.indexOf('https://') === 0);
   var isHls = (streamUrl.indexOf('.m3u8') !== -1 || streamUrl.indexOf('/chunks') !== -1 || streamUrl.indexOf('/playlist') !== -1);
   var isPageHttps = (window.location && window.location.protocol === 'https:');
   var playUrl = streamUrl;
   
-  if (isHttps || (isPageHttps && isHls) || streamUrl.indexOf(':1936') !== -1 || streamUrl.indexOf('cablered') !== -1 || streamUrl.indexOf('iptvperu.tv') !== -1 || streamUrl.indexOf('bitel.com.pe') !== -1 || streamUrl.indexOf('tv360') !== -1) {
+  // REGLA CRÍTICA: cablered / iptvperu.tv tiene geobloqueo o bloqueo de datacenters extranjeros (devuelve 403 Forbidden a Render).
+  // Como cablered ya incluye encabezados CORS ('Access-Control-Allow-Origin: *'), debe reproducirse DIRECTAMENTE desde la conexión del usuario.
+  var isCablered = (streamUrl.indexOf('cablered') !== -1 || streamUrl.indexOf('iptvperu.tv') !== -1);
+  
+  if (!isCablered && (streamUrl.indexOf('bitel.com.pe') !== -1 || streamUrl.indexOf('tv360') !== -1 || (isPageHttps && isHls && streamUrl.indexOf('http://') === 0))) {
     var ext = isHls ? '.m3u8' : '.ts';
     var proto = isPageHttps ? 'https:' : 'http:';
     var httpHost = (window.location && window.location.host && window.location.host.indexOf('teamg.store') !== -1)
@@ -2409,13 +2464,6 @@ function playChannelAt(idx) {
     }
   }
 
-  // Detener reproducciones anteriores limpiamente
-  try { if (state.hlsInstance) { state.hlsInstance.destroy(); state.hlsInstance = null; } } catch (e) {}
-  try { v.pause(); v.removeAttribute('src'); v.load(); } catch (e2) {}
-  if (netcastObj) {
-    try { netcastObj.stop(); } catch (e3) {}
-  }
-
   if (preferNetcast && netcastObj) {
     startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c);
   } else {
@@ -2425,7 +2473,15 @@ function playChannelAt(idx) {
 
 function startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c) {
   c._triedNetcast = true;
-  v.style.display = 'none';
+  if (v) {
+    v.onloadeddata = null;
+    v.onplaying = null;
+    v.onloadedmetadata = null;
+    v.onerror = null;
+    v.ontimeupdate = null;
+    try { v.pause(); } catch(e1) {}
+    v.style.display = 'none';
+  }
   netcastObj.style.display = 'block';
   netcastObj.data = playUrl;
   try {
@@ -2464,12 +2520,25 @@ function startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c) {
       }
     } catch (e) {}
   };
+
+  // Watchdog de seguridad para NetCast
+  if (state.tuningWatchdog) clearInterval(state.tuningWatchdog);
+  state.tuningWatchdog = setInterval(function() {
+    if (netcastObj && (netcastObj.playState === 1 || netcastObj.playState === 4)) {
+      hideTuning();
+      clearInterval(state.tuningWatchdog);
+      state.tuningWatchdog = null;
+    }
+  }, 400);
+
+  setTimeout(function() { hideTuning(); }, 4000);
 }
 
 function playHtml5(v, netcastObj, playUrl, streamUrl, c) {
   c._triedHtml5 = true;
   if (netcastObj) {
-    try { netcastObj.stop(); } catch(e0) {}
+    try { netcastObj.onPlayStateChange = null; } catch(e0) {}
+    try { netcastObj.stop(); } catch(e02) {}
     netcastObj.style.display = 'none';
   }
   v.style.display = 'block';
@@ -2482,7 +2551,12 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c) {
       $('player-res').textContent = v.videoWidth + 'x' + v.videoHeight;
     }
   };
+  v.ontimeupdate = function() {
+    if (v.currentTime > 0) hideTuning();
+  };
   v.onerror = function() {
+    // Si el video fue limpiado o reseteado intencionalmente, ignorar error sintético
+    if (!v.src || v.src === '' || v.src === window.location.href) return;
     if (netcastObj && !c._triedNetcast && (typeof netcastObj.play === 'function' || (navigator.userAgent && (navigator.userAgent.indexOf('NetCast') !== -1 || navigator.userAgent.indexOf('LG') !== -1)))) {
       console.log('HTML5 error, conmutando a NetCast...');
       startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c);
@@ -2497,7 +2571,10 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c) {
     state.hlsInstance.loadSource(playUrl);
     state.hlsInstance.attachMedia(v);
     state.hlsInstance.on(Hls.Events.MANIFEST_PARSED, function() {
-      v.play();
+      try { v.play(); } catch(ePlay) {}
+    });
+    state.hlsInstance.on(Hls.Events.FRAG_BUFFERED, function() {
+      hideTuning();
     });
     state.hlsInstance.on(Hls.Events.ERROR, function(evt, data) {
       if (data.fatal) {
@@ -2513,18 +2590,22 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c) {
     v.src = playUrl;
     try { v.play(); } catch (e) {}
   }
+
+  // Watchdog de seguridad para HTML5
+  if (state.tuningWatchdog) clearInterval(state.tuningWatchdog);
+  state.tuningWatchdog = setInterval(function() {
+    if (v && !v.paused && v.currentTime > 0) {
+      hideTuning();
+      clearInterval(state.tuningWatchdog);
+      state.tuningWatchdog = null;
+    }
+  }, 400);
+
+  setTimeout(function() { hideTuning(); }, 4000);
 }
 
 function stopPlayer() {
-  hideTuning();
-  var v = $('video-el');
-  try { v.pause(); v.removeAttribute('src'); v.load(); } catch (e) {}
-  var netcastObj = $('netcast-player');
-  if (netcastObj) {
-    try { netcastObj.stop(); } catch (e2) {}
-    netcastObj.style.display = 'none';
-  }
-  try { if (state.hlsInstance) { state.hlsInstance.destroy(); state.hlsInstance = null; } } catch (e3) {}
+  cleanPlayerEngines();
   $('player-container').classList.remove('open');
   $('player-drawer').classList.remove('open');
   state.drawerOpen = false;
