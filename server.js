@@ -232,7 +232,7 @@ const server = http.createServer((req, res) => {
     const base = baseOf(req);
     const ottContent = {
       "type": "list",
-      "headline": "OTT TV v2.5.0 [Series Inteligente M3U, Series Hub y Drawer Fluido]",
+      "headline": "OTT TV v2.5.1 [Iconos Grandes TV, Volver Seguro a Home, Configuración Interactiva & Trailer Real]",
       "template": { "type": "default", "layout": "0,0,3,2", "imageFiller": "width-center" },
       "items": [
         {

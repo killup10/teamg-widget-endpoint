@@ -195,8 +195,47 @@ async function authedDevice(body, query) {
   return { cols, user, dev };
 }
 
+async function searchYouTubeTrailer(title) {
+  const searchUrl = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(title + ' trailer');
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), 12000);
+  try {
+    const r = await fetch(searchUrl, {
+      signal: ctl.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8'
+      }
+    });
+    if (!r.ok) return null;
+    const text = await r.text();
+    const m = text.match(/\/watch\?v=([a-zA-Z0-9_-]{11})/);
+    return m ? m[1] : null;
+  } catch (e) {
+    return null;
+  } finally {
+    clearTimeout(t);
+  }
+}
+
 async function handle(req, res, pathname, query, body) {
   const cols = await store.init();
+
+  // ---- TV: buscar trailer oficial de película o serie ----
+  if (pathname === '/api/ott/trailer' && req.method === 'GET') {
+    const q = String(query.q || '').trim();
+    if (!q) return json(res, 400, { ok: false, error: 'Falta parametro q' });
+    const videoId = await searchYouTubeTrailer(q);
+    if (videoId) {
+      return json(res, 200, {
+        ok: true,
+        videoId: videoId,
+        embedUrl: 'https://www.youtube-nocookie.com/embed/' + videoId + '?autoplay=1&rel=0&modestbranding=1',
+        watchUrl: 'https://www.youtube.com/watch?v=' + videoId
+      });
+    }
+    return json(res, 404, { ok: false, error: 'No se encontro trailer para ' + q });
+  }
 
   // ---- TV: login con usuario/password que crea el admin ----
   if (pathname === '/api/ott/login' && req.method === 'POST') {
