@@ -1908,6 +1908,16 @@ function isBackKey(kc, e) {
   if (e && (e.key === 'Back' || e.key === 'GoBack' || e.key === 'Escape' || e.key === 'BrowserBack' || e.key === 'HistoryBack')) return true;
   return false;
 }
+// Drawer visible de verdad (flag o DOM). El flag solo no basta: openChannelDrawer
+// pone style inline display:block que sobrevive si algo quita la clase sin pasar
+// por closeChannelDrawer. Retroceder debe cerrar primero y solo salir si está oculto.
+function isDrawerVisible() {
+  if (state.drawerOpen) return true;
+  var d = (typeof $ === 'function') ? $('player-drawer') : null;
+  if (!d) return false;
+  if (d.classList && d.classList.contains && d.classList.contains('open')) return true;
+  return d.style && d.style.display === 'block';
+}
 
 /* ==========================================================================
    ESTADO GLOBAL
@@ -4670,7 +4680,8 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c) {
 function stopPlayer() {
   cleanPlayerEngines();
   $('player-container').classList.remove('open');
-  $('player-drawer').classList.remove('open');
+  var _pd = $('player-drawer');
+  if (_pd) { _pd.classList.remove('open'); _pd.style.display = 'none'; }
   state.drawerOpen = false;
   hidePlayerOverlay();
   if (state.currentSeries && state.activeSeriesEpisodes && state.activeSeriesEpisodes.length > 0) {
@@ -4693,7 +4704,8 @@ function handlePlayerNav(kc, eObj) {
   var isChDown = (kc === KEY.CH_DOWN || kc === KEY.CH_DOWN_LG || kc === KEY.CH_DOWN_SAMSUNG || (eObj && (eObj.key === 'ChannelDown' || eObj.key === 'PageDown')));
 
   // 1. Si el drawer lateral de canales/episodios está abierto
-  if (state.drawerOpen) {
+  // (se mira visibilidad real, no solo el flag, para no quedar trabado)
+  if (isDrawerVisible()) {
     if (isBackKey(kc, eObj)) {
       closeChannelDrawer();
       return;
@@ -5192,7 +5204,7 @@ if (catcher) {
       if (ev.stopPropagation) ev.stopPropagation();
       if (ev.preventDefault) ev.preventDefault();
     }
-    if (state.drawerOpen) {
+    if (isDrawerVisible()) {
       closeChannelDrawer();
       return;
     }
@@ -5210,7 +5222,7 @@ $('player-container').onclick = function(e) {
   var ev = e || window.event;
   var t = ev ? (ev.target || ev.srcElement) : null;
   if (!t || t.id === 'player-container' || t.id === 'video-el' || t.id === 'netcast-player' || t.id === 'player-click-catcher') {
-    if (state.drawerOpen) {
+    if (isDrawerVisible()) {
       closeChannelDrawer();
       return;
     }
