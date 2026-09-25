@@ -1125,7 +1125,7 @@ html, body {
         <h3>Información</h3>
         <p id="optDescText">Usa tu usuario y contraseña otorgados por el administrador para vincular este televisor y descargar tus listas.</p>
         <div style="margin-top:22px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.4.4 [Reorder, Logo Upload &amp; CH Fix]
+          VERSIÓN: v2.4.5 [VOD .MP4 &amp; .MKV Playback Fix]
         </div>
       </div>
     </div>
@@ -2397,6 +2397,42 @@ function cleanPlayerEngines() {
   }
 }
 
+function formatTime(sec) {
+  if (isNaN(sec) || !isFinite(sec) || sec < 0) sec = 0;
+  var s = Math.floor(sec);
+  var m = Math.floor(s / 60);
+  var h = Math.floor(m / 60);
+  s = s % 60;
+  m = m % 60;
+  if (h > 0) {
+    return h + ':' + (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+  }
+  return m + ':' + (s < 10 ? '0' : '') + s;
+}
+
+function updateDurationDisplay(v) {
+  var timeEl = $('player-time-text');
+  if (!timeEl) return;
+  if (v && v.duration && isFinite(v.duration) && v.duration > 0) {
+    timeEl.textContent = formatTime(v.currentTime) + ' / ' + formatTime(v.duration);
+  } else {
+    timeEl.textContent = 'EN VIVO';
+  }
+}
+
+function updateProgressDisplay(v) {
+  var fillEl = $('player-epg-fill');
+  var timeEl = $('player-time-text');
+  if (v && v.duration && isFinite(v.duration) && v.duration > 0) {
+    var pct = Math.min(100, Math.max(0, (v.currentTime / v.duration) * 100));
+    if (fillEl) fillEl.style.width = pct + '%';
+    if (timeEl) timeEl.textContent = formatTime(v.currentTime) + ' / ' + formatTime(v.duration);
+  } else {
+    if (fillEl) fillEl.style.width = '100%';
+    if (timeEl) timeEl.textContent = 'EN VIVO';
+  }
+}
+
 function playChannelAt(idx) {
   var nowTime = (new Date()).getTime();
   if (nowTime - lastChannelChangeTime < 400) return;
@@ -2413,6 +2449,8 @@ function playChannelAt(idx) {
   $('player-title').textContent = c.name;
   $('player-epg-now').textContent = c.group || '--';
   $('player-res').textContent = '--';
+  $('player-time-text').textContent = 'SINTONIZANDO...';
+  $('player-epg-fill').style.width = '0%';
   if (c.logo) {
     $('player-logo').src = c.logo;
     $('player-logo').style.display = 'block';
@@ -2440,8 +2478,32 @@ function playChannelAt(idx) {
   // Como cablered ya incluye encabezados CORS ('Access-Control-Allow-Origin: *'), debe reproducirse DIRECTAMENTE desde la conexión del usuario.
   var isCablered = (streamUrl.indexOf('cablered') !== -1 || streamUrl.indexOf('iptvperu.tv') !== -1);
   
-  if (!isCablered && (streamUrl.indexOf('bitel.com.pe') !== -1 || streamUrl.indexOf('tv360') !== -1 || (isPageHttps && isHls && streamUrl.indexOf('http://') === 0))) {
-    var ext = isHls ? '.m3u8' : '.ts';
+  // Cualquier flujo HTTP en una página HTTPS DEBE ser proxied para evitar Mixed Content
+  var needsProxy = false;
+  if (!isCablered) {
+    if (streamUrl.indexOf('bitel.com.pe') !== -1 || streamUrl.indexOf('tv360') !== -1) {
+      needsProxy = true;
+    } else if (isPageHttps && streamUrl.indexOf('http://') === 0) {
+      needsProxy = true;
+    }
+  }
+
+  if (needsProxy) {
+    var lowerUrl = streamUrl.toLowerCase();
+    var ext = '.ts';
+    if (isHls) {
+      ext = '.m3u8';
+    } else if (lowerUrl.indexOf('.mp4') !== -1) {
+      ext = '.mp4';
+    } else if (lowerUrl.indexOf('.mkv') !== -1) {
+      ext = '.mkv';
+    } else if (lowerUrl.indexOf('.webm') !== -1) {
+      ext = '.webm';
+    } else if (lowerUrl.indexOf('.avi') !== -1) {
+      ext = '.avi';
+    } else if (lowerUrl.indexOf('.mov') !== -1) {
+      ext = '.mov';
+    }
     var proto = isPageHttps ? 'https:' : 'http:';
     var httpHost = (window.location && window.location.host && window.location.host.indexOf('teamg.store') !== -1)
       ? window.location.host
@@ -2449,17 +2511,19 @@ function playChannelAt(idx) {
     playUrl = proto + '//' + httpHost + '/api/ott/stream' + ext + '?url=' + encodeURIComponent(streamUrl);
   }
 
-  // 2. Detección de motor: MediaPlayer (LG NetCast plugin) o HTML5
+  // 2. Detección de motor: MediaPlayer (solo TVs NetCast muy antiguas 2011-2013) vs HTML5 (estándar moderno en webOS, Tizen, Android TV y navegadores)
   var v = $('video-el');
   var netcastObj = $('netcast-player');
   var engine = state.auth.playerEngine || 'auto';
   var preferNetcast = false;
   
+  var ua = navigator.userAgent || '';
+  var isLegacyNetcast = (ua.indexOf('NetCast') !== -1 && ua.indexOf('Web0S') === -1 && ua.indexOf('webOS') === -1);
+  
   if (engine === 'mediaplayer') {
     preferNetcast = true;
   } else if (engine === 'auto') {
-    var ua = navigator.userAgent || '';
-    if (!isHls && netcastObj && (typeof netcastObj.play === 'function' || ua.indexOf('NetCast') !== -1 || ua.indexOf('LG') !== -1)) {
+    if (isLegacyNetcast && netcastObj && typeof netcastObj.play === 'function') {
       preferNetcast = true;
     }
   }
@@ -2544,25 +2608,29 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c) {
   v.style.display = 'block';
 
   v.onloadeddata = function() { hideTuning(); };
-  v.onplaying = function() { hideTuning(); };
+  v.onplaying = function() { hideTuning(); $('btnPlayPause').textContent = '▶❚❚'; };
+  v.onpause = function() { $('btnPlayPause').textContent = '▶'; };
   v.onloadedmetadata = function() {
     hideTuning();
     if (v.videoWidth && v.videoHeight) {
       $('player-res').textContent = v.videoWidth + 'x' + v.videoHeight;
     }
+    updateDurationDisplay(v);
   };
   v.ontimeupdate = function() {
     if (v.currentTime > 0) hideTuning();
+    updateProgressDisplay(v);
   };
   v.onerror = function() {
-    // Si el video fue limpiado o reseteado intencionalmente, ignorar error sintético
     if (!v.src || v.src === '' || v.src === window.location.href) return;
-    if (netcastObj && !c._triedNetcast && (typeof netcastObj.play === 'function' || (navigator.userAgent && (navigator.userAgent.indexOf('NetCast') !== -1 || navigator.userAgent.indexOf('LG') !== -1)))) {
+    var ua = navigator.userAgent || '';
+    var isLegacyNetcast = (ua.indexOf('NetCast') !== -1 && ua.indexOf('Web0S') === -1 && ua.indexOf('webOS') === -1);
+    if (isLegacyNetcast && netcastObj && !c._triedNetcast && typeof netcastObj.play === 'function') {
       console.log('HTML5 error, conmutando a NetCast...');
       startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c);
     } else {
       hideTuning();
-      showToast('Error cargando señal.');
+      showToast('Error cargando video.');
     }
   };
 
@@ -2571,14 +2639,19 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c) {
     state.hlsInstance.loadSource(playUrl);
     state.hlsInstance.attachMedia(v);
     state.hlsInstance.on(Hls.Events.MANIFEST_PARSED, function() {
-      try { v.play(); } catch(ePlay) {}
+      try {
+        var p = v.play();
+        if (p && typeof p.catch === 'function') p.catch(function(e) {});
+      } catch(ePlay) {}
     });
     state.hlsInstance.on(Hls.Events.FRAG_BUFFERED, function() {
       hideTuning();
     });
     state.hlsInstance.on(Hls.Events.ERROR, function(evt, data) {
       if (data.fatal) {
-        if (netcastObj && !c._triedNetcast && typeof netcastObj.play === 'function') {
+        var ua = navigator.userAgent || '';
+        var isLegacyNetcast = (ua.indexOf('NetCast') !== -1 && ua.indexOf('Web0S') === -1 && ua.indexOf('webOS') === -1);
+        if (isLegacyNetcast && netcastObj && !c._triedNetcast && typeof netcastObj.play === 'function') {
           startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c);
         } else {
           hideTuning();
@@ -2587,8 +2660,18 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c) {
       }
     });
   } else {
+    // VOD / MP4 / MKV / TS directo
+    try { v.removeAttribute('crossorigin'); } catch (eCo) {}
     v.src = playUrl;
-    try { v.play(); } catch (e) {}
+    try {
+      v.load(); // Esencial en Smart TVs (LG webOS / Samsung Tizen) para refrescar el pipeline de video
+      var playPromise = v.play();
+      if (playPromise && typeof playPromise.catch === 'function') {
+        playPromise.catch(function(err) { console.warn('v.play error:', err); });
+      }
+    } catch (e) {
+      console.warn('Error al llamar v.play():', e);
+    }
   }
 
   // Watchdog de seguridad para HTML5
@@ -2669,7 +2752,22 @@ function handlePlayerNav(kc, eObj) {
     return;
   }
 
-  // 3. Si el HUD está oculto: ¡CUALQUIER TECLA LO DESPIERTA!
+  // 3. Botones de adelantar y retroceder (Rewind / Fast Forward)
+  var isRewind = (kc === 412 || kc === 69 || (eObj && eObj.key === 'MediaRewind'));
+  var isForward = (kc === 417 || kc === 72 || (eObj && eObj.key === 'MediaFastForward'));
+  if (isRewind || isForward) {
+    var v = $('video-el');
+    if (v && v.duration && isFinite(v.duration) && v.duration > 0) {
+      var step = isForward ? 30 : -15;
+      v.currentTime = Math.min(v.duration, Math.max(0, v.currentTime + step));
+      updateProgressDisplay(v);
+      showPlayerOverlay();
+      showToast((isForward ? '⏩ +30s' : '⏪ -15s') + ' (' + formatTime(v.currentTime) + ')');
+      return;
+    }
+  }
+
+  // 4. Si el HUD está oculto: ¡CUALQUIER TECLA LO DESPIERTA O NAVEGA VOD!
   if (!state.playerHudVisible) {
     if (kc === KEY.BACK || kc === KEY.BACKSPACE || kc === KEY.ESC || kc === KEY.TIZEN_BACK || kc === KEY.STOP) {
       stopPlayer();
@@ -2678,6 +2776,24 @@ function handlePlayerNav(kc, eObj) {
     if (kc === KEY.BLUE || kc === KEY.BLUE_SAMSUNG || kc === 66) {
       openChannelDrawer();
       return;
+    }
+    // Si es VOD y presiona LEFT / RIGHT, adelantar / retroceder inmediatamente:
+    var v = $('video-el');
+    if (v && v.duration && isFinite(v.duration) && v.duration > 0) {
+      if (kc === KEY.LEFT) {
+        v.currentTime = Math.max(0, v.currentTime - 10);
+        updateProgressDisplay(v);
+        showPlayerOverlay();
+        showToast('⏪ -10s (' + formatTime(v.currentTime) + ')');
+        return;
+      }
+      if (kc === KEY.RIGHT) {
+        v.currentTime = Math.min(v.duration, v.currentTime + 15);
+        updateProgressDisplay(v);
+        showPlayerOverlay();
+        showToast('⏩ +15s (' + formatTime(v.currentTime) + ')');
+        return;
+      }
     }
     // Despertar HUD con foco en la barra de canal / drawer inferior
     state.playerArea = 'bottom';
@@ -3127,6 +3243,23 @@ for (var pbi = 0; pbi < pBotBtns.length; pbi++) {
       };
     }
   })(pBotBtns[pbi], pbi);
+}
+
+var pBar = document.querySelector('.player-progress-bar');
+if (pBar) {
+  pBar.onclick = function(e) {
+    var ev = e || window.event;
+    if (ev && ev.stopPropagation) ev.stopPropagation();
+    var v = $('video-el');
+    if (v && v.duration && isFinite(v.duration) && v.duration > 0) {
+      var rect = this.getBoundingClientRect();
+      var clickX = (ev.clientX - rect.left);
+      var pct = Math.min(1, Math.max(0, clickX / rect.width));
+      v.currentTime = pct * v.duration;
+      updateProgressDisplay(v);
+      showPlayerOverlay();
+    }
+  };
 }
 
 var optRows = document.getElementsByClassName('opt-row');

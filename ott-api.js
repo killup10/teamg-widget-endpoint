@@ -373,6 +373,16 @@ async function handle(req, res, pathname, query, body) {
 }
 
 function handleStream(req, res, query) {
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204, {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+      'Access-Control-Allow-Headers': 'Range, Origin, Content-Type, Accept, User-Agent',
+      'Access-Control-Max-Age': '86400'
+    });
+    return res.end();
+  }
+
   const targetUrl = String(query.url || '').trim();
   if (!targetUrl || (targetUrl.indexOf('http://') !== 0 && targetUrl.indexOf('https://') !== 0)) {
     res.writeHead(400, { 'Content-Type': 'text/plain', 'Access-Control-Allow-Origin': '*' });
@@ -390,10 +400,11 @@ function handleStream(req, res, query) {
     headers['range'] = req.headers.range;
   }
 
-  const clientReq = mod.get(targetUrl, {
+  const clientReq = mod.request(targetUrl, {
+    method: req.method === 'HEAD' ? 'HEAD' : 'GET',
     headers,
     rejectUnauthorized: false,
-    timeout: 15000
+    timeout: 30000
   }, (upRes) => {
     upRes.on('error', (err) => {
       console.error('[StreamProxy Upstream Error]:', err.message);
@@ -401,6 +412,7 @@ function handleStream(req, res, query) {
     });
     if (upRes.statusCode >= 300 && upRes.statusCode < 400 && upRes.headers.location) {
       try {
+        upRes.resume();
         const { URL } = require('url');
         const redirectUrl = new URL(upRes.headers.location, targetUrl).href;
         return handleStream(req, res, { url: redirectUrl });
@@ -452,30 +464,51 @@ function handleStream(req, res, query) {
         res.writeHead(200, {
           'Content-Type': 'application/vnd.apple.mpegurl',
           'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'GET, OPTIONS',
+          'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+          'Access-Control-Allow-Headers': 'Range, Origin, Content-Type, Accept, User-Agent',
+          'Access-Control-Expose-Headers': 'Content-Length, Content-Range, Accept-Ranges',
           'Cache-Control': 'no-cache, no-store, must-revalidate'
         });
         res.end(rewritten);
       });
     } else {
-      let outContentType = 'video/mp2t';
-      if (contentType && contentType.indexOf('mpegurl') === -1) {
-        if (contentType.indexOf('m2ts') !== -1 || contentType.indexOf('mp2t') !== -1) {
-          outContentType = 'video/mp2t';
-        } else {
-          outContentType = contentType;
-        }
+      const lowerUrl = targetUrl.toLowerCase();
+      let outContentType = 'video/mp4';
+      if (lowerUrl.indexOf('.mkv') !== -1 || contentType.indexOf('matroska') !== -1) {
+        outContentType = 'video/x-matroska';
+      } else if (lowerUrl.indexOf('.mp4') !== -1 || contentType.indexOf('mp4') !== -1) {
+        outContentType = 'video/mp4';
+      } else if (lowerUrl.indexOf('.webm') !== -1 || contentType.indexOf('webm') !== -1) {
+        outContentType = 'video/webm';
+      } else if (lowerUrl.indexOf('.avi') !== -1 || contentType.indexOf('avi') !== -1) {
+        outContentType = 'video/x-msvideo';
+      } else if (lowerUrl.indexOf('.mov') !== -1 || contentType.indexOf('quicktime') !== -1) {
+        outContentType = 'video/quicktime';
+      } else if (lowerUrl.indexOf('.ts') !== -1 || lowerUrl.indexOf('.m2ts') !== -1 || contentType.indexOf('mp2t') !== -1) {
+        outContentType = 'video/mp2t';
+      } else if (contentType && contentType.indexOf('octet-stream') === -1 && contentType.indexOf('text/') === -1) {
+        outContentType = contentType;
       }
+
       const outHeaders = {
         'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, OPTIONS',
-        'Content-Type': outContentType
+        'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+        'Access-Control-Allow-Headers': 'Range, Origin, Content-Type, Accept, User-Agent',
+        'Access-Control-Expose-Headers': 'Content-Length, Content-Range, Accept-Ranges',
+        'Content-Type': outContentType,
+        'Accept-Ranges': 'bytes'
       };
       if (upRes.headers['content-length']) outHeaders['Content-Length'] = upRes.headers['content-length'];
       if (upRes.headers['content-range']) outHeaders['Content-Range'] = upRes.headers['content-range'];
-      if (upRes.headers['accept-ranges']) outHeaders['Accept-Ranges'] = upRes.headers['accept-ranges'];
+      if (upRes.headers['accept-ranges']) {
+        outHeaders['Accept-Ranges'] = upRes.headers['accept-ranges'];
+      }
 
       res.writeHead(upRes.statusCode || 200, outHeaders);
+      if (req.method === 'HEAD') {
+        upRes.resume();
+        return res.end();
+      }
       upRes.pipe(res);
     }
   });

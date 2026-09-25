@@ -132,8 +132,9 @@ const serveFile = (filePath, res) => {
 const server = http.createServer((req, res) => {
   // Configurar cabeceras CORS para todas las respuestas
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, x-admin-key');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Range, x-admin-key, User-Agent');
+  res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges');
 
   // Manejar peticiones pre-vuelo (OPTIONS)
   if (req.method === 'OPTIONS') {
@@ -210,7 +211,7 @@ const server = http.createServer((req, res) => {
     const startJson = isOtt
       ? {
           "name": "OTT TV",
-          "version": "2.4.4",
+          "version": "2.4.5",
           "parameter": "content:" + base + "/msx/ott.json?v=" + Date.now()
         }
       : {
@@ -231,7 +232,7 @@ const server = http.createServer((req, res) => {
     const base = baseOf(req);
     const ottContent = {
       "type": "list",
-      "headline": "OTT TV v2.4.4 [Reorder, Logo Upload & CH Fix]",
+      "headline": "OTT TV v2.4.5 [VOD .MP4 & .MKV Playback Fix]",
       "template": { "type": "default", "layout": "0,0,3,2", "imageFiller": "width-center" },
       "items": [
         {
