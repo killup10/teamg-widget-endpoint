@@ -232,7 +232,7 @@ const server = http.createServer((req, res) => {
     const base = baseOf(req);
     const ottContent = {
       "type": "list",
-      "headline": "OTT TV v2.4.8 [Control Tradicional, Buscador 🔍, Aspecto Real y Subtítulos MKV]",
+      "headline": "OTT TV v2.5.0 [Series Inteligente M3U, Series Hub y Drawer Fluido]",
       "template": { "type": "default", "layout": "0,0,3,2", "imageFiller": "width-center" },
       "items": [
         {
@@ -275,8 +275,17 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // APP 2: OTT TV (nueva, separada de TeamG). Start Parameter en MSX:
-  //   ott.teamg.store/ott   o   widget.teamg.store/ott
+  // Detección de navegador web (Chrome, Edge, Firefox, PC / móvil)
+  const acceptHeader = (req.headers.accept || '').toLowerCase();
+  const isBrowserHtml = acceptHeader.indexOf('text/html') !== -1;
+
+  // APP 2: Si un navegador web solicita /ott o /, le entregamos la aplicación HTML directamente
+  // para que pueda probarse en PC sin necesidad de escribir la ruta larga index.html
+  if (isBrowserHtml && (pathname === '/ott' || pathname === '/ott/')) {
+    const filePath = path.join(__dirname, 'ott', 'index.html');
+    return serveFile(filePath, res);
+  }
+
   if (pathname === '/ott' || pathname === '/ott/' || pathname === '/ott.json') {
     const ottJson = createOttJson(req);
     res.writeHead(200, {
@@ -295,16 +304,18 @@ const server = http.createServer((req, res) => {
     return serveFile(filePath, res);
   }
 
-  // *** LÓGICA CORREGIDA ***
-  // Si Media Station X pide la raíz del dominio ('/'), le damos el JSON.
-  // El teclado de MSX en TVs viejas no tiene "/", así que no se puede
-  // escribir "dominio/ott": el dominio ott.* responde la APP 2 en raíz.
-  // APP 1 TeamG en el resto de hosts (se mantiene intacta).
+  // *** LÓGICA DE RAÍZ ('/') ***
+  // Si un navegador web entra a ott.teamg.store/, le servimos la app web directamente
   if (pathname === '/') {
     const hostOnly = getHost(req).split(':')[0].toLowerCase();
-    const ottJson = hostOnly === 'ott.teamg.store' || hostOnly.indexOf('ott.') === 0
-      ? createOttJson(req)
-      : createWidgetJson(req);
+    const isOttHost = hostOnly === 'ott.teamg.store' || hostOnly.indexOf('ott.') === 0;
+
+    if (isBrowserHtml && isOttHost) {
+      const filePath = path.join(__dirname, 'ott', 'index.html');
+      return serveFile(filePath, res);
+    }
+
+    const ottJson = isOttHost ? createOttJson(req) : createWidgetJson(req);
     res.writeHead(200, {
       'Content-Type': 'application/json; charset=utf-8',
       'Cache-Control': 'no-cache, no-store, must-revalidate'
