@@ -501,14 +501,14 @@ body.theme-classic .tile.focused { border-color: #ff8800 !important; box-shadow:
 }
 
 .series-left {
-  width: 260px;
-  min-width: 260px;
+  width: 300px;
+  min-width: 300px;
   margin-right: 32px;
 }
 
 .series-poster-box {
-  width: 260px;
-  height: 380px;
+  width: 300px;
+  height: 440px;
   background: #000000;
   border-radius: 8px;
   overflow: hidden;
@@ -660,18 +660,18 @@ body.theme-classic .tile.focused { border-color: #ff8800 !important; box-shadow:
   display: -webkit-flex;
   flex-wrap: wrap;
   -webkit-flex-wrap: wrap;
-  max-height: 250px;
+  max-height: 48vh;
   overflow-y: auto;
   padding: 4px 0 16px 0;
 }
 
 .series-ep-tile {
-  width: 31%;
-  margin: 0 1.5% 8px 0;
+  width: 47.5%;
+  margin: 0 2% 10px 0;
   background: rgba(255, 255, 255, 0.05);
   border: 2px solid rgba(255, 255, 255, 0.1);
   border-radius: 6px;
-  padding: 8px 12px;
+  padding: 12px 16px;
   cursor: pointer;
   box-sizing: border-box;
 }
@@ -2260,6 +2260,15 @@ function updateSearchBanner() {
   }
 }
 
+// Lupa solo dentro de una playlist con contenido: ni en home de carpetas,
+// ni vacía, ni dentro del detalle de un título/serie.
+function updateSearchVisibility() {
+  var g = $('groupBtnSearch');
+  if (!g) return;
+  var show = (state.screen === 'playlists') && state.channels && state.channels.length > 0;
+  g.style.display = show ? '' : 'none';
+}
+
 function closeKeyboard(commit) {
   if (state.kbTargetField === 'search') {
     if (commit) {
@@ -3054,6 +3063,10 @@ function openSeriesDetail(s) {
   var view = $('view-series-detail');
   if (view) view.style.display = 'block';
 
+  // Ocultar la cuadrícula de atrás para que el detalle ocupe todo
+  var ca = $('content-area'); if (ca) ca.style.display = 'none';
+  var bt = $('bottom-tabs-bar'); if (bt) bt.style.display = 'none';
+
   $('seriesTitle').textContent = s.name;
   $('seriesGenre').textContent = s.group || 'Serie';
   $('seriesSeasonsCount').textContent = s.totalSeasons + (s.totalSeasons === 1 ? ' Temporada' : ' Temporadas');
@@ -3111,19 +3124,31 @@ function openSeriesDetail(s) {
   renderSeriesSeasons();
   renderSeriesEpisodes();
   updateSeriesFocus();
+  updateSearchVisibility();
 }
 
 function closeSeriesDetail() {
   var view = $('view-series-detail');
   if (view) view.style.display = 'none';
+  var ca = $('content-area'); if (ca) ca.style.display = '';
+  var bt = $('bottom-tabs-bar'); if (bt) bt.style.display = '';
   state.screen = 'playlists';
+  // Volver a la carpeta: re-render de su grilla y foco en contenido
+  if (state.channels && state.channels.length > 0) {
+    state.currentFocusArea = 'content';
+    if (typeof renderChannels === 'function') renderChannels();
+  }
   updateMainFocus(true);
+  updateSearchVisibility();
 }
 
+var trailerGen = 0; // Cada apertura/cierre invalida callbacks pendientes
 function openTrailerModal(title, optUrl) {
   var s = state.currentSeries;
   var sTitle = title || (s ? s.name : '');
   if (!sTitle) return;
+  trailerGen++;
+  var myGen = trailerGen;
 
   var directUrl = optUrl || (s && s.trailerUrl ? s.trailerUrl : '');
   var m = $('trailer-modal');
@@ -3136,24 +3161,27 @@ function openTrailerModal(title, optUrl) {
     if (ifr) { ifr.style.display = 'none'; ifr.src = ''; }
     if (vid) {
       vid.style.display = 'block';
+      vid.onerror = null;
       vid.src = directUrl;
       vid.onerror = function() {
+        if (myGen !== trailerGen) return; // modal ya cerrado: no reabrir
         console.log('Error en stream directo del trailer, recurriendo a YouTube...');
-        searchAndPlayYouTubeTrailer(sTitle, vid, ifr, m);
+        searchAndPlayYouTubeTrailer(sTitle, vid, ifr, m, myGen);
       };
-      try { vid.play(); } catch (vpErr) {}
+      try { var pr = vid.play(); if (pr && pr.catch) pr.catch(function(){}); } catch (vpErr) {}
     }
     if (m) m.style.display = 'block';
     state.screen = 'trailer';
     return;
   }
 
-  searchAndPlayYouTubeTrailer(sTitle, vid, ifr, m);
+  searchAndPlayYouTubeTrailer(sTitle, vid, ifr, m, myGen);
 }
 
-function searchAndPlayYouTubeTrailer(sTitle, vid, ifr, m) {
+function searchAndPlayYouTubeTrailer(sTitle, vid, ifr, m, myGen) {
   showToast('🎬 Buscando trailer oficial de ' + sTitle + '...');
   apiCall('GET', '/api/ott/trailer?q=' + encodeURIComponent(sTitle), null, function(status, res) {
+    if (myGen !== trailerGen) return; // el usuario ya cerró: ignorar
     if (status === 200 && res && res.ok && res.embedUrl) {
       if ($('trailerModalTitle')) $('trailerModalTitle').textContent = '🎬 Trailer Oficial: ' + sTitle;
       if (vid) { vid.style.display = 'none'; try { vid.pause(); } catch(e){} vid.src = ''; }
@@ -3171,10 +3199,17 @@ function searchAndPlayYouTubeTrailer(sTitle, vid, ifr, m) {
 }
 
 function closeTrailerModal() {
+  trailerGen++; // invalida búsquedas/errores en vuelo para que no reabran
   var ifr = $('trailerIframe');
   if (ifr) { ifr.src = ''; ifr.style.display = 'none'; }
   var vid = $('trailerVideo');
-  if (vid) { try { vid.pause(); } catch(e){} vid.src = ''; vid.style.display = 'none'; }
+  if (vid) {
+    vid.onerror = null; vid.onended = null;
+    try { vid.pause(); } catch(e){}
+    vid.removeAttribute('src');
+    try { vid.load(); } catch(e2){}
+    vid.style.display = 'none';
+  }
   var m = $('trailer-modal');
   if (m) m.style.display = 'none';
   if (state.currentSeries) {
@@ -3626,6 +3661,7 @@ function renderPlaylistsView() {
     area.innerHTML = '<div style="text-align: center; margin-top: 100px; font-size: 20px; color: #a5929c;">' +
       'Sin listas cargadas.<br><br>Presiona el icono Ajustes (⚙) arriba para vincular.</div>';
   }
+  updateSearchVisibility();
 }
 
 /* Barra de pestañas trapezoidales (Foto 4) */
@@ -4693,6 +4729,7 @@ function stopPlayer() {
     state.screen = 'playlists';
     updateMainFocus(false);
   }
+  updateSearchVisibility();
 }
 
 function handlePlayerNav(kc, eObj) {
@@ -5104,6 +5141,11 @@ function onGlobalKeyDown(e) {
       return;
     }
   } else if (state.screen === 'player') {
+    // Retroceder con lista abierta la cierra sin salir del canal (prioridad máxima)
+    if (isBackKey(kc, eObj) && isDrawerVisible()) {
+      closeChannelDrawer();
+      return;
+    }
     handlePlayerNav(kc, eObj);
   } else if (state.screen === 'series-detail') {
     handleSeriesDetailNav(kc, eObj);
@@ -5516,6 +5558,7 @@ $('btnPlayPause').onclick = function(e) {
 $('btnPlayerClose').onclick = function(e) {
   var ev = e || window.event;
   if (ev && ev.stopPropagation) ev.stopPropagation();
+  if (isDrawerVisible()) { closeChannelDrawer(); return; }
   stopPlayer();
 };
 
