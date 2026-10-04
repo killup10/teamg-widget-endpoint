@@ -409,7 +409,7 @@ function renderPlaylistEditor(a) {
   var showSeriesCover = isSeriesGroup(filteredChannels);
   var h = "<div class='editor-top-nav'>" +
     "<div class='breadcrumb'><a href='#' id='btnBackToPlaylists'>playlists</a> / <b>" + esc(CURRENT_PL.name) + "</b></div>" +
-    "<div><button class='act green' id='btnSaveWholePlaylist'>💾 Guardar Cambios en Servidor</button></div>" +
+    "<div><button class='act' id='btnDownloadPlaylist'>Descargar M3U</button><button class='act' id='btnSyncSource'>Actualizar desde fuente</button><button class='act green' id='btnSaveWholePlaylist'>💾 Guardar Cambios en Servidor</button></div>" +
     "</div>";
 
   h += "<div class='editor-layout'>";
@@ -494,6 +494,24 @@ function renderPlaylistEditor(a) {
 
   document.getElementById("btnSaveWholePlaylist").onclick = function() {
     savePlaylistToServer();
+  };
+
+  document.getElementById("btnDownloadPlaylist").onclick = function() {
+    api("/api/ott/admin/playlist/export", "POST", { id: CURRENT_PL.id }).then(function(res) {
+      var url = URL.createObjectURL(new Blob([res.content], { type: "audio/x-mpegurl;charset=utf-8" }));
+      var link = document.createElement("a"); link.href = url;
+      link.download = (res.name || "playlist").replace(/[\\/:*?"<>|]/g, "_") + ".m3u";
+      document.body.appendChild(link); link.click(); document.body.removeChild(link);
+      setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+    }).catch(function(err) { alert("No se pudo descargar: " + err.message); });
+  };
+  document.getElementById("btnSyncSource").onclick = function() {
+    var button = this; button.disabled = true; button.textContent = "Actualizando…";
+    api("/api/ott/admin/playlist/sync-source", "POST", { id: CURRENT_PL.id }).then(function(res) {
+      CURRENT_PL.channels = res.channels; CURRENT_PL.groups = res.groups;
+      if (CURRENT_PL.groups.indexOf(CURRENT_GROUP) < 0) CURRENT_GROUP = CURRENT_PL.groups[0] || "General";
+      render(); alert("Lista actualizada: " + res.added + " nuevos, " + res.updated + " enlaces actualizados. Se conservaron imágenes, nombres editados y contenido existente.");
+    }).catch(function(err) { button.disabled = false; button.textContent = "Actualizar desde fuente"; alert("No se pudo actualizar: " + err.message); });
   };
 
   document.getElementById("btnAddNewGroup").onclick = function() {

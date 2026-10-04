@@ -166,6 +166,31 @@ function parseM3uText(text) {
   return { channels, groups: Array.from(groupsSet).sort() };
 }
 
+function mergePlaylistSource(existing, incoming) {
+  const result = existing.map(c => ({ ...c }));
+  let added = 0, updated = 0;
+  const byUrl = new Map(), byName = new Map(), covers = new Map();
+  const key = c => String(c.group || '').trim().toLowerCase() + '\n' + String(c.name || '').trim().toLowerCase();
+  for (const c of result) {
+    if (c.url) byUrl.set(c.url, c);
+    const k = key(c); byName.set(k, byName.has(k) ? null : c);
+    if (c.seriesLogo || c.seriesPoster) covers.set(c.group, { seriesLogo: c.seriesLogo || '', seriesPoster: c.seriesPoster || '' });
+  }
+  for (const source of incoming) {
+    const old = byUrl.get(source.url) || byName.get(key(source));
+    if (old) {
+      if (old.url !== source.url) { old.url = source.url; updated++; }
+      if (!old.logo) old.logo = source.logo || '';
+      if (!old.seriesLogo) old.seriesLogo = source.seriesLogo || '';
+      if (!old.seriesPoster) old.seriesPoster = source.seriesPoster || '';
+    } else {
+      const c = { ...source, ...(covers.get(source.group) || {}) };
+      result.push(c); if (c.url) byUrl.set(c.url, c); byName.set(key(c), c); added++;
+    }
+  }
+  return { channels: result, added, updated };
+}
+
 function serializeChannelsToM3u(channels) {
   let m3u = '#EXTM3U\n';
   for (const c of (channels || [])) {
@@ -655,6 +680,26 @@ function fetchWithRedirects(targetUrl, options, maxRedirects, callback) {
       });
     }
 
+    if (sub === 'playlist/export' && req.method === 'POST') {
+      const pl = await cols.playlists.findOne({ _id: String(body.id || '') });
+      if (!pl) return json(res, 404, { ok: false, error: 'Lista no encontrada' });
+      const text = pl.customM3u || (pl.url ? await getCachedOrFetchText(pl.url, false) : '#EXTM3U\n');
+      return json(res, 200, { ok: true, name: pl.name, content: text });
+    }
+    if (sub === 'playlist/sync-source' && req.method === 'POST') {
+      const pl = await cols.playlists.findOne({ _id: String(body.id || '') });
+      if (!pl || !pl.url) return json(res, 400, { ok: false, error: 'La lista no tiene una fuente configurada' });
+      let source;
+      try { source = await getCachedOrFetchText(pl.url, true); }
+      catch (e) { return json(res, 502, { ok: false, error: 'No se pudo descargar la fuente' }); }
+      const incoming = parseM3uText(source).channels;
+      if (!incoming.length) return json(res, 400, { ok: false, error: 'La fuente no contiene canales válidos; no se modificó la lista' });
+      const merged = mergePlaylistSource(parseM3uText(pl.customM3u || source).channels, incoming);
+      const text = serializeChannelsToM3u(merged.channels);
+      await cols.playlists.updateOne({ _id: pl._id }, { $set: { customM3u: text, count: merged.channels.length, updatedAt: store.nowIso() } });
+      const parsed = parseM3uText(text);
+      return json(res, 200, { ok: true, channels: parsed.channels, groups: parsed.groups, added: merged.added, updated: merged.updated });
+    }
     if (sub === 'playlist/save-channels' && req.method === 'POST') {
       if (!body.id || !Array.isArray(body.channels)) return json(res, 400, { ok: false, error: 'id+channels' });
       const prevPl = await cols.playlists.findOne({ _id: String(body.id) });

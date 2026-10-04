@@ -232,7 +232,7 @@ const server = http.createServer((req, res) => {
     const base = baseOf(req);
     const ottContent = {
       "type": "list",
-      "headline": "OTT TV v2.5.16 — Diseño y controles NetCast",
+      "headline": "OTT TV v2.5.17 — Descargar y actualizar playlists",
       "template": { "type": "default", "layout": "0,0,3,2", "imageFiller": "width-center" },
       "items": [
         {
