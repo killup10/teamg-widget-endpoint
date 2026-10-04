@@ -1517,6 +1517,27 @@ body.theme-wine, body.theme-wine #app { background: #1c0b0b; }
 body.theme-wine #topbar { background: #1c0b0b; }
 #grid-scrollbar { top: 1vh !important; bottom: 9vh !important; }
 
+/* Valores de respaldo para WebKit antiguos sin unidades de viewport. */
+.home-overview { padding: 30px 24px; font-size: 20px; }
+.home-eyebrow { font-size: 18px; letter-spacing: 3px; }
+.home-overview h1 { font-size: 36px; margin: 16px 0; }
+.home-overview p { font-size: 22px; }
+.home-overview h2 { font-size: 22px; margin: 36px 0 16px; }
+.home-welcome { margin-top: 50px; padding: 30px 24px; font-size: 30px; }
+.home-preview-card img, .home-preview-placeholder { height: 108px; }
+.home-preview-placeholder { line-height: 108px; }
+.home-preview-card div { padding: 8px 4px; font-size: 18px; }
+/* Home ligero: sin vídeos, animaciones ni solicitudes de listas adicionales. */
+.home-overview { padding: 5vh 2vw; font-size: 2.6vh; }
+.home-eyebrow { color: #d989a3; font-size: 2.4vh; letter-spacing: 0.3vw; }
+.home-overview h1 { font-size: 5vh; font-weight: normal; margin: 2vh 0; }
+.home-overview p { color: #dccbd0; font-size: 2.8vh; }
+.home-overview h2 { font-size: 2.8vh; font-weight: normal; margin: 5vh 0 2vh; }
+.home-welcome { margin-top: 8vh; padding: 4vh 2vw; border-left: 4px solid #9c284e; background: #241116; font-size: 4vh; }
+.home-preview-card { display: inline-block; vertical-align: top; width: 16%; margin-right: 0.6%; background: #241116; }
+.home-preview-card img, .home-preview-placeholder { display: block; width: 100%; height: 15vh; object-fit: cover; }
+.home-preview-placeholder { text-align: center; line-height: 15vh; color: #d989a3; }
+.home-preview-card div { padding: 1vh 0.4vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 2.4vh; }
 </style>
 </head>
 <body>
@@ -1618,7 +1639,7 @@ body.theme-wine #topbar { background: #1c0b0b; }
         <h3>Información</h3>
         <p id="optDescText">Usa tu usuario y contraseña otorgados por el administrador para vincular este televisor y descargar tus listas.</p>
         <div style="margin-top:22px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.5.4 — HUD y categorías con OK
+          VERSIÓN: v2.5.5 — Vista previa y Home ligero
         </div>
       </div>
     </div>
@@ -3523,6 +3544,7 @@ function loadDirectM3u(url) {
 }
 
 function loadPlaylistContent(pl, forceFresh) {
+  state.homeLastPlaylist = pl;
   state.currentPlaylist = pl;
   state.currentPage = 0;
   if (!state._playlistCache) state._playlistCache = {};
@@ -3649,6 +3671,25 @@ function getTileDimensions() {
   return { tileH: exactTileH, thumbH: exactThumbH };
 }
 
+function renderHomeOverview(area) {
+  var last = state.homeLastPlaylist;
+  var cached = last && state._playlistCache && state._playlistCache[last.id];
+  var cards = '';
+  if (cached && cached.channels) {
+    var items = cached.channels.slice(0, 6);
+    for (var i = 0; i < items.length; i++) {
+      var src = resolveIconUrl(items[i].logo);
+      cards += '<div class="home-preview-card">' +
+        (src ? '<img src="' + escapeHtml(src) + '" onerror="this.style.display=\'none\';" />' : '<div class="home-preview-placeholder">TV</div>') +
+        '<div>' + escapeHtml(items[i].name) + '</div></div>';
+    }
+  }
+  area.innerHTML = '<div class="home-overview"><div class="home-eyebrow">TEAMG PLAY</div>' +
+    '<h1>Tu próxima película empieza aquí</h1><p>Elige un playlist abajo y pulsa OK para abrirlo.</p>' +
+    (cards ? '<h2>Última lista abierta · ' + escapeHtml(last.name) + '</h2><div class="home-preview-row">' + cards + '</div>' :
+    '<div class="home-welcome">Cine · Series · TV en vivo</div>') + '</div>';
+}
+
 function renderPlaylistsView() {
   var area = $('content-area');
   area.innerHTML = '';
@@ -3659,14 +3700,8 @@ function renderPlaylistsView() {
   } else if (state.playlists && state.playlists.length > 0) {
     $('screenTitle').textContent = 'Playlists';
     renderTabs();
-    for (var i = 0; i < state.playlists.length; i++) {
-      var d = document.createElement('div');
-      d.className = 'folder-tile';
-      d.innerHTML = '<div class="folder-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="#ffcc00" stroke="#d4a300" stroke-width="1.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></div><div class="folder-name">' + escapeHtml(state.playlists[i].name) + '</div><div class="folder-sub">OK para abrir</div>';
-      d.onclick = (function(pl) { return function() { loadPlaylistContent(pl); }; })(state.playlists[i]);
-      area.appendChild(d);
-    }
-    state.currentFocusArea = 'content';
+    renderHomeOverview(area);
+    state.currentFocusArea = 'tabs';
     state.tileIdx = 0;
     updateMainFocus();
   } else {
@@ -3962,7 +3997,7 @@ function goBackAction() {
     
     // Si estamos en Home en la barra superior, regresar el foco al contenido
     if (state.currentFocusArea === 'top') {
-      state.currentFocusArea = 'content';
+      state.currentFocusArea = 'tabs';
       state.tileIdx = 0;
       updateMainFocus(true);
       return;
@@ -4009,10 +4044,7 @@ function handleMainNav(kc, eObj) {
         state.topIconIdx = Math.min(3, state.topIconIdx + 1);
         updateMainFocus(false);
       } else if (kc === KEY.DOWN) {
-        if (totalTiles > 0) {
-          state.currentFocusArea = 'content';
-          state.tileIdx = 0;
-        } else if (totalTabs > 0) {
+        if (totalTabs > 0) {
           state.currentFocusArea = 'tabs';
         }
         updateMainFocus(true);
@@ -4189,8 +4221,12 @@ function switchCategoryTab(dir) {
     var cur = state.tabIdx || 0;
     var next = (cur + dir + allTabs.length) % allTabs.length;
     state.tabIdx = next;
+    state.currentGroup = allTabs[next].id;
     state.categoryConfirmed = false;
+    state.currentPage = 0;
+    state.tileIdx = 0;
     renderTabs();
+    renderChannels();
   }
 }
 
