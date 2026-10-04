@@ -1641,7 +1641,7 @@ body.theme-wine #topbar { background: #1c0b0b; }
         <h3>Información</h3>
         <p id="optDescText">Usa tu usuario y contraseña otorgados por el administrador para vincular este televisor y descargar tus listas.</p>
         <div style="margin-top:22px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.5.10 — Carátula personalizada de serie
+          VERSIÓN: v2.5.11 — Imágenes y carátulas actualizadas
         </div>
       </div>
     </div>
@@ -1848,6 +1848,10 @@ var API_BASE = (window.location && window.location.protocol && window.location.h
 function resolveIconUrl(url) {
   if (!url) return '';
   var u = String(url).trim();
+  if (/^https?:\/\/disney\.images\.edge\.bamgrid\.com\//i.test(u)) {
+    u = u.replace(/([?&])format=webp(?=&|$)/i, '$1format=jpeg');
+    u = u.replace(/([?&])width=\d+/i, '$1width=400');
+  }
   if (u.indexOf('/api/ott/icon/') !== -1) {
     var parts = u.split('/api/ott/icon/');
     return (API_BASE || '') + '/api/ott/icon/' + parts[1];
@@ -3681,6 +3685,35 @@ function getTileDimensions() {
   return { tileH: exactTileH, thumbH: exactThumbH };
 }
 
+function refreshRecentArtwork() {
+  var recent = state.recentContent || [];
+  var pl = state.currentPlaylist;
+  if (!pl) return;
+  var changed = false;
+  for (var i = 0; i < recent.length; i++) {
+    var entry = recent[i];
+    if (entry.playlistId !== pl.id) continue;
+    for (var j = 0; j < state.channels.length; j++) {
+      var c = state.channels[j];
+      if ((entry.seriesId && c.isSeries && c.id === entry.seriesId) ||
+          (!entry.seriesId && c.id === entry.id && c.name === entry.name)) {
+        var logo = c.logo || '';
+        if (c.isSeries) {
+          for (var k = 0; k < c.episodes.length; k++) {
+            if (c.episodes[k].season === entry.season && c.episodes[k].episode === entry.episode) {
+              logo = logo || c.episodes[k].logo || '';
+              break;
+            }
+          }
+        }
+        if (entry.logo !== logo) { entry.logo = logo; changed = true; }
+        break;
+      }
+    }
+  }
+  if (changed) try { localStorage.setItem('ott_recent_' + (state.auth.login || state.auth.deviceId || 'tv'), JSON.stringify(recent)); } catch (e) {}
+}
+
 function rememberRecentContent(c) {
   var pl = state.currentPlaylist;
   if (!pl || !pl.id || !c) return;
@@ -3895,6 +3928,7 @@ function renderTabs() {
 var PAGE_SIZE = 18;
 
 function renderChannels() {
+  refreshRecentArtwork();
   var area = $('content-area');
   area.innerHTML = '';
   var list = getFilteredChannels();

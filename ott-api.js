@@ -661,6 +661,7 @@ function fetchWithRedirects(targetUrl, options, maxRedirects, callback) {
       const hostHeader = (req && req.headers && req.headers['host']) ? req.headers['host'] : 'ott.teamg.store';
       const proto = (req.headers['x-forwarded-proto'] || 'https').split(',')[0].trim();
       const relUrl = '/api/ott/icon/' + iconId;
+      const fullUrl = proto + '://' + hostHeader + relUrl;
       return json(res, 200, { ok: true, url: fullUrl, relUrl: relUrl, id: iconId });
     }
 
