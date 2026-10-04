@@ -130,7 +130,9 @@ function parseM3uText(text) {
       const mSubs = ln.match(/sub-tracks="([^"]*)"/i);
       let subs = mSubs ? mSubs[1] : '';
 
-      current = { id: 'c_' + (chId++), name, logo, group, adult, subs };
+      const mSeriesLogo = ln.match(/series-logo="([^"]*)"/i);
+      const seriesLogo = mSeriesLogo ? mSeriesLogo[1] : '';
+      current = { id: 'c_' + (chId++), name, logo, seriesLogo, group, adult, subs };
       groupsSet.add(group);
     } else if (ln.indexOf('#EXTGRP:') === 0) {
       if (current) {
@@ -166,10 +168,11 @@ function serializeChannelsToM3u(channels) {
   let m3u = '#EXTM3U\n';
   for (const c of (channels || [])) {
     const logoAttr = c.logo ? ` tvg-logo="${c.logo}"` : '';
+    const seriesLogoAttr = c.seriesLogo ? ` series-logo="${String(c.seriesLogo).replace(/"/g, '%22').replace(/[\r\n]/g, '')}"` : '';
     const groupAttr = c.group ? ` group-title="${c.group}"` : '';
     const adultAttr = c.adult ? ' adult="1"' : '';
     const subAttr = c.subs ? ` sub-tracks="${c.subs}"` : '';
-    m3u += `#EXTINF:-1${logoAttr}${groupAttr}${adultAttr}${subAttr},${c.name}\n`;
+    m3u += `#EXTINF:-1${logoAttr}${seriesLogoAttr}${groupAttr}${adultAttr}${subAttr},${c.name}\n`;
     if (c.group) m3u += `#EXTGRP:${c.group}\n`;
     if (c.logo) m3u += `#EXTIMG:${c.logo}\n`;
     if (c.subs) m3u += `#EXTSUB:${c.subs}\n`;

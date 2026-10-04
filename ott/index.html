@@ -1641,7 +1641,7 @@ body.theme-wine #topbar { background: #1c0b0b; }
         <h3>Información</h3>
         <p id="optDescText">Usa tu usuario y contraseña otorgados por el administrador para vincular este televisor y descargar tus listas.</p>
         <div style="margin-top:22px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.5.7 — Último contenido y episodio
+          VERSIÓN: v2.5.8 — Carátula de serie
         </div>
       </div>
     </div>
@@ -2949,7 +2949,7 @@ function aggregateSeriesList(channels) {
           id: 'series_' + strHash(sKey),
           isSeries: true,
           name: sInfo.seriesTitle,
-          logo: c.logo || '',
+          logo: c.seriesLogo || c.logo || '',
           group: c.group || 'Series',
           extgrp: c.extgrp || '',
           seasons: {},
@@ -2963,7 +2963,8 @@ function aggregateSeriesList(channels) {
         result.push(sObj);
       }
       var s = seriesMap[sKey];
-      if (!s.logo && c.logo) s.logo = c.logo;
+      if (c.seriesLogo) s.logo = c.seriesLogo;
+      else if (!s.logo && c.logo) s.logo = c.logo;
       var sNum = sInfo.season || 1;
       if (!s.seasons[sNum]) {
         s.seasons[sNum] = [];
@@ -3010,6 +3011,7 @@ function aggregateSeriesList(channels) {
     if (matchedSeries) {
       matchedSeries.trailerUrl = tr.url;
       matchedSeries.trailerItem = tr.item;
+      if (tr.item.seriesLogo) matchedSeries.logo = tr.item.seriesLogo;
       if (!matchedSeries.logo && tr.item.logo) matchedSeries.logo = tr.item.logo;
     } else {
       // Buscar si pertenece a una película en result
@@ -3035,7 +3037,7 @@ function aggregateSeriesList(channels) {
             id: 'series_' + strHash(orphanKey),
             isSeries: true,
             name: cleanName || 'Estreno',
-            logo: tr.item.logo || '',
+            logo: tr.item.seriesLogo || tr.item.logo || '',
             group: tr.item.group || 'Series',
             extgrp: tr.item.extgrp || '',
             seasons: {},
@@ -3481,7 +3483,9 @@ function parseM3U(text) {
       var mLogo = ln.match(/tvg-logo="([^"]*)"/i); if (mLogo) logo = resolveIconUrl(mLogo[1]);
       var mGroup = ln.match(/group-title="([^"]*)"/i); if (mGroup && mGroup[1].trim()) group = mGroup[1].trim();
       var mSubs = ln.match(/sub-tracks="([^"]*)"/i); if (mSubs) subs = mSubs[1];
-      meta = { name: name, logo: logo, group: group, subs: subs, extgrp: '', id: 'ch-' + i };
+      var mSeriesLogo = ln.match(/series-logo="([^"]*)"/i);
+      var seriesLogo = mSeriesLogo ? resolveIconUrl(mSeriesLogo[1]) : '';
+      meta = { name: name, seriesLogo: seriesLogo, logo: logo, group: group, subs: subs, extgrp: '', id: 'ch-' + i };
     } else if (ln.indexOf('#EXTGRP:') === 0) {
       if (meta) {
         var grp = ln.replace('#EXTGRP:', '').trim();

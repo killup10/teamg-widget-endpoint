@@ -430,6 +430,12 @@ function renderPlaylistEditor(a) {
       "<input class='search-channels' id='chSearchInput' placeholder='Buscar en " + esc(CURRENT_GROUP) + "...' />" +
       "<span class='small' id='chCountText'>" + filteredChannels.length + " canales</span>" +
     "</div>" +
+    "<div style='padding:10px 0;display:flex;align-items:center;gap:10px;flex-wrap:wrap'>" +
+      "<label for='seriesCoverUrl'><b>Carátula de la serie</b></label>" +
+      "<input id='seriesCoverUrl' type='url' placeholder='https://dominio.com/caratula.jpg' value='" + esc(getGroupSeriesCover(CURRENT_GROUP)) + "' style='flex:1;min-width:220px;padding:9px;border:1px solid #ccc;border-radius:4px' />" +
+      "<button id='btnSaveSeriesCover' class='btn-create-channel'>Guardar carátula</button>" +
+      "<span class='small'>Se aplica a la serie de este grupo. Conserva las imágenes de episodios y trailer. Para quitarla, guarda el campo vacío.</span>" +
+    "</div>" +
     "<div class='channels-container " + (CURRENT_VIEW_MODE === "grid" ? "grid-view" : "") + "' id='channelsListContainer'>";
 
   if (!filteredChannels.length) {
@@ -476,6 +482,17 @@ function renderPlaylistEditor(a) {
         render();
       }
     }
+  };
+
+  document.getElementById("btnSaveSeriesCover").onclick = function() {
+    var cover = document.getElementById("seriesCoverUrl").value.trim();
+    if (cover && (!/^https?:\/\/[^\s"<>]+$/i.test(cover))) { alert("Ingresa una URL HTTP o HTTPS válida para la carátula."); return; }
+    var count = 0;
+    CURRENT_PL.channels.forEach(function(c) {
+      if (c.group === CURRENT_GROUP) { c.seriesLogo = cover; count++; }
+    });
+    if (!count) { alert("Añade primero un episodio o trailer a este grupo."); return; }
+    savePlaylistToServer();
   };
 
   var gItems = document.querySelectorAll("[data-group-select]");
@@ -672,6 +689,7 @@ function renderPlaylistEditor(a) {
       if (isNaN(srcGIdx) || !CURRENT_PL.channels[srcGIdx]) return;
       var targetGroup = this.getAttribute("data-group-select");
       if (targetGroup && CURRENT_PL.channels[srcGIdx].group !== targetGroup) {
+        CURRENT_PL.channels[srcGIdx].seriesLogo = getGroupSeriesCover(targetGroup);
         CURRENT_PL.channels[srcGIdx].group = targetGroup;
         savePlaylistToServer();
       }
@@ -867,12 +885,14 @@ document.getElementById("btnSaveChModal").onclick = function() {
       url: url,
       group: group,
       logo: logo,
+      seriesLogo: getGroupSeriesCover(group),
       subs: subs,
       adult: adult
     });
   } else {
     CURRENT_PL.channels[EDITING_CH_IDX].name = name;
     CURRENT_PL.channels[EDITING_CH_IDX].url = url;
+    if (CURRENT_PL.channels[EDITING_CH_IDX].group !== group) CURRENT_PL.channels[EDITING_CH_IDX].seriesLogo = getGroupSeriesCover(group);
     CURRENT_PL.channels[EDITING_CH_IDX].group = group;
     CURRENT_PL.channels[EDITING_CH_IDX].logo = logo;
     CURRENT_PL.channels[EDITING_CH_IDX].subs = subs;
@@ -882,6 +902,14 @@ document.getElementById("btnSaveChModal").onclick = function() {
   document.getElementById("modalChannelSetting").className = "modal";
   savePlaylistToServer();
 };
+
+function getGroupSeriesCover(group) {
+  for (var i = 0; i < CURRENT_PL.channels.length; i++) {
+    var ch = CURRENT_PL.channels[i];
+    if (ch.group === group && ch.seriesLogo) return ch.seriesLogo;
+  }
+  return '';
+}
 
 function savePlaylistToServer(silent) {
   api("/api/ott/admin/playlist/save-channels", "POST", {
