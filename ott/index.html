@@ -1660,7 +1660,7 @@ body.theme-wine #topbar { background: #1c0b0b; }
         <h3>Información</h3>
         <p id="optDescText">Usa tu usuario y contraseña otorgados por el administrador para vincular este televisor y descargar tus listas.</p>
         <div style="margin-top:22px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.5.17 — Descargar y actualizar playlists
+          VERSIÓN: v2.5.18 — Cambio de playlist sin bloqueos
         </div>
       </div>
     </div>
@@ -3576,7 +3576,7 @@ function parseM3U(text) {
 }
 
 function loadDirectM3u(url) {
-  showToast('Descargando lista externa...');
+  showToast('Cargando lista externa…');
   var xhr = new XMLHttpRequest();
   var called = false;
   function handleResult(status, text) {
@@ -3616,6 +3616,21 @@ function loadDirectM3u(url) {
 }
 
 function loadPlaylistContent(pl, forceFresh) {
+  var loadId = (state.playlistLoadId || 0) + 1;
+  state.playlistLoadId = loadId;
+  if (state.pendingRecentContent && state.pendingRecentContent.playlistId !== pl.id) state.pendingRecentContent = null;
+  state.screen = 'playlists';
+  state.currentSeries = null;
+  state.activeSeriesEpisodes = null;
+  state.activeSeriesEpIdx = 0;
+  state.channels = [];
+  state.groups = [];
+  state.currentGroup = '__all';
+  state.searchQuery = '';
+  state.categoryConfirmed = false;
+  state.currentFocusArea = 'tabs';
+  state.tabIdx = 0;
+  restorePlaylistSurface();
   state.homeLastPlaylist = pl;
   state.currentPlaylist = pl;
   state.currentPage = 0;
@@ -3634,19 +3649,23 @@ function loadPlaylistContent(pl, forceFresh) {
       renderChannels();
       renderTabs();
       updateMainFocus(true);
-      showToast(state.channels.length + ' títulos (Turbo Caché).');
+      showToast(state.channels.length + ' títulos disponibles.');
       resolveRecentContent();
       return;
     }
   }
 
-  showToast('Descargando ' + pl.name + '...');
+  $('content-area').innerHTML = '<div style="padding:40px;font-size:24px">Cargando ' + escapeHtml(pl.name) + '…</div>';
+  renderTabs();
+  updateTopBar();
+  updateMainFocus(false);
+  showToast('Cargando ' + pl.name + '…');
   var cbParam = forceFresh ? ('&_cb=' + (new Date()).getTime()) : '';
   var murl = (API_BASE || '') + '/api/ott/m3u?token=' + encodeURIComponent(state.auth.token) + '&deviceId=' + encodeURIComponent(state.auth.deviceId) + '&pid=' + encodeURIComponent(pl.id) + cbParam;
   var xhr = new XMLHttpRequest();
   var called = false;
   function handleResult(status, text) {
-    if (called) return;
+    if (called || state.playlistLoadId !== loadId) return;
     called = true;
     if (status === 200 && text) {
       state._m3uRetries = 0;
@@ -3671,7 +3690,7 @@ function loadPlaylistContent(pl, forceFresh) {
       if (state._m3uRetries < 3) {
         state._m3uRetries++;
         showToast('Conectando con playlist (' + state._m3uRetries + '/3)...');
-        setTimeout(function() { loadPlaylistContent(pl, forceFresh); }, 3500);
+        setTimeout(function() { if (state.playlistLoadId === loadId) loadPlaylistContent(pl, forceFresh); }, 3500);
         return;
       }
       state._m3uRetries = 0;
@@ -3876,7 +3895,16 @@ function renderHomeOverview(area) {
   var track = $('grid-scrollbar'); if (track) track.style.display = 'none';
 }
 
+function restorePlaylistSurface() {
+  $('view-series-detail').style.display = 'none';
+  $('view-playlists').style.display = 'block';
+  $('content-area').style.display = '';
+  $('bottom-tabs-bar').style.display = '';
+  updateSearchBanner();
+}
+
 function renderPlaylistsView() {
+  restorePlaylistSurface();
   var area = $('content-area');
   area.innerHTML = '';
   
@@ -4177,6 +4205,10 @@ function goBackAction() {
         return;
       }
       // Si ya estamos en las pestañas ('tabs'), RETROCEDER regresa a la lista de Playlists (Home)
+      state.playlistLoadId = (state.playlistLoadId || 0) + 1;
+      state.pendingRecentContent = null;
+      state.currentSeries = null;
+      state.activeSeriesEpisodes = null;
       state.channels = [];
       state.currentPlaylist = null;
       state.currentGroup = '__all';
