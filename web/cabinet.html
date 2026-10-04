@@ -442,12 +442,15 @@ function renderPlaylistEditor(a) {
       "<input class='search-channels' id='chSearchInput' placeholder='Buscar título o canal' />" +
       "<span class='small' id='chCountText'>" + filteredChannels.length + " canales</span>" +
     "</div>" +
-    (showSeriesCover ? "<div style='padding:10px 0;display:flex;align-items:center;gap:10px;flex-wrap:wrap'>" +
-      "<label for='seriesCoverUrl'><b>Carátula de la serie</b></label>" +
+    (showSeriesCover ? "<details style='margin:10px 0;padding:12px;background:#fff;border:1px solid #ddd;border-radius:6px'><summary style='cursor:pointer;font-weight:bold'>🖼 Editar carátula de «" + esc(CURRENT_GROUP) + "»</summary><div style='padding:12px 0;display:flex;align-items:center;gap:10px;flex-wrap:wrap'>" +
+      "<label for='seriesCoverUrl'>Enlace de imagen</label>" +
       "<input id='seriesCoverUrl' type='url' placeholder='https://dominio.com/caratula.jpg' value='" + esc(getGroupSeriesCover(CURRENT_GROUP)) + "' style='flex:1;min-width:220px;padding:9px;border:1px solid #ccc;border-radius:4px' />" +
+      "<button type='button' id='btnUploadSeriesCover' class='btn-create-channel'>Subir imagen local</button><input type='file' id='seriesCoverFile' accept='image/png,image/jpeg,image/webp' style='display:none' />" +
+      "<button type='button' id='btnRemoveSeriesCover'>Quitar</button>" +
+      "<img id='seriesCoverPreview' alt='Vista previa de la carátula' src='" + esc(getGroupSeriesCover(CURRENT_GROUP)) + "' style='width:110px;height:140px;object-fit:contain;display:" + (getGroupSeriesCover(CURRENT_GROUP) ? "block" : "none") + "' onerror=\"this.style.display='none'\" />" +
       "<button id='btnSaveSeriesCover' class='btn-create-channel'>Guardar carátula</button>" +
-      "<span class='small'>Se aplica a la serie de este grupo. Conserva las imágenes de episodios y trailer. Para quitarla, guarda el campo vacío.</span>" +
-    "</div>" : "") +
+      "<span class='small'>Solo cambia la carátula de «" + esc(CURRENT_GROUP) + "». Sus episodios y trailer conservan sus propias imágenes. Pulsa Guardar carátula para publicar el cambio.</span>" +
+    "</div></details>" : "") +
     "<div class='channels-container " + (CURRENT_VIEW_MODE === "grid" ? "grid-view" : "") + "' id='channelsListContainer'>";
 
   if (!filteredChannels.length) {
@@ -496,7 +499,46 @@ function renderPlaylistEditor(a) {
     }
   };
 
+  var coverInput = document.getElementById("seriesCoverUrl");
+  var coverFile = document.getElementById("seriesCoverFile");
+  var coverPreview = document.getElementById("seriesCoverPreview");
   var seriesCoverButton = document.getElementById("btnSaveSeriesCover");
+  if (coverInput) {
+    function previewCover(url) {
+      coverPreview.style.display = url ? "block" : "none";
+      if (url) coverPreview.src = url;
+      else coverPreview.removeAttribute("src");
+    }
+    coverInput.oninput = function() { previewCover(this.value.trim()); };
+    document.getElementById("btnRemoveSeriesCover").onclick = function() { coverInput.value = ""; coverFile.value = ""; previewCover(""); };
+    var uploadButton = document.getElementById("btnUploadSeriesCover");
+    uploadButton.onclick = function() { coverFile.click(); };
+    coverFile.onchange = function() {
+      if (!this.files || !this.files[0]) return;
+      var file = this.files[0];
+      if (!/^image\/(png|jpeg|webp)$/.test(file.type)) { alert("Elige una imagen JPG, PNG o WebP."); return; }
+      if (file.size > 10 * 1024 * 1024) { alert("La imagen debe pesar menos de 10 MB."); return; }
+      seriesCoverButton.disabled = true;
+      uploadButton.disabled = true;
+      coverInput.disabled = true;
+      uploadButton.textContent = "Subiendo imagen…";
+      function finishUpload() {
+        seriesCoverButton.disabled = false;
+        uploadButton.disabled = false;
+        coverInput.disabled = false;
+        uploadButton.textContent = "Subir imagen local";
+      }
+      resizeImageForUpload(file, 400, 400, function(err, data) {
+        if (err || !data) { finishUpload(); alert("No se pudo procesar la imagen."); return; }
+        api("/api/ott/admin/upload-image", "POST", { data: data }).then(function(res) {
+          if (!res.url) throw new Error("El servidor no devolvió la imagen.");
+          coverInput.value = res.url;
+          previewCover(res.url);
+          finishUpload();
+        }).catch(function(err) { finishUpload(); alert("No se pudo subir la imagen: " + err.message); });
+      });
+    };
+  }
   if (seriesCoverButton) seriesCoverButton.onclick = function() {
     var cover = document.getElementById("seriesCoverUrl").value.trim();
     if (cover && (!/^https?:\/\/[^\s"<>]+$/i.test(cover))) { alert("Ingresa una URL HTTP o HTTPS válida para la carátula."); return; }
