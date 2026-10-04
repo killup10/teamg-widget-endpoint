@@ -31,9 +31,12 @@ def main():
     p.add_argument('--pending', default='.private-artwork/pending.json')
     p.add_argument('--token-file', default='.private-artwork/tmdb-token.txt')
     p.add_argument('--output', default='.private-artwork/tmdb-covers.json')
+    p.add_argument('--queries', default='.private-artwork/title-queries.json')
     args = p.parse_args()
     token = Path(args.token_file).read_text(encoding='utf-8-sig').strip()
     if not token: raise SystemExit('Falta el token TMDB')
+    queries_path = Path(args.queries)
+    queries = json.loads(queries_path.read_text(encoding='utf-8')) if queries_path.exists() else {}
     folder = Path('.private-artwork/tmdb-cache'); folder.mkdir(parents=True, exist_ok=True)
     def request(url, auth=False):
         headers = {'User-Agent':'TeamG-Artwork/1.0'}
@@ -54,6 +57,10 @@ def main():
         if key in seen: continue
         seen.add(key)
         query_title = re.sub(r'\s+(?:SUSPENSO|TERROR|COMEDIA|ROMANCE)\s*$', '', title, flags=re.I).strip()
+        reviewed_query = queries.get(item['name'])
+        if reviewed_query:
+            query_title = reviewed_query['query']
+            year = reviewed_query.get('year',year)
         params = {'query':query_title,'language':'es-ES','include_adult':'false'}
         if year: params['primary_release_year'] = year
         cache = folder / (hashlib.sha256((query_title + year).encode()).hexdigest() + '.json')
@@ -76,15 +83,18 @@ def main():
                     aliases = [r.get('title','') for r in details.get('alternative_titles',{}).get('titles',[])]
                     aliases.extend(r.get('data',{}).get('title','') for r in details.get('translations',{}).get('translations',[]))
                     if normalized(query_title) in [normalized(a) for a in aliases]: matches.append(candidate)
-            if len(matches) != 1 or not matches[0].get('backdrop_path'):
-                unresolved.append({'name':item['name'],'reason':'ambiguous-or-no-backdrop','candidates':[{'id':r['id'],'title':r.get('title'),'date':r.get('release_date')} for r in results.get('results',[])[:5]]})
+            if len(matches) != 1 or not (matches[0].get('backdrop_path') or matches[0].get('poster_path')):
+                unresolved.append({'name':item['name'],'reason':'ambiguous-or-no-image','candidates':[{'id':r['id'],'title':r.get('title'),'date':r.get('release_date')} for r in results.get('results',[])[:5]]})
                 continue
             movie = matches[0]
             jpg = folder / (str(movie['id']) + '.jpg')
             if not jpg.exists():
                 config = json.loads(request('https://api.themoviedb.org/3/configuration', True))['images']
-                size = 'w780' if 'w780' in config['backdrop_sizes'] else config['backdrop_sizes'][0]
-                raw = request(config['secure_base_url'] + size + movie['backdrop_path'])
+                backdrop = bool(movie.get('backdrop_path'))
+                sizes = config['backdrop_sizes' if backdrop else 'poster_sizes']
+                preferred = 'w780' if backdrop else 'w342'
+                size = preferred if preferred in sizes else sizes[0]
+                raw = request(config['secure_base_url'] + size + (movie.get('backdrop_path') or movie['poster_path']))
                 with Image.open(io.BytesIO(raw)) as original:
                     image = ImageOps.exif_transpose(original).convert('RGB')
                     image.thumbnail((400,225), Image.Resampling.LANCZOS)
@@ -93,7 +103,7 @@ def main():
                     canvas.save(jpg, quality=76, optimize=True)
             data = jpg.read_bytes()
             assets.append({'id':hashlib.sha256(data).hexdigest(),'keys':[key],'data':'data:image/jpeg;base64,'+base64.b64encode(data).decode()})
-            decisions.append({'name':item['name'],'tmdbId':movie['id'],'title':movie['title'],'year':year})
+            decisions.append({'name':item['name'],'tmdbId':movie['id'],'title':movie['title'],'year':year,'imageType':'backdrop' if movie.get('backdrop_path') else 'poster'})
         except (OSError, ValueError) as exc:
             # Do not include exception URLs or credential headers in the report.
             unresolved.append({'name':item['name'],'reason':type(exc).__name__})

@@ -24,7 +24,14 @@ Para completar desde TMDB:
 2. Guardar el JSON del cuadro «Títulos pendientes de carátula» en
    `.private-artwork/pending.json`.
 3. Ejecutar `complete-artwork-tmdb.py`. Usa título y año exactos, conserva
-   respuestas en caché y deja coincidencias ambiguas pendientes.
+   respuestas en caché y deja coincidencias ambiguas pendientes. Consulta también
+   traducciones y títulos alternativos oficiales. Si no hay fondo horizontal,
+   utiliza el póster oficial conservando su proporción sobre un cuadro horizontal.
+   Las variantes revisadas pueden indicarse en `.private-artwork/title-queries.json`
+   mediante objetos `{ "query": "Título oficial", "year": "2024" }` asociados al
+   nombre original de la lista. El año es opcional; nunca se cambia el título
+   publicado. Las variantes requieren revisión humana y no deben usarse para
+   resolver remakes ambiguos.
 4. Revisar el informe y las imágenes; importar `tmdb-covers.json` únicamente
    en la playlist correspondiente. No se modifican otras playlists.
 
