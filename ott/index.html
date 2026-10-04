@@ -1540,6 +1540,11 @@ body.theme-wine #topbar { background: #1c0b0b; }
 .home-preview-card div { padding: 1vh 0.4vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 2.4vh; }
 .home-preview-card { cursor: pointer; }
 .home-preview-card.focused { outline: 2px solid white; background: #61213b; }
+/* NetCast: reservar ancho y evitar que WebKit divida los controles en filas. */
+.topbar-right { width: 40%; white-space: nowrap; }
+.top-icons-row { width: 100%; white-space: nowrap; text-align: right; }
+.top-icon-group { white-space: nowrap; }
+.top-clock-text { white-space: nowrap; }
 </style>
 </head>
 <body>
@@ -1641,7 +1646,7 @@ body.theme-wine #topbar { background: #1c0b0b; }
         <h3>Información</h3>
         <p id="optDescText">Usa tu usuario y contraseña otorgados por el administrador para vincular este televisor y descargar tus listas.</p>
         <div style="margin-top:22px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.5.13 — Póster vertical y portada horizontal
+          VERSIÓN: v2.5.14 — Botones en una fila para NetCast
         </div>
       </div>
     </div>
