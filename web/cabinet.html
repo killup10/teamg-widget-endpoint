@@ -384,6 +384,17 @@ function loadPlaylistChannels(pObj) {
   });
 }
 
+function isSeriesGroup(channels) {
+  for (var i = 0; i < channels.length; i++) {
+    var name = channels[i].name || '';
+    if (/(?:^|[^a-z0-9])(?:s|t)\s*\d{1,3}\s*(?:e|ep|episodio)\s*\d{1,3}(?:[^0-9]|$)/i.test(name) ||
+        /(?:^|[^0-9])\d{1,3}\s*x\s*\d{1,3}(?:[^0-9]|$)/i.test(name) ||
+        /\b(?:temporada|season)\s*\d+.*\b(?:episodio|episode|cap[ií]tulo)\s*\d+/i.test(name) ||
+        /\b(?:episodio|episode|cap[ií]tulo)\s*\d+/i.test(name)) return true;
+  }
+  return false;
+}
+
 function renderPlaylistEditor(a) {
   var groupCounts = {};
   CURRENT_PL.groups.forEach(function(g) { groupCounts[g] = 0; });
@@ -395,6 +406,7 @@ function renderPlaylistEditor(a) {
     return c.group === CURRENT_GROUP;
   });
 
+  var showSeriesCover = isSeriesGroup(filteredChannels);
   var h = "<div class='editor-top-nav'>" +
     "<div class='breadcrumb'><a href='#' id='btnBackToPlaylists'>playlists</a> / <b>" + esc(CURRENT_PL.name) + "</b></div>" +
     "<div><button class='act green' id='btnSaveWholePlaylist'>💾 Guardar Cambios en Servidor</button></div>" +
@@ -427,15 +439,15 @@ function renderPlaylistEditor(a) {
         "<button class='view-mode-btn " + (CURRENT_VIEW_MODE === "list" ? "sel" : "") + "' id='btnViewModeList' title='Vista Lista'>☰</button>" +
         "<button class='view-mode-btn " + (CURRENT_VIEW_MODE === "grid" ? "sel" : "") + "' id='btnViewModeGrid' title='Vista Cuadrícula'>☷</button>" +
       "</div>" +
-      "<input class='search-channels' id='chSearchInput' placeholder='Buscar en " + esc(CURRENT_GROUP) + "...' />" +
+      "<input class='search-channels' id='chSearchInput' placeholder='Buscar título o canal' />" +
       "<span class='small' id='chCountText'>" + filteredChannels.length + " canales</span>" +
     "</div>" +
-    "<div style='padding:10px 0;display:flex;align-items:center;gap:10px;flex-wrap:wrap'>" +
+    (showSeriesCover ? "<div style='padding:10px 0;display:flex;align-items:center;gap:10px;flex-wrap:wrap'>" +
       "<label for='seriesCoverUrl'><b>Carátula de la serie</b></label>" +
       "<input id='seriesCoverUrl' type='url' placeholder='https://dominio.com/caratula.jpg' value='" + esc(getGroupSeriesCover(CURRENT_GROUP)) + "' style='flex:1;min-width:220px;padding:9px;border:1px solid #ccc;border-radius:4px' />" +
       "<button id='btnSaveSeriesCover' class='btn-create-channel'>Guardar carátula</button>" +
       "<span class='small'>Se aplica a la serie de este grupo. Conserva las imágenes de episodios y trailer. Para quitarla, guarda el campo vacío.</span>" +
-    "</div>" +
+    "</div>" : "") +
     "<div class='channels-container " + (CURRENT_VIEW_MODE === "grid" ? "grid-view" : "") + "' id='channelsListContainer'>";
 
   if (!filteredChannels.length) {
@@ -484,7 +496,8 @@ function renderPlaylistEditor(a) {
     }
   };
 
-  document.getElementById("btnSaveSeriesCover").onclick = function() {
+  var seriesCoverButton = document.getElementById("btnSaveSeriesCover");
+  if (seriesCoverButton) seriesCoverButton.onclick = function() {
     var cover = document.getElementById("seriesCoverUrl").value.trim();
     if (cover && (!/^https?:\/\/[^\s"<>]+$/i.test(cover))) { alert("Ingresa una URL HTTP o HTTPS válida para la carátula."); return; }
     var count = 0;
