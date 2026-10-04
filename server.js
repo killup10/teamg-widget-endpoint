@@ -68,13 +68,13 @@ const createOttJson = (req) => {
     "id": "com.ott.clone.tv",
     "name": "OTT TV",
     "description": "OTT TV - réplica estilo OTTPlayer: Series Hub, detección M3U inteligente y drawer fluido.",
-    "icon": base + "/ott/icon.png",
+    "icon": base + "/ott/logo-teamg.png",
     "homepage": appUrl,
     "app": {
       "type": "web",
       "title": "OTT TV",
       "url": appUrl,
-      "icon": base + "/ott/icon.png"
+      "icon": base + "/ott/logo-teamg.png"
     },
     "startup": {
       "url": appUrl
@@ -232,13 +232,13 @@ const server = http.createServer((req, res) => {
     const base = baseOf(req);
     const ottContent = {
       "type": "list",
-      "headline": "OTT TV v2.5.25 — Categorías inmersivas",
-      "template": { "type": "default", "layout": "0,0,3,2", "imageFiller": "width-center" },
+      "headline": "TeamG Play v2.5.26 — Logo TeamG y carátulas TMDB",
+      "template": { "type": "default", "layout": "0,0,3,2", "imageFiller": "contain" },
       "items": [
         {
-          "title": "Abrir OTT TV",
+          "title": "Abrir TeamG Play",
           "description": "Carga tu lista M3U y mira tus canales",
-          "image": base + "/ott/icon.png",
+          "image": base + "/ott/logo-teamg.png?v=2.5.26",
           "action": "link:" + base + "/ott/index.html?v=" + Date.now()
         }
       ]

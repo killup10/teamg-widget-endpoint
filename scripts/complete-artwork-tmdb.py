@@ -53,17 +53,29 @@ def main():
         title, year, key = identity(item['name'])
         if key in seen: continue
         seen.add(key)
-        params = {'query':title,'language':'es-ES','include_adult':'false'}
+        query_title = re.sub(r'\s+(?:SUSPENSO|TERROR|COMEDIA|ROMANCE)\s*$', '', title, flags=re.I).strip()
+        params = {'query':query_title,'language':'es-ES','include_adult':'false'}
         if year: params['primary_release_year'] = year
-        cache = folder / (hashlib.sha256((title + year).encode()).hexdigest() + '.json')
+        cache = folder / (hashlib.sha256((query_title + year).encode()).hexdigest() + '.json')
         try:
             if cache.exists(): results = json.loads(cache.read_text())
             else:
                 results = json.loads(request('https://api.themoviedb.org/3/search/movie?' + urllib.parse.urlencode(params), True))
                 cache.write_text(json.dumps(results), encoding='utf-8')
             matches = [r for r in results.get('results', [])
-                       if normalized(title) in (normalized(r.get('title','')), normalized(r.get('original_title','')))
+                       if normalized(query_title) in (normalized(r.get('title','')), normalized(r.get('original_title','')))
                        and (not year or r.get('release_date','')[:4] == year)]
+            if not matches:
+                for candidate in results.get('results', [])[:5]:
+                    if year and candidate.get('release_date','')[:4] != year: continue
+                    details_cache = folder / ('details-' + str(candidate['id']) + '.json')
+                    if details_cache.exists(): details = json.loads(details_cache.read_text(encoding='utf-8'))
+                    else:
+                        details = json.loads(request('https://api.themoviedb.org/3/movie/' + str(candidate['id']) + '?append_to_response=alternative_titles,translations', True))
+                        details_cache.write_text(json.dumps(details),encoding='utf-8')
+                    aliases = [r.get('title','') for r in details.get('alternative_titles',{}).get('titles',[])]
+                    aliases.extend(r.get('data',{}).get('title','') for r in details.get('translations',{}).get('translations',[]))
+                    if normalized(query_title) in [normalized(a) for a in aliases]: matches.append(candidate)
             if len(matches) != 1 or not matches[0].get('backdrop_path'):
                 unresolved.append({'name':item['name'],'reason':'ambiguous-or-no-backdrop','candidates':[{'id':r['id'],'title':r.get('title'),'date':r.get('release_date')} for r in results.get('results',[])[:5]]})
                 continue
