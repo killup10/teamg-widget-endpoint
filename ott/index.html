@@ -1660,7 +1660,7 @@ body.theme-wine #topbar { background: #1c0b0b; }
         <h3>Información</h3>
         <p id="optDescText">Usa tu usuario y contraseña otorgados por el administrador para vincular este televisor y descargar tus listas.</p>
         <div style="margin-top:22px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.5.19 — Reconexión y recuperación VOD
+          VERSIÓN: v2.5.20 — Reconexión solo por error y botones con OK
         </div>
       </div>
     </div>
@@ -4788,7 +4788,7 @@ function monitorPlaybackRecovery(cur, dur, v, netcastObj) {
     if (state.recoveryVod && !state.recoverySeek) state.recoveryPosition = cur;
     return;
   }
-  if (now - (state.recoveryLastTime || now) > 20000) recoverPlayback();
+  // Un reloj inmóvil no demuestra caída de señal en NetCast. Solo errores del motor reconectan.
 }
 
 function stopPlaybackTicker() {
@@ -5160,7 +5160,8 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c) {
           startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c);
         } else {
           hideTuning();
-          showToast('Error en stream HLS.');
+          showToast('La señal se interrumpió.');
+          recoverPlayback();
         }
       }
     });
@@ -5266,6 +5267,13 @@ function handlePlayerNav(kc, eObj) {
     return;
   }
 
+  if (kc === KEY.UP) {
+    state.playerArea = 'top';
+    state.playerTopIdx = 0;
+    showPlayerOverlay();
+    return;
+  }
+
   // 2. Cambio directo de canal con botones físicos del control remoto (CH+ / CH-): SIEMPRE ACTIVO
   // CH+ (subir): avanza al siguiente canal (ej. de 1 Latina a 2 CTV)
   // CH- (bajar): retrocede al canal anterior
@@ -5333,7 +5341,9 @@ function handlePlayerNav(kc, eObj) {
     }
     // Si presiona LEFT / RIGHT, adelantar / retroceder inmediatamente con indicador OSD:
     if (kc === KEY.LEFT || kc === KEY.RIGHT) {
-      seekRelative(kc === KEY.RIGHT ? 15 : -15);
+      state.playerArea = 'bottom';
+      state.playerBotIdx = kc === KEY.RIGHT ? 3 : 1;
+      showPlayerOverlay();
       return;
     }
     // Despertar HUD con foco en Play/Pause para evitar abrir el selector accidentalmente
@@ -5404,10 +5414,10 @@ function handlePlayerNav(kc, eObj) {
       }
     }
   } else if (state.playerArea === 'progress') {
-    if (kc === KEY.LEFT) {
-      seekRelative(-15);
-    } else if (kc === KEY.RIGHT) {
-      seekRelative(15);
+    if (kc === KEY.LEFT || kc === KEY.RIGHT) {
+      state.playerArea = 'bottom';
+      state.playerBotIdx = kc === KEY.RIGHT ? 3 : 1;
+      updatePlayerFocus();
     } else if (kc === KEY.UP) {
       state.playerArea = 'top';
       state.playerTopIdx = 0;
@@ -6113,7 +6123,7 @@ if (pContainerEl) {
       lastMouseMoveTime = now;
       if (!state.playerHudVisible && state.screen === 'player') {
         state.playerArea = 'bottom';
-        state.playerBotIdx = 1; // Play/Pause
+        state.playerBotIdx = 2; // Play/Pause
         showPlayerOverlay();
       } else if (state.playerHudVisible) {
         resetPlayerOverlayTimer();
@@ -6132,7 +6142,7 @@ if (pCatcherEl) {
       hidePlayerOverlay();
     } else {
       state.playerArea = 'bottom';
-      state.playerBotIdx = 1;
+      state.playerBotIdx = 2;
       showPlayerOverlay();
     }
   };
@@ -6151,7 +6161,7 @@ for (var pti = 0; pti < pTopBtns.length; pti++) {
     }
   })(pTopBtns[pti], pti);
 }
-var pBotBtns = [$('btnDrawerTrigger'), $('btnPlayPause')];
+var pBotBtns = [$('btnDrawerTrigger'), $('btnSeekRewind'), $('btnPlayPause'), $('btnSeekForward')];
 for (var pbi = 0; pbi < pBotBtns.length; pbi++) {
   (function(btn, idx) {
     if (btn) {
