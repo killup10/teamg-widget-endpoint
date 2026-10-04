@@ -1538,6 +1538,8 @@ body.theme-wine #topbar { background: #1c0b0b; }
 .home-preview-card img, .home-preview-placeholder { display: block; width: 100%; height: 15vh; object-fit: cover; }
 .home-preview-placeholder { text-align: center; line-height: 15vh; color: #d989a3; }
 .home-preview-card div { padding: 1vh 0.4vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 2.4vh; }
+.home-preview-card { cursor: pointer; }
+.home-preview-card.focused { outline: 2px solid white; background: #61213b; }
 </style>
 </head>
 <body>
@@ -1639,7 +1641,7 @@ body.theme-wine #topbar { background: #1c0b0b; }
         <h3>Información</h3>
         <p id="optDescText">Usa tu usuario y contraseña otorgados por el administrador para vincular este televisor y descargar tus listas.</p>
         <div style="margin-top:22px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.5.6 — Vista previa, Home y Retroceder
+          VERSIÓN: v2.5.7 — Último contenido y episodio
         </div>
       </div>
     </div>
@@ -2165,6 +2167,8 @@ function loadStorage() {
   try {
     var rawAuth = localStorage.getItem('ott_auth');
     if (rawAuth) state.auth = JSON.parse(rawAuth);
+    var rawRecent = localStorage.getItem('ott_recent_' + (state.auth.login || state.auth.deviceId || 'tv'));
+    state.recentContent = rawRecent ? JSON.parse(rawRecent).slice(0, 6) : [];
     var rawFav = localStorage.getItem('ott_favs');
     if (rawFav) state.favorites = JSON.parse(rawFav);
   } catch (e) {}
@@ -3563,6 +3567,7 @@ function loadPlaylistContent(pl, forceFresh) {
       renderTabs();
       updateMainFocus(true);
       showToast(state.channels.length + ' títulos (Turbo Caché).');
+      resolveRecentContent();
       return;
     }
   }
@@ -3589,6 +3594,7 @@ function loadPlaylistContent(pl, forceFresh) {
       renderTabs();
       updateMainFocus(true);
       showToast(state.channels.length + ' títulos.');
+      resolveRecentContent();
     } else if (status === 401 && state.auth.login && state.auth.password) {
       showToast('Renovando acceso...');
       doSaveAndLogin();
@@ -3671,23 +3677,89 @@ function getTileDimensions() {
   return { tileH: exactTileH, thumbH: exactThumbH };
 }
 
-function renderHomeOverview(area) {
-  var last = state.homeLastPlaylist;
-  var cached = last && state._playlistCache && state._playlistCache[last.id];
-  var cards = '';
-  if (cached && cached.channels) {
-    var items = cached.channels.slice(0, 6);
-    for (var i = 0; i < items.length; i++) {
-      var src = resolveIconUrl(items[i].logo);
-      cards += '<div class="home-preview-card">' +
-        (src ? '<img src="' + escapeHtml(src) + '" onerror="this.style.display=\'none\';" />' : '<div class="home-preview-placeholder">TV</div>') +
-        '<div>' + escapeHtml(items[i].name) + '</div></div>';
+function rememberRecentContent(c) {
+  var pl = state.currentPlaylist;
+  if (!pl || !pl.id || !c) return;
+  var series = state.currentSeries;
+  var entry = { playlistId: pl.id, id: c.id, name: c.name, title: series ? series.name : c.name,
+    logo: (series && series.logo) || c.logo || '', seriesId: series ? series.id : '',
+    season: c.season || 0, episode: c.episode || 0 };
+  var recent = state.recentContent || [];
+  var next = [entry];
+  for (var i = 0; i < recent.length && next.length < 6; i++) {
+    var old = recent[i];
+    if (old.playlistId === entry.playlistId &&
+        (entry.seriesId ? old.seriesId === entry.seriesId : old.id === entry.id && old.name === entry.name)) continue;
+    next.push(old);
+  }
+  state.recentContent = next;
+  try { localStorage.setItem('ott_recent_' + (state.auth.login || state.auth.deviceId || 'tv'), JSON.stringify(next)); } catch (e) {}
+}
+
+function openRecentContent(idx) {
+  var entry = (state.recentContent || [])[idx];
+  if (!entry) return;
+  for (var i = 0; i < state.playlists.length; i++) {
+    if (state.playlists[i].id === entry.playlistId) {
+      state.pendingRecentContent = entry;
+      loadPlaylistContent(state.playlists[i]);
+      return;
     }
   }
+  showToast('Este playlist ya no está disponible.');
+}
+
+function resolveRecentContent() {
+  var entry = state.pendingRecentContent;
+  if (!entry) return;
+  state.pendingRecentContent = null;
+  state.categoryConfirmed = true;
+  for (var i = 0; i < state.channels.length; i++) {
+    var c = state.channels[i];
+    if (entry.seriesId && c.isSeries && c.id === entry.seriesId) {
+      for (var j = 0; j < c.episodes.length; j++) {
+        var ep = c.episodes[j];
+        if (ep.season === entry.season && ep.episode === entry.episode) {
+          openSeriesDetail(c);
+          playSeriesEpisode(c, ep);
+          return;
+        }
+      }
+    } else if (!entry.seriesId && c.id === entry.id && c.name === entry.name) {
+      state.currentSeries = null;
+      state.activeSeriesEpisodes = null;
+      state.currentFocusArea = 'content';
+      state.tileIdx = i % PAGE_SIZE;
+      state.currentPage = Math.floor(i / PAGE_SIZE);
+      renderChannels();
+      playChannelAt(i);
+      return;
+    }
+  }
+  state.categoryConfirmed = false;
+  state.currentFocusArea = 'tabs';
+  updateMainFocus(true);
+  showToast('Este contenido ya no está disponible en la lista.');
+}
+
+function renderHomeOverview(area) {
+  var items = state.recentContent || [];
+  var cards = '';
+  for (var i = 0; i < items.length && i < 6; i++) {
+    var src = resolveIconUrl(items[i].logo);
+    var label = items[i].title + (items[i].seriesId ? ' · ' + items[i].season + '×' + items[i].episode : '');
+    cards += '<div class="home-preview-card" id="recentContent' + i + '">' +
+      (src ? '<img src="' + escapeHtml(src) + '" onerror="this.style.display=\'none\';" />' : '<div class="home-preview-placeholder">TV</div>') +
+      '<div>' + escapeHtml(label) + '</div></div>';
+  }
   area.innerHTML = '<div class="home-overview"><div class="home-eyebrow">TEAMG PLAY</div>' +
-    '<h1>Tu próxima película empieza aquí</h1><p>Elige un playlist abajo y pulsa OK para abrirlo.</p>' +
-    (cards ? '<h2>Última lista abierta · ' + escapeHtml(last.name) + '</h2><div class="home-preview-row">' + cards + '</div>' :
+    '<h1>Tu próximo contenido empieza aquí</h1><p>Elige un playlist abajo o vuelve a tu último contenido.</p>' +
+    (cards ? '<h2>Último contenido abierto</h2><div class="home-preview-row">' + cards + '</div>' :
     '<div class="home-welcome">Cine · Series · TV en vivo</div>') + '</div>';
+  for (var j = 0; j < items.length && j < 6; j++) {
+    $('recentContent' + j).onclick = (function(idx) { return function() { openRecentContent(idx); }; })(j);
+  }
+  var track = $('grid-scrollbar'); if (track) track.style.display = 'none';
 }
 
 function renderPlaylistsView() {
@@ -3909,7 +3981,14 @@ function updateMainFocus(shouldScroll) {
 
   var isInside = (state.currentPlaylist || (state.channels && state.channels.length > 0));
   var targetEl = null;
-  if (state.currentFocusArea === 'top') {
+  if (state.currentFocusArea === 'recent' && !isInside) {
+    if (kc === KEY.LEFT) state.recentIdx = Math.max(0, (state.recentIdx || 0) - 1);
+    else if (kc === KEY.RIGHT) state.recentIdx = Math.min((state.recentContent || []).length - 1, (state.recentIdx || 0) + 1);
+    else if (kc === KEY.UP) state.currentFocusArea = 'top';
+    else if (kc === KEY.DOWN) state.currentFocusArea = 'tabs';
+    else if (kc === KEY.ENTER) { openRecentContent(state.recentIdx || 0); return; }
+    updateMainFocus(false);
+  } else if (state.currentFocusArea === 'top') {
     if (isInside) {
       targetEl = $('btnBackInside');
     } else {
@@ -3923,6 +4002,8 @@ function updateMainFocus(shouldScroll) {
     if (area && area.children && area.children[state.tileIdx]) {
       targetEl = area.children[state.tileIdx];
     }
+  } else if (state.currentFocusArea === 'recent') {
+    targetEl = $('recentContent' + (state.recentIdx || 0));
   } else if (state.currentFocusArea === 'tabs') {
     var bar = $('bottom-tabs-bar');
     if (bar && bar.children && bar.children[state.tabIdx]) {
@@ -3998,8 +4079,8 @@ function goBackAction() {
       return;
     }
     
-    // Si estamos en Home en la barra superior, regresar el foco al contenido
-    if (state.currentFocusArea === 'top') {
+    // En Home, Retroceder devuelve de los recientes o botones a los playlists.
+    if (state.currentFocusArea === 'top' || state.currentFocusArea === 'recent') {
       state.currentFocusArea = 'tabs';
       state.tileIdx = 0;
       updateMainFocus(true);
@@ -4151,7 +4232,7 @@ function handleMainNav(kc, eObj) {
     } else if (kc === KEY.UP) {
       // Regla OTTPlayer estricta: UP desde tabs NUNCA entra a los títulos directamente.
       // Sube a la barra superior (botón ↩ Volver o botones Home)
-      state.currentFocusArea = 'top';
+      state.currentFocusArea = (!isInside && (state.recentContent || []).length) ? 'recent' : 'top';
       state.topIconIdx = 0;
       updateMainFocus(true);
     } else if (kc === KEY.DOWN) {
@@ -4627,6 +4708,7 @@ function playItem(c) {
   if (nowTime - lastChannelChangeTime < 350) return;
   lastChannelChangeTime = nowTime;
   if (!c) return;
+  rememberRecentContent(c);
   
   // Limpiar completamente cualquier motor previo antes de iniciar nuevo canal
   cleanPlayerEngines();
