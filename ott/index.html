@@ -1491,6 +1491,32 @@ video::cue {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.8);
   -webkit-box-shadow: 0 4px 16px rgba(0, 0, 0, 0.8);
 }
+
+/* Proporciones del HUD de referencia, escaladas a la pantalla del televisor. */
+#topbar { height: 16.2vh; background: #1c0b0b; }
+.topbar-title { left: 2.5vw; top: 4vh; font-size: 3.4vh; font-weight: normal; letter-spacing: 0; }
+.topbar-right { right: 0.8vw; top: 1.7vh; }
+#topbar .round-icon-btn { width: 7.5vh !important; height: 7.5vh !important; line-height: 7vh !important; box-shadow: none; }
+#topbar .round-icon-btn svg { width: 4.7vh; height: 4.7vh; }
+.top-icon-group { margin-left: 1.2vw; }
+.btn-color-accent { width: 5vw; height: 0.55vh; margin-top: 1.2vh; box-shadow: none; }
+.top-clock-text { font-size: 3vh; border-top: 2px solid #eee; margin-top: 0.6vh; padding: 0.5vh 2vw 0 6vw; letter-spacing: 0; }
+#view-playlists { top: 16.2vh; }
+#content-area { bottom: 9vh; padding: 1vh 0.5vw 0; font-size: 0; }
+.tile-item { width: calc(16.666% - 0.4vw); height: 26.5vh; margin: 0 0.2vw 0.5vh; background: #241116; border-radius: 0; overflow: hidden; }
+.tile-thumb { height: 16.2vh; border-radius: 0; }
+.tile-thumb img { border-radius: 0; }
+.tile-num { font-size: 2.2vh; font-weight: normal; color: white; }
+.tile-title { font-size: 2.9vh; font-weight: normal; margin-top: 1vh; height: 3.8vh; line-height: 1.25; white-space: nowrap; display: block; word-break: normal; text-overflow: ellipsis; }
+.tile-item.focused .tile-thumb { box-shadow: none !important; -webkit-box-shadow: none !important; outline: none !important; }
+#bottom-tabs-bar { height: 9vh; padding-left: 0; border-top: 0; background: #1c0b0b; }
+.tab-skew { min-width: 19vw; max-width: 24vw; height: 9vh; line-height: 6.4vh; padding: 0 2vw; font-size: 3.4vh; font-weight: normal; color: white; border-right: 4px solid black; overflow: hidden; text-overflow: ellipsis; background: #241116; }
+.tab-skew span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; vertical-align: top; }
+.tab-skew.active { font-weight: normal; }
+body.theme-wine, body.theme-wine #app { background: #1c0b0b; }
+body.theme-wine #topbar { background: #1c0b0b; }
+#grid-scrollbar { top: 1vh !important; bottom: 9vh !important; }
+
 </style>
 </head>
 <body>
@@ -1592,7 +1618,7 @@ video::cue {
         <h3>Información</h3>
         <p id="optDescText">Usa tu usuario y contraseña otorgados por el administrador para vincular este televisor y descargar tus listas.</p>
         <div style="margin-top:22px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.5.3 [HUD OTTPlayer Fiel: Tabs Seguros, Foco Azul, Grilla 6 Col &amp; Sin 3x6]
+          VERSIÓN: v2.5.4 — HUD y categorías con OK
         </div>
       </div>
     </div>
@@ -1916,6 +1942,7 @@ function isDrawerVisible() {
    ========================================================================== */
 var state = {
   screen: 'playlists', // 'playlists', 'options', 'keyboard', 'device', 'player', 'series-detail'
+  categoryConfirmed: false,
   currentFocusArea: 'tabs', // 'top', 'content', 'tabs'
   topIconIdx: 1, // 0: search, 1: refresh, 2: fav, 3: settings, 4: close
   tileIdx: 0,
@@ -3468,6 +3495,7 @@ function loadDirectM3u(url) {
       closeOptions();
       state.currentPlaylist = { name: 'M3U Directo' };
       state.currentGroup = '__all';
+      state.categoryConfirmed = false;
       state.currentFocusArea = 'tabs';
       state.tabIdx = 0;
       renderChannels();
@@ -3506,6 +3534,7 @@ function loadPlaylistContent(pl, forceFresh) {
       state.channels = cached.channels;
       state.groups = cached.groups;
       state.currentGroup = '__all';
+      state.categoryConfirmed = false;
       state.currentFocusArea = 'tabs';
       state.tabIdx = 0;
       renderChannels();
@@ -3530,6 +3559,7 @@ function loadPlaylistContent(pl, forceFresh) {
       buildGroups();
       state._playlistCache[pl.id] = { channels: state.channels, groups: state.groups, time: (new Date()).getTime() };
       state.currentGroup = '__all';
+      state.categoryConfirmed = false;
       state.currentPage = 0;
       state.currentFocusArea = 'tabs';
       state.tabIdx = 0;
@@ -3735,6 +3765,7 @@ function renderTabs() {
     t.innerHTML = '<span>' + escapeHtml(allTabs[j].name) + '</span>';
     t.onclick = (function(gid, idx) {
       return function() {
+        state.categoryConfirmed = true;
         state.currentGroup = gid;
         state.tabIdx = idx;
         state.currentPage = 0;
@@ -3800,6 +3831,7 @@ function renderChannels() {
       
     tile.onclick = (function(item, gIdx) {
       return function() {
+        if (!state.categoryConfirmed) return;
         if (item && item.isSeries) {
           openSeriesDetail(item);
         } else {
@@ -3911,7 +3943,8 @@ function goBackAction() {
     if (isInside) {
       // Si estamos en la cuadrícula de películas/canales ('content') o en la barra superior ('top'),
       // BACK regresa a la barra de categorías ('tabs') SIN salir de la carpeta o lista
-      if (state.currentFocusArea === 'content' || state.currentFocusArea === 'top') {
+      if (state.categoryConfirmed || state.currentFocusArea === 'content') {
+        state.categoryConfirmed = false;
         state.currentFocusArea = 'tabs';
         updateMainFocus(true);
         return;
@@ -3920,6 +3953,7 @@ function goBackAction() {
       state.channels = [];
       state.currentPlaylist = null;
       state.currentGroup = '__all';
+      state.categoryConfirmed = false;
       state.currentPage = 0;
       state.tabIdx = 0;
       renderPlaylistsView();
@@ -3960,7 +3994,7 @@ function handleMainNav(kc, eObj) {
   if (state.currentFocusArea === 'top') {
     if (isInside) {
       if (kc === KEY.DOWN) {
-        state.currentFocusArea = (totalTiles > 0) ? 'content' : 'tabs';
+        state.currentFocusArea = (state.categoryConfirmed && getFilteredChannels().length > 0) ? 'content' : 'tabs';
         state.tileIdx = 0;
         updateMainFocus(true);
       } else if (kc === KEY.ENTER) {
@@ -4095,7 +4129,14 @@ function handleMainNav(kc, eObj) {
           loadPlaylistContent(allHomeTabs[state.tabIdx].pl);
         }
       } else {
-        if (totalTiles > 0) {
+        var selectedTab = getTabsList()[state.tabIdx];
+        if (!selectedTab) return;
+        state.currentGroup = selectedTab.id;
+        state.categoryConfirmed = true;
+        state.currentPage = 0;
+        renderTabs();
+        renderChannels();
+        if (getFilteredChannels().length > 0) {
           state.currentFocusArea = 'content';
           state.tileIdx = 0;
           updateMainFocus(true);
@@ -4145,16 +4186,11 @@ function switchCategoryTab(dir) {
   } else {
     var allTabs = getTabsList();
     if (!allTabs.length) return;
-    var cur = 0;
-    for (var i = 0; i < allTabs.length; i++) {
-      if (allTabs[i].id === state.currentGroup) { cur = i; break; }
-    }
+    var cur = state.tabIdx || 0;
     var next = (cur + dir + allTabs.length) % allTabs.length;
-    state.currentGroup = allTabs[next].id;
     state.tabIdx = next;
-    state.currentPage = 0;
+    state.categoryConfirmed = false;
     renderTabs();
-    renderChannels();
   }
 }
 

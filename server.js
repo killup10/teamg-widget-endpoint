@@ -232,7 +232,7 @@ const server = http.createServer((req, res) => {
     const base = baseOf(req);
     const ottContent = {
       "type": "list",
-      "headline": "OTT TV v2.5.3 [HUD OTTPlayer Fiel: Tabs Seguros, Foco Azul, Grilla 6 Col & Sin 3x6]",
+      "headline": "OTT TV v2.5.4 — HUD y categorías con OK",
       "template": { "type": "default", "layout": "0,0,3,2", "imageFiller": "width-center" },
       "items": [
         {
