@@ -1639,7 +1639,7 @@ body.theme-wine #topbar { background: #1c0b0b; }
         <h3>Información</h3>
         <p id="optDescText">Usa tu usuario y contraseña otorgados por el administrador para vincular este televisor y descargar tus listas.</p>
         <div style="margin-top:22px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.5.5 — Vista previa y Home ligero
+          VERSIÓN: v2.5.6 — Vista previa, Home y Retroceder
         </div>
       </div>
     </div>
@@ -3976,6 +3976,9 @@ function goBackAction() {
     
     var isInside = (state.currentPlaylist || (state.channels && state.channels.length > 0));
     if (isInside) {
+      var backTime = (new Date()).getTime();
+      if (state.lastPlaylistBackTime && backTime - state.lastPlaylistBackTime < 350) return;
+      state.lastPlaylistBackTime = backTime;
       // Si estamos en la cuadrícula de películas/canales ('content') o en la barra superior ('top'),
       // BACK regresa a la barra de categorías ('tabs') SIN salir de la carpeta o lista
       if (state.categoryConfirmed || state.currentFocusArea === 'content') {
@@ -5297,6 +5300,10 @@ function onGlobalKeyDown(e) {
   var eObj = e || window.event;
   var kc = eObj.keyCode || eObj.which || 0;
   var now = (new Date()).getTime();
+  if (eObj.repeat && isBackKey(kc, eObj)) {
+    if (eObj.preventDefault) eObj.preventDefault();
+    return false;
+  }
 
   // Antirrebote estricto: ignorar repeticiones accidentales o duplicación de eventos de la TV dentro de 120ms
   if (kc === lastKeyCode && (now - lastKeyTime) < 120) {
@@ -5390,8 +5397,9 @@ if (gClose) {
   gClose.onclick = function() { goBackAction(); };
 }
 var bBackInside = $('btnBackInside');
+// El contenedor gestiona también los clics del botón: una sola acción por clic.
 if (bBackInside) {
-  bBackInside.onclick = function() { goBackAction(); };
+  bBackInside.onclick = null;
 }
 var gBackInside = $('groupBtnBackInside');
 if (gBackInside) {
