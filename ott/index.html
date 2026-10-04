@@ -87,9 +87,9 @@ html, body {
 
 .round-icon-btn {
   display: block;
-  width: 54px;
-  height: 54px;
-  line-height: 50px;
+  width: 44px;
+  height: 44px;
+  line-height: 40px;
   text-align: center;
   border-radius: 50%;
   background: #ffffff;
@@ -109,25 +109,30 @@ html, body {
   display: inline-block;
   vertical-align: middle;
   pointer-events: none;
-  width: 27px;
-  height: 27px;
+  width: 22px;
+  height: 22px;
 }
 
 .round-icon-btn.focused, .round-icon-btn:hover {
-  background: #ffcc00 !important;
+  background: #7d1b4a !important;
   border-color: #ffffff !important;
-  transform: scale(1.08);
-  -webkit-transform: scale(1.08);
-  box-shadow: 0 0 16px rgba(255, 204, 0, 0.9) !important;
-  -webkit-box-shadow: 0 0 16px rgba(255, 204, 0, 0.9) !important;
+  color: #ffffff !important;
+  transform: scale(1.06);
+  -webkit-transform: scale(1.06);
+  box-shadow: 0 0 12px rgba(125, 27, 74, 0.9) !important;
+  -webkit-box-shadow: 0 0 12px rgba(125, 27, 74, 0.9) !important;
+}
+
+.round-icon-btn.focused svg, .round-icon-btn:hover svg {
+  stroke: #ffffff !important;
 }
 
 /* Indicador de color exacto y perfectamente centrado bajo cada botón */
 .btn-color-accent {
-  width: 36px;
-  height: 5px;
-  margin: 4px auto 0 auto;
-  border-radius: 3px;
+  width: 32px;
+  height: 4px;
+  margin: 3px auto 0 auto;
+  border-radius: 2px;
 }
 .cs-blue { background: #0088ff; box-shadow: 0 0 6px rgba(0, 136, 255, 0.8); }
 .cs-red { background: #e52945; box-shadow: 0 0 6px rgba(229, 41, 69, 0.8); }
@@ -136,11 +141,11 @@ html, body {
 .cs-white { background: #ffffff; box-shadow: 0 0 6px rgba(255, 255, 255, 0.8); }
 
 .top-clock-text {
-  font-size: 13px;
-  color: #d8c8d0;
-  letter-spacing: 0.5px;
+  font-size: 14.5px;
+  color: #ffffff;
+  letter-spacing: 0.3px;
   font-weight: normal;
-  margin-top: 2px;
+  margin-top: 3px;
 }
 
 /* ==================== TEMAS DE COLOR (Wine, Dark, Blue, Classic) ==================== */
@@ -188,127 +193,104 @@ body.theme-classic .tile.focused { border-color: #ff8800 !important; box-shadow:
   text-align: left;
 }
 
-/* Cuadrícula de Canales: 3 filas x 6 columnas exactas (18 canales por pantalla) */
+/* Cuadrícula OTTPlayer exacta: 6 columnas x 3 filas (18 canales/películas por pantalla) */
 .tile-item {
   display: inline-block;
   vertical-align: top;
-  width: 16.1%;
-  margin: 3px 0.28%;
-  background: #1c0a14;
-  border: 2px solid #331222;
-  border-radius: 3px;
-  padding: 4px;
+  width: calc(16.666% - 8px);
+  margin: 0 4px 10px 4px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  padding: 0;
   position: relative;
-  height: 31.8%;
-  min-height: 140px;
   cursor: pointer;
   box-sizing: border-box;
   -webkit-box-sizing: border-box;
-  overflow: hidden;
-}
-
-.tile-item.focused {
-  background: #9c284e !important;
-  border-color: #ffcc00 !important;
-  z-index: 10;
-}
-
-.tile-num {
-  position: absolute;
-  top: 3px;
-  left: 6px;
-  font-size: 13px;
-  font-weight: bold;
-  color: #ffffff;
-  text-shadow: 1px 1px 2px #000000;
-  z-index: 2;
-}
-
-.tile-fav-mark {
-  position: absolute;
-  top: 3px;
-  right: 6px;
-  font-size: 13px;
-  color: #ffcc00;
-  z-index: 2;
-}
-
-.tile-series-badge {
-  position: absolute;
-  top: 3px;
-  right: 6px;
-  font-size: 10px;
-  font-weight: 900;
-  color: #000000;
-  background: #ffcc00;
-  padding: 1px 6px;
-  border-radius: 3px;
-  letter-spacing: 0.5px;
-  z-index: 3;
+  overflow: visible;
 }
 
 .tile-thumb {
   position: relative;
   width: 100%;
-  height: 100px;
+  height: 106px;
   background: #000000;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
   display: block;
-  text-align: center;
-  line-height: 100px;
-  color: #666;
-  font-size: 11px;
   overflow: hidden;
-  margin-top: 2px;
+  box-sizing: border-box;
 }
 
 .tile-thumb img {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
   display: block;
+  border-radius: 2px;
+}
+
+.tile-num {
+  position: absolute;
+  top: 1px;
+  left: 3px;
+  font-size: 13px;
+  font-weight: bold;
+  color: #ffe600;
+  text-shadow: 0 1px 2px #000000, 0 0 3px #000000;
+  z-index: 3;
+}
+
+.tile-fav-mark {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  font-size: 13px;
+  color: #ffcc00;
+  z-index: 3;
+}
+
+.tile-series-badge {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  font-size: 9px;
+  font-weight: 900;
+  color: #000000;
+  background: #ffe600;
+  padding: 1px 5px;
+  border-radius: 2px;
+  letter-spacing: 0.5px;
+  z-index: 3;
 }
 
 .tile-title {
-  font-size: 14px;
-  font-weight: bold;
-  margin-top: 6px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-size: 13.5px;
+  font-weight: 500;
+  margin-top: 5px;
   color: #ffffff;
-  text-align: center;
-  padding: 0 4px;
+  text-align: left;
+  padding: 0 2px;
+  line-height: 1.25;
+  height: 34px;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  text-overflow: ellipsis;
+  word-break: break-word;
+}
+
+/* Foco estilo OTTPlayer: borde azul nítido alrededor del thumbnail, sin pintar la tarjeta de fucsia */
+.tile-item.focused .tile-thumb {
+  border: 2px solid #2b5cff !important;
+  outline: 1px solid #3d7aff !important;
+  box-shadow: 0 0 12px rgba(43, 92, 255, 0.75) !important;
+  -webkit-box-shadow: 0 0 12px rgba(43, 92, 255, 0.75) !important;
 }
 
 .tile-item.focused .tile-title {
-  color: #ffcc00;
-}
-
-.tile-epg {
-  font-size: 12px;
-  color: #a5929c;
-  margin-top: 3px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  text-align: center;
-  padding: 0 4px;
-}
-
-.tile-bar {
-  height: 4px;
-  background: #2b0d1b;
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  overflow: hidden;
-}
-
-.tile-bar-fill {
-  height: 100%;
-  background: #e08868;
-  width: 45%;
+  color: #ffffff;
 }
 
 /* Carpetas de Playlists */
@@ -339,39 +321,39 @@ body.theme-classic .tile.focused { border-color: #ff8800 !important; box-shadow:
 .folder-name { font-size: 18px; font-weight: bold; color: #ffffff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .folder-sub { font-size: 12px; color: #a5929c; margin-top: 4px; }
 
-/* Barra inferior de pestañas trapezoidales (Foto 4) */
+/* Barra inferior de pestañas trapezoidales (Fotos 1 y 2) */
 #bottom-tabs-bar {
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
-  height: 48px;
+  height: 44px;
   background: #000000;
   overflow-x: auto;
   overflow-y: hidden;
   white-space: nowrap;
-  padding-left: 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-left: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
   z-index: 15;
 }
 
 .tab-skew {
   display: inline-block;
   vertical-align: top;
-  padding: 0 32px;
-  height: 48px;
-  line-height: 48px;
-  background: #14050d;
-  color: #c8b8c0;
-  font-size: 15px;
+  padding: 0 28px;
+  height: 44px;
+  line-height: 44px;
+  background: #14030d;
+  color: #d8c8d0;
+  font-size: 14.5px;
   font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
   transform: skewX(-20deg);
   -webkit-transform: skewX(-20deg);
-  margin-right: 4px;
+  margin-right: 3px;
   border: 0;
-  border-right: 1px solid rgba(0, 0, 0, 0.4);
+  border-right: 1px solid rgba(255, 255, 255, 0.14);
 }
 
 .tab-skew span {
@@ -381,14 +363,16 @@ body.theme-classic .tile.focused { border-color: #ff8800 !important; box-shadow:
 }
 
 .tab-skew.active {
-  background: #8a2542;
-  color: #ffffff;
+  background: #7d1b4a !important;
+  color: #ffffff !important;
   font-weight: bold;
 }
 
 .tab-skew.focused {
-  outline: 3px solid #ffffff;
+  outline: 2px solid #ffffff !important;
   outline-offset: -2px;
+  background: #9b225c !important;
+  color: #ffffff !important;
 }
 
 /* ==================== VISTA: OPTIONS / AJUSTES (Fotos 2 y 5) ==================== */
@@ -1512,43 +1496,51 @@ video::cue {
 <body>
 
 <div id="app">
-  <!-- BARRA SUPERIOR (Fotos 1 y 4) -->
+  <!-- BARRA SUPERIOR (Fotos 1 y 2) -->
   <div id="topbar">
-    <div class="topbar-title" id="screenTitle">Playlists</div>
+    <div style="display:inline-block; vertical-align:middle;">
+      <span class="topbar-title" id="screenTitle">Playlists</span>
+      <span class="topbar-title-x" id="btnTitleClear" style="display:none; vertical-align:middle; margin-left:14px; width:26px; height:26px; line-height:24px; border-radius:50%; background:#24242e; color:#888899; font-size:14px; text-align:center; cursor:pointer;" title="Limpiar">✕</span>
+    </div>
     <div class="topbar-right">
-      <div class="top-icons-row">
-        <div class="top-icon-group" id="groupBtnSearch" title="Buscar canal o título (Botón Azul)">
-          <div class="round-icon-btn" id="btnSearch"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
-          <div class="btn-color-accent cs-blue"></div>
-        </div>
-        <div class="top-icon-group" id="groupBtnRefresh" title="Actualizar lista y carátulas (Botón Rojo)">
-          <div class="round-icon-btn" id="btnRefresh"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></div>
+      <div class="top-icons-row" id="topIconsHome">
+        <div class="top-icon-group" id="groupBtnRefresh" title="Actualizar lista (Botón Rojo)">
+          <div class="round-icon-btn" id="btnRefresh"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></div>
           <div class="btn-color-accent cs-red"></div>
         </div>
-        <div class="top-icon-group" id="groupBtnFav" title="Favoritos (Botón Amarillo)">
-          <div class="round-icon-btn" id="btnFav"><svg width="24" height="24" viewBox="0 0 24 24" fill="#000000" stroke="#000000" stroke-width="1.1"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>
-          <div class="btn-color-accent cs-yellow"></div>
-        </div>
-        <div class="top-icon-group" id="groupBtnSettings" title="Opciones (Botón Verde)">
-          <div class="round-icon-btn" id="btnSettings"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></div>
+        <div class="top-icon-group" id="groupBtnEdit" title="Buscar / Editar (Botón Verde)">
+          <div class="round-icon-btn" id="btnEdit"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div>
           <div class="btn-color-accent cs-green"></div>
         </div>
-        <div class="top-icon-group" id="groupBtnClose" title="Volver a Home (Botón Retroceder)">
-          <div class="round-icon-btn" id="btnClose"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg></div>
+        <div class="top-icon-group" id="groupBtnSettings" title="Opciones (Botón Amarillo)">
+          <div class="round-icon-btn" id="btnSettings"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></div>
+          <div class="btn-color-accent cs-yellow"></div>
+        </div>
+        <div class="top-icon-group" id="groupBtnClose" title="Salir (Retroceder)">
+          <div class="round-icon-btn" id="btnClose"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
           <div class="btn-color-accent cs-white"></div>
         </div>
       </div>
-      <div class="top-clock-text" id="liveClock">Thursday 24 September &nbsp; 10:37:29</div>
+      <div class="top-icons-row" id="topIconsInside" style="display:none;">
+        <div class="top-icon-group" id="groupBtnBackInside" title="Volver a Categorías / Home (Retroceder)">
+          <div class="round-icon-btn" id="btnBackInside" style="width:44px; height:44px; line-height:40px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg></div>
+          <div class="btn-color-accent cs-white" style="opacity:0.4;"></div>
+        </div>
+      </div>
+      <div class="top-clock-text" id="liveClock">Sunday 4 October &nbsp; 10:48:23</div>
     </div>
   </div>
 
-  <!-- PANTALLA PRINCIPAL: PLAYLISTS / CANALES (Fotos 1 y 4) -->
+  <!-- PANTALLA PRINCIPAL: PLAYLISTS / CANALES (Fotos 1 y 2) -->
   <div id="view-playlists">
     <div id="search-banner">
       <span class="sb-label">🔍 Buscando: "<b id="searchQueryText"></b>" &nbsp; (<span id="searchResultCount">0</span> encontrados)</span>
       <div class="sb-clear-btn" id="btnSearchClear">✕ Borrar búsqueda</div>
     </div>
     <div id="content-area"></div>
+    <div id="grid-scrollbar" style="display:none; position:absolute; right:4px; top:6px; bottom:54px; width:3px; background:rgba(255,255,255,0.08); border-radius:2px; z-index:12;">
+      <div id="grid-scrollbar-thumb" style="position:absolute; width:100%; border-radius:2px; background:#ff7700; top:0; height:20%;"></div>
+    </div>
     <div id="bottom-tabs-bar"></div>
   </div>
 
@@ -1600,7 +1592,7 @@ video::cue {
         <h3>Información</h3>
         <p id="optDescText">Usa tu usuario y contraseña otorgados por el administrador para vincular este televisor y descargar tus listas.</p>
         <div style="margin-top:22px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.5.2 [Trailers Integrados en Series &amp; Sin Tarjetas Duplicadas]
+          VERSIÓN: v2.5.3 [HUD OTTPlayer Fiel: Tabs Seguros, Foco Azul, Grilla 6 Col &amp; Sin 3x6]
         </div>
       </div>
     </div>
@@ -3634,21 +3626,13 @@ function renderPlaylistsView() {
   if (state.channels.length > 0) {
     renderChannels();
     renderTabs();
-  } else if (state.playlists.length > 0) {
-    if (state.playlists.length === 1) {
-      loadPlaylistContent(state.playlists[0]);
-      return;
-    }
-    var dims = getTileDimensions();
-    $('screenTitle').textContent = 'Playlists (' + state.playlists.length + ') [3x6]';
-    $('bottom-tabs-bar').innerHTML = '';
+  } else if (state.playlists && state.playlists.length > 0) {
+    $('screenTitle').textContent = 'Playlists';
+    renderTabs();
     for (var i = 0; i < state.playlists.length; i++) {
       var d = document.createElement('div');
       d.className = 'folder-tile';
-      d.style.height = dims.tileH + 'px';
-      d.style.width = '16.1%';
-      d.style.margin = '3px 0.28%';
-      d.innerHTML = '<div class="folder-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="#ffcc00" stroke="#d4a300" stroke-width="1.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></div><div class="folder-name">' + state.playlists[i].name + '</div><div class="folder-sub">OK para abrir</div>';
+      d.innerHTML = '<div class="folder-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="#ffcc00" stroke="#d4a300" stroke-width="1.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></div><div class="folder-name">' + escapeHtml(state.playlists[i].name) + '</div><div class="folder-sub">OK para abrir</div>';
       d.onclick = (function(pl) { return function() { loadPlaylistContent(pl); }; })(state.playlists[i]);
       area.appendChild(d);
     }
@@ -3656,36 +3640,109 @@ function renderPlaylistsView() {
     state.tileIdx = 0;
     updateMainFocus();
   } else {
-    $('screenTitle').textContent = 'Playlists [3x6]';
+    $('screenTitle').textContent = 'Playlists';
     $('bottom-tabs-bar').innerHTML = '';
     area.innerHTML = '<div style="text-align: center; margin-top: 100px; font-size: 20px; color: #a5929c;">' +
       'Sin listas cargadas.<br><br>Presiona el icono Ajustes (⚙) arriba para vincular.</div>';
   }
   updateSearchVisibility();
+  updateTopBar();
 }
 
-/* Barra de pestañas trapezoidales (Foto 4) */
+function updateTopBar() {
+  var isInside = (state.currentPlaylist || (state.channels && state.channels.length > 0));
+  var homeBox = $('topIconsHome');
+  var insideBox = $('topIconsInside');
+  var clearBtn = $('btnTitleClear');
+  if (homeBox && insideBox) {
+    if (isInside) {
+      homeBox.style.display = 'none';
+      insideBox.style.display = 'inline-block';
+      if (clearBtn) clearBtn.style.display = state.searchQuery ? 'inline-block' : 'none';
+    } else {
+      homeBox.style.display = 'inline-block';
+      insideBox.style.display = 'none';
+      if (clearBtn) clearBtn.style.display = 'none';
+    }
+  }
+}
+
+function getHomeTabsList() {
+  var homeTabs = [{ id: '__fav', name: 'Favorites' }];
+  if (state.playlists) {
+    for (var p = 0; p < state.playlists.length; p++) {
+      homeTabs.push({ id: state.playlists[p].id, name: state.playlists[p].name, pl: state.playlists[p] });
+    }
+  }
+  return homeTabs;
+}
+
+function getTabsList() {
+  var allTabs = [
+    { id: '__all', name: 'All' }
+  ];
+  var hasFavs = false;
+  if (state.favorites) {
+    for (var i = 0; i < state.channels.length; i++) {
+      if (state.favorites[state.channels[i].id]) { hasFavs = true; break; }
+    }
+  }
+  if (hasFavs) {
+    allTabs.push({ id: '__fav', name: 'Favoritos' });
+  }
+  if (state.groups) {
+    for (var j = 0; j < state.groups.length; j++) {
+      allTabs.push({ id: state.groups[j], name: state.groups[j] });
+    }
+  }
+  return allTabs;
+}
+
+/* Barra de pestañas trapezoidales (Fotos 1 y 2) */
 function renderTabs() {
   var bar = $('bottom-tabs-bar');
+  if (!bar) return;
   bar.innerHTML = '';
-  var allTabs = [
-    { id: '__all', name: 'All' },
-    { id: '__fav', name: 'Favoritos' }
-  ];
-  for (var i = 0; i < state.groups.length; i++) {
-    allTabs.push({ id: state.groups[i], name: state.groups[i] });
+
+  var isInside = (state.currentPlaylist || (state.channels && state.channels.length > 0));
+  if (!isInside) {
+    var homeTabs = getHomeTabsList();
+    if (state.tabIdx >= homeTabs.length) state.tabIdx = 0;
+    for (var ht = 0; ht < homeTabs.length; ht++) {
+      var hTab = homeTabs[ht];
+      var hBtn = document.createElement('button');
+      var isAct = (state.tabIdx === ht);
+      hBtn.className = 'tab-skew' + (isAct ? ' active' : '');
+      hBtn.innerHTML = '<span>' + escapeHtml(hTab.name) + '</span>';
+      hBtn.onclick = (function(tabObj, idx) {
+        return function() {
+          state.tabIdx = idx;
+          if (tabObj.pl) {
+            loadPlaylistContent(tabObj.pl);
+          }
+        };
+      })(hTab, ht);
+      bar.appendChild(hBtn);
+    }
+    return;
   }
-  
+
+  var allTabs = getTabsList();
   for (var j = 0; j < allTabs.length; j++) {
     var t = document.createElement('button');
-    t.className = 'tab-skew' + (allTabs[j].id === state.currentGroup ? ' active' : '');
-    t.innerHTML = '<span>' + allTabs[j].name + '</span>';
+    var isSel = (allTabs[j].id === state.currentGroup);
+    t.className = 'tab-skew' + (isSel ? ' active' : '');
+    t.innerHTML = '<span>' + escapeHtml(allTabs[j].name) + '</span>';
     t.onclick = (function(gid, idx) {
       return function() {
         state.currentGroup = gid;
         state.tabIdx = idx;
+        state.currentPage = 0;
         renderTabs();
         renderChannels();
+        state.currentFocusArea = 'content';
+        state.tileIdx = 0;
+        updateMainFocus(true);
       };
     })(allTabs[j].id, j);
     bar.appendChild(t);
@@ -3705,18 +3762,17 @@ function renderChannels() {
   if (state.currentPage < 0) state.currentPage = 0;
 
   var title = state.currentPlaylist ? state.currentPlaylist.name : 'Canales';
-  if (state.currentGroup !== '__all' && state.currentGroup !== '__fav') {
-    title += ' - ' + state.currentGroup;
+  if (state.currentGroup && state.currentGroup !== '__all' && state.currentGroup !== '__fav') {
+    title = state.currentGroup;
   }
-  $('screenTitle').textContent = title + ' [3x6] (Pág ' + (state.currentPage + 1) + '/' + totalPages + ')';
+  $('screenTitle').textContent = title;
   
   if (list.length === 0) {
     area.innerHTML = '<div style="text-align: center; margin-top: 100px; font-size: 18px; color: #a5929c;">No hay canales en este grupo.</div>';
     return;
   }
 
-  var dims = getTileDimensions();
-  var fallbackSvg = '<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#555555" stroke-width="2" style="margin-top:16px;"><rect x="2" y="7" width="20" height="14" rx="2"/><polyline points="17 2 12 7 7 2"/></svg>';
+  var fallbackSvg = '<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#555555" stroke-width="2" style="margin-top:24px;"><rect x="2" y="7" width="20" height="14" rx="2"/><polyline points="17 2 12 7 7 2"/></svg>';
   var frag = document.createDocumentFragment();
 
   var startIdx = state.currentPage * PAGE_SIZE;
@@ -3727,25 +3783,20 @@ function renderChannels() {
     var globalIdx = startIdx + i;
     var tile = document.createElement('div');
     tile.className = 'tile-item';
-    tile.style.height = dims.tileH + 'px';
-    tile.style.width = '16.1%';
-    tile.style.margin = '3px 0.28%';
     
-    var favHtml = state.favorites[c.id] ? '<div class="tile-fav-mark"><svg width="14" height="14" viewBox="0 0 24 24" fill="#ffcc00"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>' : '';
+    var favHtml = state.favorites[c.id] ? '<div class="tile-fav-mark"><svg width="13" height="13" viewBox="0 0 24 24" fill="#ffcc00"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>' : '';
     var seriesBadge = c.isSeries ? '<div class="tile-series-badge">SERIE</div>' : '';
     
     var logoSrc = resolveIconUrl(c.logo);
     var thumbContent = logoSrc
-      ? '<img src="' + escapeHtml(logoSrc) + '" onerror="this.style.display=\'none\';" style="width:100%;height:100%;object-fit:contain;" />'
+      ? '<img src="' + escapeHtml(logoSrc) + '" onerror="this.style.display=\'none\';" />'
       : fallbackSvg;
 
-    var subText = c.isSeries ? (c.totalEpisodes + ' episodios' + (c.totalSeasons > 1 ? (' • ' + c.totalSeasons + ' temp') : '')) : (c.group || 'Canal');
-
-    tile.innerHTML = '<div class="tile-num">' + (globalIdx + 1) + '</div>' + favHtml + seriesBadge +
-      '<div class="tile-thumb" style="height:' + dims.thumbH + 'px; line-height:' + dims.thumbH + 'px;">' + thumbContent + '</div>' +
-      '<div class="tile-title">' + escapeHtml(c.name) + '</div>' +
-      '<div class="tile-epg">' + escapeHtml(subText) + '</div>' +
-      '<div class="tile-bar"><div class="tile-bar-fill"></div></div>';
+    tile.innerHTML = '<div class="tile-thumb">' +
+      '<div class="tile-num">' + (globalIdx + 1) + '</div>' +
+      favHtml + seriesBadge + thumbContent +
+      '</div>' +
+      '<div class="tile-title" title="' + escapeHtml(c.name) + '">' + escapeHtml(c.name) + '</div>';
       
     tile.onclick = (function(item, gIdx) {
       return function() {
@@ -3759,8 +3810,25 @@ function renderChannels() {
     frag.appendChild(tile);
   }
   area.appendChild(frag);
+
+  // Barra vertical de progreso de páginas en el extremo derecho (Foto 2)
+  var sbTrack = $('grid-scrollbar');
+  var sbThumb = $('grid-scrollbar-thumb');
+  if (sbTrack && sbThumb) {
+    if (totalPages > 1) {
+      sbTrack.style.display = 'block';
+      var thumbH = Math.max(16, Math.floor((1 / totalPages) * 100));
+      sbThumb.style.height = thumbH + '%';
+      var topPct = (state.currentPage / (totalPages - 1)) * (100 - thumbH);
+      sbThumb.style.top = topPct + '%';
+    } else {
+      sbTrack.style.display = 'none';
+    }
+  }
+
   if (state.tileIdx >= pageItems.length) state.tileIdx = Math.max(0, pageItems.length - 1);
   updateMainFocus();
+  updateTopBar();
 }
 
 /* ==========================================================================
@@ -3772,10 +3840,17 @@ function updateMainFocus(shouldScroll) {
     state.currentFocusedEl = null;
   }
 
+  var isInside = (state.currentPlaylist || (state.channels && state.channels.length > 0));
   var targetEl = null;
   if (state.currentFocusArea === 'top') {
-    var topBtns = [$('btnSearch'), $('btnRefresh'), $('btnFav'), $('btnSettings'), $('btnClose')];
-    targetEl = topBtns[state.topIconIdx];
+    if (isInside) {
+      targetEl = $('btnBackInside');
+    } else {
+      var topBtns = [$('btnRefresh'), $('btnEdit'), $('btnSettings'), $('btnClose')];
+      if (state.topIconIdx >= topBtns.length) state.topIconIdx = topBtns.length - 1;
+      if (state.topIconIdx < 0) state.topIconIdx = 0;
+      targetEl = topBtns[state.topIconIdx];
+    }
   } else if (state.currentFocusArea === 'content') {
     var area = $('content-area');
     if (area && area.children && area.children[state.tileIdx]) {
@@ -3831,19 +3906,34 @@ function goBackAction() {
       updateMainFocus(true);
       return;
     }
-    // Si estamos en la cuadrícula de canales/películas ('content'), BACK regresa a la barra de categorías ('tabs')
-    if (state.currentFocusArea === 'content') {
-      state.currentFocusArea = 'tabs';
-      updateMainFocus(true);
-      return;
-    }
-    // Si estamos en las categorías y hay múltiples playlists, regresar a la lista de playlists
-    if (state.channels.length > 0 && state.playlists && state.playlists.length > 1) {
+    
+    var isInside = (state.currentPlaylist || (state.channels && state.channels.length > 0));
+    if (isInside) {
+      // Si estamos en la cuadrícula de películas/canales ('content') o en la barra superior ('top'),
+      // BACK regresa a la barra de categorías ('tabs') SIN salir de la carpeta o lista
+      if (state.currentFocusArea === 'content' || state.currentFocusArea === 'top') {
+        state.currentFocusArea = 'tabs';
+        updateMainFocus(true);
+        return;
+      }
+      // Si ya estamos en las pestañas ('tabs'), RETROCEDER regresa a la lista de Playlists (Home)
       state.channels = [];
       state.currentPlaylist = null;
+      state.currentGroup = '__all';
+      state.currentPage = 0;
+      state.tabIdx = 0;
       renderPlaylistsView();
       return;
     }
+    
+    // Si estamos en Home en la barra superior, regresar el foco al contenido
+    if (state.currentFocusArea === 'top') {
+      state.currentFocusArea = 'content';
+      state.tileIdx = 0;
+      updateMainFocus(true);
+      return;
+    }
+
     // Si estamos en la raíz (Home): Confirmación de salida con doble Retroceder
     var now = (new Date()).getTime();
     if (!state.lastBackExitTime || (now - state.lastBackExitTime > 3000)) {
@@ -3864,43 +3954,46 @@ function handleMainNav(kc, eObj) {
   var totalTiles = (area && area.children) ? area.children.length : 0;
   var bar = $('bottom-tabs-bar');
   var totalTabs = (bar && bar.children) ? bar.children.length : 0;
-  var cols = 6; // 6 columnas por fila (Foto 1)
+  var cols = 6; // 6 columnas por fila (Foto 1 y 2)
+  var isInside = (state.currentPlaylist || (state.channels && state.channels.length > 0));
 
   if (state.currentFocusArea === 'top') {
-    if (kc === KEY.LEFT) {
-      state.topIconIdx = Math.max(0, state.topIconIdx - 1);
-      updateMainFocus(false);
-    } else if (kc === KEY.RIGHT) {
-      state.topIconIdx = Math.min(4, state.topIconIdx + 1);
-      updateMainFocus(false);
-    } else if (kc === KEY.DOWN) {
-      if (totalTiles > 0) {
-        state.currentFocusArea = 'content';
+    if (isInside) {
+      if (kc === KEY.DOWN) {
+        state.currentFocusArea = (totalTiles > 0) ? 'content' : 'tabs';
         state.tileIdx = 0;
-      } else if (totalTabs > 0) {
-        state.currentFocusArea = 'tabs';
-      }
-      updateMainFocus(true);
-    } else if (kc === KEY.ENTER) {
-      if (state.topIconIdx === 0) {
-        openSearch();
-      } else if (state.topIconIdx === 1) {
-        if (state.currentPlaylist) {
-          showToast('🔄 Actualizando lista y carátulas desde el servidor...');
-          loadPlaylistContent(state.currentPlaylist, true);
-        } else {
-          showToast('🔄 Actualizando playlists desde el servidor...');
-          fetchFeed();
-        }
-      } else if (state.topIconIdx === 2) {
-        state.currentGroup = (state.currentGroup === '__fav' ? '__all' : '__fav');
-        renderTabs();
-        renderChannels();
-      } else if (state.topIconIdx === 3) {
-        openOptions();
-      } else if (state.topIconIdx === 4) {
+        updateMainFocus(true);
+      } else if (kc === KEY.ENTER) {
         goBackAction();
         return;
+      }
+    } else {
+      if (kc === KEY.LEFT) {
+        state.topIconIdx = Math.max(0, state.topIconIdx - 1);
+        updateMainFocus(false);
+      } else if (kc === KEY.RIGHT) {
+        state.topIconIdx = Math.min(3, state.topIconIdx + 1);
+        updateMainFocus(false);
+      } else if (kc === KEY.DOWN) {
+        if (totalTiles > 0) {
+          state.currentFocusArea = 'content';
+          state.tileIdx = 0;
+        } else if (totalTabs > 0) {
+          state.currentFocusArea = 'tabs';
+        }
+        updateMainFocus(true);
+      } else if (kc === KEY.ENTER) {
+        if (state.topIconIdx === 0) {
+          showToast('🔄 Actualizando playlists desde el servidor...');
+          fetchFeed();
+        } else if (state.topIconIdx === 1) {
+          openSearch();
+        } else if (state.topIconIdx === 2) {
+          openOptions();
+        } else if (state.topIconIdx === 3) {
+          goBackAction();
+          return;
+        }
       }
     }
   } else if (state.currentFocusArea === 'content') {
@@ -3916,7 +4009,7 @@ function handleMainNav(kc, eObj) {
           updateMainFocus(true);
         } else {
           state.currentFocusArea = 'top';
-          state.topIconIdx = 3; // Focus en settings
+          state.topIconIdx = isInside ? 0 : 2;
           updateMainFocus(true);
         }
       } else {
@@ -3930,10 +4023,8 @@ function handleMainNav(kc, eObj) {
           renderChannels();
           state.tileIdx = Math.min(totalTiles - 1, state.tileIdx % cols);
           updateMainFocus(true);
-        } else if (totalTabs > 0) {
-          state.currentFocusArea = 'tabs';
-          updateMainFocus(true);
         }
+        // En la última fila, DOWN NO baja a tabs para evitar perder la posición accidentalmente
       } else {
         state.tileIdx = Math.min(totalTiles - 1, state.tileIdx + cols);
         updateMainFocus(true);
@@ -3982,32 +4073,33 @@ function handleMainNav(kc, eObj) {
       }
     }
   } else if (state.currentFocusArea === 'tabs') {
-    if (kc === KEY.UP) {
-      if (totalTiles > 0) {
-        state.currentFocusArea = 'content';
-        state.tileIdx = 0;
-        updateMainFocus(true);
-      } else {
-        state.currentFocusArea = 'top';
-        updateMainFocus(true);
-      }
-    } else if (kc === KEY.LEFT) {
+    if (kc === KEY.LEFT) {
       switchCategoryTab(-1);
       updateMainFocus(true);
     } else if (kc === KEY.RIGHT) {
       switchCategoryTab(1);
       updateMainFocus(true);
+    } else if (kc === KEY.UP) {
+      // Regla OTTPlayer estricta: UP desde tabs NUNCA entra a los títulos directamente.
+      // Sube a la barra superior (botón ↩ Volver o botones Home)
+      state.currentFocusArea = 'top';
+      state.topIconIdx = 0;
+      updateMainFocus(true);
     } else if (kc === KEY.DOWN) {
-      if (totalTiles > 0) {
-        state.currentFocusArea = 'content';
-        state.tileIdx = 0;
-        updateMainFocus(true);
-      }
+      // DOWN en tabs no hace nada, se mantiene en las pestañas
     } else if (kc === KEY.ENTER) {
-      if (totalTiles > 0) {
-        state.currentFocusArea = 'content';
-        state.tileIdx = 0;
-        updateMainFocus(true);
+      // ENTER CONFIRMA LA CATEGORÍA Y PROFUNDIZA A LA CUADRÍCULA DE TÍTULOS
+      if (!isInside) {
+        var allHomeTabs = getHomeTabsList();
+        if (allHomeTabs[state.tabIdx] && allHomeTabs[state.tabIdx].pl) {
+          loadPlaylistContent(allHomeTabs[state.tabIdx].pl);
+        }
+      } else {
+        if (totalTiles > 0) {
+          state.currentFocusArea = 'content';
+          state.tileIdx = 0;
+          updateMainFocus(true);
+        }
       }
     }
   }
@@ -4022,7 +4114,7 @@ function handleMainNav(kc, eObj) {
       fetchFeed();
     }
   } else if (isGreenKey(kc, eObj)) {
-    openOptions();
+    openSearch();
   } else if (isYellowKey(kc, eObj)) {
     // Alternar favorito
     var list = getFilteredChannels();
@@ -4034,7 +4126,7 @@ function handleMainNav(kc, eObj) {
       renderChannels();
     }
   } else if (isBlueKey(kc, eObj)) {
-    openSearch();
+    openOptions();
   } else if (isBackKey(kc, eObj)) {
     goBackAction();
     return;
@@ -4042,14 +4134,28 @@ function handleMainNav(kc, eObj) {
 }
 
 function switchCategoryTab(dir) {
-  var allTabs = ['__all', '__fav'].concat(state.groups);
-  var cur = allTabs.indexOf(state.currentGroup);
-  if (cur < 0) cur = 0;
-  var next = (cur + dir + allTabs.length) % allTabs.length;
-  state.currentGroup = allTabs[next];
-  state.tabIdx = next;
-  renderTabs();
-  renderChannels();
+  var isInside = (state.currentPlaylist || (state.channels && state.channels.length > 0));
+  if (!isInside) {
+    var hTabs = getHomeTabsList();
+    if (!hTabs.length) return;
+    var curH = state.tabIdx || 0;
+    var nextH = (curH + dir + hTabs.length) % hTabs.length;
+    state.tabIdx = nextH;
+    renderTabs();
+  } else {
+    var allTabs = getTabsList();
+    if (!allTabs.length) return;
+    var cur = 0;
+    for (var i = 0; i < allTabs.length; i++) {
+      if (allTabs[i].id === state.currentGroup) { cur = i; break; }
+    }
+    var next = (cur + dir + allTabs.length) % allTabs.length;
+    state.currentGroup = allTabs[next].id;
+    state.tabIdx = next;
+    state.currentPage = 0;
+    renderTabs();
+    renderChannels();
+  }
 }
 
 /* ==========================================================================
@@ -5183,10 +5289,6 @@ if (state.auth.token) {
 }
 
 // Clics directos para Magic Remote y Mouse
-var bSearch = $('btnSearch');
-if (bSearch) {
-  bSearch.onclick = function() { openSearch(); };
-}
 var bRefresh = $('btnRefresh');
 if (bRefresh) {
   bRefresh.onclick = function() {
@@ -5199,19 +5301,42 @@ if (bRefresh) {
     }
   };
 }
-$('btnFav').onclick = function() {
-  state.currentGroup = (state.currentGroup === '__fav' ? '__all' : '__fav');
-  renderTabs();
-  renderChannels();
-};
-$('btnSettings').onclick = function() { openOptions(); };
-$('btnClose').onclick = function() {
-  goBackAction();
-};
+var bEdit = $('btnEdit');
+if (bEdit) {
+  bEdit.onclick = function() { openSearch(); };
+}
+var bSettings = $('btnSettings');
+if (bSettings) {
+  bSettings.onclick = function() { openOptions(); };
+}
+var bClose = $('btnClose');
+if (bClose) {
+  bClose.onclick = function() { goBackAction(); };
+}
 var gClose = $('groupBtnClose');
 if (gClose) {
-  gClose.onclick = function() {
-    goBackAction();
+  gClose.onclick = function() { goBackAction(); };
+}
+var bBackInside = $('btnBackInside');
+if (bBackInside) {
+  bBackInside.onclick = function() { goBackAction(); };
+}
+var gBackInside = $('groupBtnBackInside');
+if (gBackInside) {
+  gBackInside.onclick = function() { goBackAction(); };
+}
+var bTitleClear = $('btnTitleClear');
+if (bTitleClear) {
+  bTitleClear.onclick = function() {
+    if (state.searchQuery) {
+      state.searchQuery = '';
+      state.currentPage = 0;
+      updateSearchBanner();
+      renderChannels();
+      updateMainFocus(true);
+    } else {
+      goBackAction();
+    }
   };
 }
 var bCloseTrailer = $('btnTrailerClose');
