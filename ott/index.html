@@ -1641,7 +1641,7 @@ body.theme-wine #topbar { background: #1c0b0b; }
         <h3>Información</h3>
         <p id="optDescText">Usa tu usuario y contraseña otorgados por el administrador para vincular este televisor y descargar tus listas.</p>
         <div style="margin-top:22px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.5.12 — Home seleccionable y búsqueda por playlist
+          VERSIÓN: v2.5.13 — Póster vertical y portada horizontal
         </div>
       </div>
     </div>
@@ -2963,6 +2963,7 @@ function aggregateSeriesList(channels) {
           id: 'series_' + strHash(sKey),
           isSeries: true,
           name: sInfo.seriesTitle,
+          poster: c.seriesPoster || '',
           logo: c.seriesLogo || c.logo || '',
           group: c.group || 'Series',
           extgrp: c.extgrp || '',
@@ -2977,6 +2978,7 @@ function aggregateSeriesList(channels) {
         result.push(sObj);
       }
       var s = seriesMap[sKey];
+      if (c.seriesPoster) s.poster = c.seriesPoster;
       if (c.seriesLogo) s.logo = c.seriesLogo;
       else if (!s.logo && c.logo) s.logo = c.logo;
       var sNum = sInfo.season || 1;
@@ -3025,6 +3027,7 @@ function aggregateSeriesList(channels) {
     if (matchedSeries) {
       matchedSeries.trailerUrl = tr.url;
       matchedSeries.trailerItem = tr.item;
+      if (tr.item.seriesPoster) matchedSeries.poster = tr.item.seriesPoster;
       if (tr.item.seriesLogo) matchedSeries.logo = tr.item.seriesLogo;
       if (!matchedSeries.logo && tr.item.logo) matchedSeries.logo = tr.item.logo;
     } else {
@@ -3051,6 +3054,7 @@ function aggregateSeriesList(channels) {
             id: 'series_' + strHash(orphanKey),
             isSeries: true,
             name: cleanName || 'Estreno',
+            poster: tr.item.seriesPoster || '',
             logo: tr.item.seriesLogo || tr.item.logo || '',
             group: tr.item.group || 'Series',
             extgrp: tr.item.extgrp || '',
@@ -3132,7 +3136,7 @@ function openSeriesDetail(s) {
   $('seriesSeasonsCount').textContent = s.totalSeasons + (s.totalSeasons === 1 ? ' Temporada' : ' Temporadas');
   $('seriesEpisodesCount').textContent = s.totalEpisodes + ' Episodios';
   
-  var posterSrc = resolveIconUrl(s.logo);
+  var posterSrc = resolveIconUrl(s.poster || s.logo);
   var posterImg = $('seriesPosterImg');
   if (posterImg) {
     if (posterSrc) {
@@ -3499,7 +3503,9 @@ function parseM3U(text) {
       var mSubs = ln.match(/sub-tracks="([^"]*)"/i); if (mSubs) subs = mSubs[1];
       var mSeriesLogo = ln.match(/series-logo="([^"]*)"/i);
       var seriesLogo = mSeriesLogo ? resolveIconUrl(mSeriesLogo[1]) : '';
-      meta = { name: name, seriesLogo: seriesLogo, logo: logo, group: group, subs: subs, extgrp: '', id: 'ch-' + i };
+      var mPoster = ln.match(/series-poster="([^"]*)"/i);
+      var seriesPoster = mPoster ? resolveIconUrl(mPoster[1]) : '';
+      meta = { name: name, seriesPoster: seriesPoster, seriesLogo: seriesLogo, logo: logo, group: group, subs: subs, extgrp: '', id: 'ch-' + i };
     } else if (ln.indexOf('#EXTGRP:') === 0) {
       if (meta) {
         var grp = ln.replace('#EXTGRP:', '').trim();
@@ -5057,6 +5063,8 @@ function stopPlayer() {
     state.screen = 'series-detail';
     var view = $('view-series-detail');
     if (view) view.style.display = 'block';
+    var ca = $('content-area'); if (ca) ca.style.display = 'none';
+    var bt = $('bottom-tabs-bar'); if (bt) bt.style.display = 'none';
     updateSeriesFocus();
   } else {
     state.screen = 'playlists';
