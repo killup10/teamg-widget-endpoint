@@ -182,7 +182,14 @@ function serializeChannelsToM3u(channels) {
 }
 
 
-const pub = (p) => ({ id: p._id, name: p.name, epg: p.epgUrl || '' });
+const pub = (p) => {
+  const seriesCovers = [];
+  const seen = new Set();
+  if (p.customM3u) for (const c of parseM3uText(p.customM3u).channels) {
+    if (c.seriesLogo && !seen.has(c.group)) { seriesCovers.push({ group: c.group, logo: c.seriesLogo }); seen.add(c.group); }
+  }
+  return { id: p._id, name: p.name, epg: p.epgUrl || '', seriesCovers };
+};
 
 async function authedDevice(body, query) {
   const cols = await store.init();
