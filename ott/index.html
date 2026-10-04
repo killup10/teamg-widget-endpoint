@@ -1660,7 +1660,7 @@ body.theme-wine #topbar { background: #1c0b0b; }
         <h3>Información</h3>
         <p id="optDescText">Usa tu usuario y contraseña otorgados por el administrador para vincular este televisor y descargar tus listas.</p>
         <div style="margin-top:22px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.5.18 — Cambio de playlist sin bloqueos
+          VERSIÓN: v2.5.19 — Reconexión y recuperación VOD
         </div>
       </div>
     </div>
@@ -4716,6 +4716,8 @@ function startPlaybackTicker() {
       if (timeEl) timeEl.textContent = (cur > 0 ? formatTime(cur) : '00:00:00') + ' / EN VIVO';
     }
 
+    monitorPlaybackRecovery(cur, dur, v, netcastObj);
+
     // Renderizado universal de subtítulos en pantalla (Overlay directo para cualquier Smart TV)
     var subEl = $('player-subtitles-overlay');
     if (subEl) {
@@ -4740,6 +4742,53 @@ function startPlaybackTicker() {
       }
     }
   }, 250);
+}
+
+function recoverPlayback() {
+  if (state.screen !== 'player' || !state.recoveryItem || state.recoveryTimer) return;
+  var item = state.recoveryItem;
+  state.recoveryAttempts = (state.recoveryAttempts || 0) + 1;
+  var delay = Math.min(30000, 2000 * Math.pow(2, Math.min(state.recoveryAttempts - 1, 4)));
+  showToast(state.recoveryVod ? 'Reconectando para continuar…' : 'Reconectando la señal…');
+  state.recoveryTimer = setTimeout(function() {
+    state.recoveryTimer = null;
+    if (state.screen !== 'player' || state.recoveryItem !== item) return;
+    var position = state.recoveryVod ? Math.max(0, (state.recoveryPosition || 0) - 2) : 0;
+    item._triedNetcast = false;
+    item._triedHtml5 = false;
+    playItem(item, true);
+    state.recoverySeek = position;
+  }, delay);
+}
+
+function monitorPlaybackRecovery(cur, dur, v, netcastObj) {
+  if (state.screen !== 'player' || !state.recoveryItem) return;
+  var now = (new Date()).getTime();
+  var nativeActive = netcastObj && netcastObj.style.display !== 'none';
+  var paused = nativeActive ? netcastObj.playState === 2 : v && v.paused && !v.error;
+  if (state.recoverySeek > 0 && dur > state.recoverySeek) {
+    try {
+      if (nativeActive && netcastObj.playState === 1) netcastObj.playPosition = Math.floor(state.recoverySeek * 1000);
+      else if (!nativeActive && v && v.readyState >= 1) v.currentTime = state.recoverySeek;
+      else return;
+      state.recoveryPosition = state.recoverySeek;
+      state.recoverySeek = 0;
+      state.recoveryLastTime = now;
+      return;
+    } catch (seekErr) {}
+  }
+  if (paused || (!nativeActive && v && v.ended && state.recoveryVod) || (state.recoveryVod && dur > 0 && cur >= dur - 1)) {
+    state.recoveryLastTime = now;
+    return;
+  }
+  if (cur > (state.recoveryLastPosition || 0) + 0.1) {
+    state.recoveryLastTime = now;
+    state.recoveryLastPosition = cur;
+    if (now - (state.recoveryStarted || now) > 10000) state.recoveryAttempts = 0;
+    if (state.recoveryVod && !state.recoverySeek) state.recoveryPosition = cur;
+    return;
+  }
+  if (now - (state.recoveryLastTime || now) > 20000) recoverPlayback();
 }
 
 function stopPlaybackTicker() {
@@ -4855,11 +4904,23 @@ function playChannelAt(idx) {
   playItem(list[idx]);
 }
 
-function playItem(c) {
+function playItem(c, recovering) {
   var nowTime = (new Date()).getTime();
   if (nowTime - lastChannelChangeTime < 350) return;
   lastChannelChangeTime = nowTime;
   if (!c) return;
+  if (!recovering) {
+    if (state.recoveryTimer) clearTimeout(state.recoveryTimer);
+    state.recoveryTimer = null;
+    state.recoveryAttempts = 0;
+    state.recoveryPosition = 0;
+    state.recoverySeek = 0;
+    state.recoveryVod = !!state.currentSeries || /\.(mp4|mkv|avi|mov|webm)(?:[?#]|$)/i.test(c.url || '');
+  }
+  state.recoveryItem = c;
+  state.recoveryLastTime = (new Date()).getTime();
+  state.recoveryStarted = state.recoveryLastTime;
+  state.recoveryLastPosition = -1;
   rememberRecentContent(c);
   
   // Limpiar completamente cualquier motor previo antes de iniciar nuevo canal
@@ -4994,7 +5055,8 @@ function startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c) {
       playHtml5(v, netcastObj, playUrl, streamUrl, c);
     } else {
       hideTuning();
-      showToast('Error cargando señal.');
+      showToast('La señal se interrumpió.');
+      recoverPlayback();
     }
     return;
   }
@@ -5071,7 +5133,8 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c) {
       startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c);
     } else {
       hideTuning();
-      showToast('Error cargando video.');
+      showToast('La reproducción se interrumpió.');
+      recoverPlayback();
     }
   };
 
@@ -5079,6 +5142,7 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c) {
     state.hlsInstance = new Hls({ maxBufferLength: 15, enableWorker: false });
     state.hlsInstance.loadSource(playUrl);
     state.hlsInstance.attachMedia(v);
+    state.hlsInstance.on(Hls.Events.LEVEL_LOADED, function(evt, data) { if (data && data.details) state.recoveryVod = !data.details.live; });
     state.hlsInstance.on(Hls.Events.MANIFEST_PARSED, function() {
       try {
         var p = v.play();
@@ -5129,6 +5193,10 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c) {
 }
 
 function stopPlayer() {
+  if (state.recoveryTimer) clearTimeout(state.recoveryTimer);
+  state.recoveryTimer = null;
+  state.recoveryItem = null;
+  state.recoverySeek = 0;
   cleanPlayerEngines();
   $('player-container').classList.remove('open');
   var _pd = $('player-drawer');
