@@ -451,7 +451,7 @@ function renderPlaylistEditor(a) {
       "<button id='btnSaveSeriesCover' class='btn-create-channel'>Guardar carátula</button>" +
       "<span class='small'>Usa una imagen horizontal 16:9, recomendada 400 × 225 píxeles, para las tarjetas antes de abrir la serie. Solo cambia la imagen exterior de «" + esc(CURRENT_GROUP) + "». Sus episodios y trailer conservan sus propias imágenes. Pulsa Guardar carátula para publicar el cambio.</span>" +
     "</div></details>" : "") +
-    (showSeriesPoster ? "<details style='margin:10px 0;padding:12px;background:#fff;border:1px solid #ddd;border-radius:6px'><summary style='cursor:pointer;font-weight:bold'>🖼 Póster vertical (ficha interior) de «" + esc(CURRENT_GROUP) + "»</summary><div style='padding:12px 0;display:flex;align-items:center;gap:10px;flex-wrap:wrap'>" +
+    (showSeriesCover ? "<details style='margin:10px 0;padding:12px;background:#fff;border:1px solid #ddd;border-radius:6px'><summary style='cursor:pointer;font-weight:bold'>🖼 Póster vertical (ficha interior) de «" + esc(CURRENT_GROUP) + "»</summary><div style='padding:12px 0;display:flex;align-items:center;gap:10px;flex-wrap:wrap'>" +
       "<label for='seriesPosterUrl'>Vertical 2:3 · enlace</label>" +
       "<input id='seriesPosterUrl' type='url' placeholder='https://dominio.com/caratula.jpg' value='" + esc(getGroupSeriesPoster(CURRENT_GROUP)) + "' style='flex:1;min-width:220px;padding:9px;border:1px solid #ccc;border-radius:4px' />" +
       "<button type='button' id='btnUploadSeriesPoster' class='btn-create-channel'>Subir imagen local</button><input type='file' id='seriesPosterFile' accept='image/png,image/jpeg,image/webp' style='display:none' />" +
