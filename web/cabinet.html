@@ -880,20 +880,16 @@ async function importLocalArtwork(bundle) {
   });
   var pending = playlist.channels.filter(function(c) { return !c.logo && lookup[artworkFilename(c.name)]; });
   for (var i = 0; i < controls.length; i++) controls[i].disabled = true;
-  var changed = 0, uploads = Object.create(null);
+  var changed = 0;
   try {
     var before = await api('/api/ott/admin/playlist/export', 'POST', {id:playlist.id});
     var rev = before.revision;
     for (var start = 0; start < pending.length; start += 50) {
       var entries = [];
+      status.textContent = 'Publicando carátulas ' + (start + 1) + '–' + Math.min(start + 50, pending.length) + '/' + pending.length + '…';
       for (var j = start; j < Math.min(start + 50, pending.length); j++) {
         var c = pending[j], asset = lookup[artworkFilename(c.name)];
-        status.textContent = 'Publicando carátulas ' + (j + 1) + '/' + pending.length + '…';
-        if (!uploads[asset.id]) {
-          var image = await api('/api/ott/admin/upload-image', 'POST', {data:asset.data});
-          uploads[asset.id] = image.url;
-        }
-        entries.push({name:c.name,group:c.group,url:c.url,logo:uploads[asset.id]});
+        entries.push({name:c.name,group:c.group,url:c.url,data:asset.data});
       }
       var applied = await api('/api/ott/admin/playlist/fill-artwork', 'POST', {id:playlist.id, revision:rev, entries:entries});
       rev = applied.revision; changed += applied.changed;
@@ -903,7 +899,15 @@ async function importLocalArtwork(bundle) {
     var fresh = await api('/api/ott/admin/playlist/channels?id=' + playlist.id);
     playlist.channels = fresh.channels; playlist.groups = fresh.groups;
     render();
-    document.getElementById('artworkProgress').textContent = 'Verificado: ' + changed + ' carátulas publicadas. Se conservaron las imágenes existentes.';
+    var remaining = fresh.channels.filter(function(c) { return !c.logo; });
+    document.getElementById('artworkProgress').textContent = 'Verificado: ' + changed + ' carátulas publicadas. ' + (fresh.channels.length - remaining.length) + '/' + fresh.channels.length + ' entradas con imagen; ' + remaining.length + ' pendientes. Se conservaron las imágenes existentes.';
+    if (remaining.length) {
+      var detail = document.createElement('details');
+      var summary = document.createElement('summary'); summary.textContent = 'Títulos pendientes de carátula'; detail.appendChild(summary);
+      var report = document.createElement('textarea'); report.id = 'artworkPendingTitles'; report.readOnly = true; report.rows = 8; report.style.width = '100%';
+      report.value = JSON.stringify(remaining.map(function(c) { return {name:c.name,group:c.group}; }),null,2);
+      detail.appendChild(report); document.getElementById('artworkProgress').parentNode.appendChild(detail);
+    }
   } catch (e) {
     status.textContent = 'Proceso detenido: ' + changed + ' publicadas. ' + e.message + '. Recarga antes de reintentar.';
   } finally {

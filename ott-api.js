@@ -692,9 +692,30 @@ function fetchWithRedirects(targetUrl, options, maxRedirects, callback) {
       if (!pl || !Array.isArray(body.entries) || body.entries.length > 100) return json(res, 400, { ok: false, error: 'Lote inválido' });
       const text = pl.customM3u || (pl.url ? await getCachedOrFetchText(pl.url, false) : '#EXTM3U\n');
       if (artworkFill.revision(text) !== body.revision) return json(res, 409, { ok: false, error: 'La lista cambió; vuelve a cargarla' });
+      const images = new Map();
+      const hostHeader = req.headers.host || 'ott.teamg.store';
+      for (const entry of body.entries) {
+        if (!entry.data) continue;
+        if (!/^data:image\/jpeg;base64,[A-Za-z0-9+/]+=*$/.test(entry.data) || entry.data.length > 150000) return json(res, 400, {ok:false,error:'Imagen inválida o demasiado grande'});
+        const bytes = Buffer.from(entry.data.split(',')[1], 'base64');
+        if (bytes[0] !== 255 || bytes[1] !== 216) return json(res, 400, {ok:false,error:'Formato JPEG inválido'});
+        const id = 'artwork_' + crypto.createHash('sha256').update(bytes).digest('hex');
+        images.set(id, entry.data);
+        entry.logo = 'https://' + hostHeader + '/api/ott/icon/' + id;
+      }
       let patched;
       try { patched = artworkFill.fillArtwork(text, body.entries); }
       catch (e) { return json(res, 400, { ok: false, error: e.message }); }
+      // Content-addressed images make retries and repeated titles inexpensive.
+      const imageRows = Array.from(images.entries());
+      for (let offset = 0; offset < imageRows.length; offset += 4) {
+        await Promise.all(imageRows.slice(offset, offset + 4).map(async ([id, data]) => {
+          if (!(await cols.icons.findOne({_id:id}))) {
+            try { await cols.icons.insertOne({_id:id, data, created:store.nowIso()}); }
+            catch (e) { if (e.code !== 11000) throw e; }
+          }
+        }));
+      }
       const filter = { _id: pl._id };
       if (pl.customM3u != null) filter.customM3u = pl.customM3u;
       else if (cols.mode === 'mongo') filter.customM3u = { $exists: false };

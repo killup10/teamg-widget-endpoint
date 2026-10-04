@@ -232,7 +232,7 @@ const server = http.createServer((req, res) => {
     const base = baseOf(req);
     const ottContent = {
       "type": "list",
-      "headline": "OTT TV v2.5.22 — Carátulas locales seguras",
+      "headline": "OTT TV v2.5.23 — Carátulas por lotes",
       "template": { "type": "default", "layout": "0,0,3,2", "imageFiller": "width-center" },
       "items": [
         {
