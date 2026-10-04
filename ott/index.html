@@ -1545,6 +1545,20 @@ body.theme-wine #topbar { background: #1c0b0b; }
 .top-icons-row { width: 100%; white-space: nowrap; text-align: right; }
 .top-icon-group { white-space: nowrap; }
 .top-clock-text { white-space: nowrap; }
+/* Columnas y desplazamiento compatibles con WebKit anterior a Flexbox. */
+#view-series-detail { position: absolute !important; top: 84px; bottom: 0; height: auto; overflow: auto; }
+.series-container { display: table; table-layout: fixed; max-width: none; }
+.series-left { display: table-cell; vertical-align: top; width: 26%; min-width: 0; padding-right: 24px; }
+.series-right { display: table-cell; vertical-align: top; width: 74%; }
+.series-poster-box { width: 100%; height: 440px; position: relative; box-shadow: none; -webkit-box-shadow: none; }
+.series-episodes-grid { display: block; max-height: 300px; overflow-y: auto; }
+.series-ep-tile { display: inline-block; vertical-align: top; }
+.round-icon-btn, .round-icon-btn.focused, .round-icon-btn:hover,
+.player-tab-drawer-btn, .player-tab-drawer-btn.focused,
+.player-progress-thumb, .player-control-btn { transition: none !important; -webkit-transition: none !important; box-shadow: none !important; -webkit-box-shadow: none !important; transform: none !important; -webkit-transform: none !important; }
+.tile-item { width: 16.2%; }
+.home-preview-card { position: relative; }
+.home-preview-card img { object-fit: contain; }
 </style>
 </head>
 <body>
@@ -1646,7 +1660,7 @@ body.theme-wine #topbar { background: #1c0b0b; }
         <h3>Información</h3>
         <p id="optDescText">Usa tu usuario y contraseña otorgados por el administrador para vincular este televisor y descargar tus listas.</p>
         <div style="margin-top:22px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.5.15 — Títulos compatibles con NetCast
+          VERSIÓN: v2.5.16 — Diseño y controles NetCast
         </div>
       </div>
     </div>
@@ -1677,7 +1691,7 @@ body.theme-wine #topbar { background: #1c0b0b; }
     <div class="series-container">
       <div class="series-left">
         <div class="series-poster-box">
-          <img id="seriesPosterImg" src="" alt="Poster" />
+          <img id="seriesPosterImg" src="" alt="Poster" onload="fitTvImage(this)" />
         </div>
       </div>
       <div class="series-right">
@@ -1864,6 +1878,20 @@ function resolveIconUrl(url) {
   return u;
 }
 
+function fitTvImage(img) {
+  if (!img || !img.parentNode) return;
+  var box = img.parentNode;
+  var w = box.clientWidth, h = box.clientHeight;
+  var iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
+  if (!w || !h || !iw || !ih) return;
+  var ratio = Math.min(w / iw, h / ih);
+  img.style.position = 'absolute';
+  img.style.width = Math.round(iw * ratio) + 'px';
+  img.style.height = Math.round(ih * ratio) + 'px';
+  img.style.left = Math.round((w - iw * ratio) / 2) + 'px';
+  img.style.top = Math.round((h - ih * ratio) / 2) + 'px';
+}
+
 function escapeHtml(str) {
   if (!str) return '';
   return String(str)
@@ -1887,6 +1915,13 @@ function safeScrollIntoView(el) {
     } else if (elTop + elHeight > cTop + cHeight) {
       c.scrollTop = elTop + elHeight - cHeight;
     }
+    return;
+  }
+  var episodes = $('seriesEpisodesList');
+  if (episodes && episodes.contains(el)) {
+    var y = el.getBoundingClientRect().top - episodes.getBoundingClientRect().top + episodes.scrollTop;
+    if (y < episodes.scrollTop) episodes.scrollTop = y;
+    else if (y + el.offsetHeight > episodes.scrollTop + episodes.clientHeight) episodes.scrollTop = y + el.offsetHeight - episodes.clientHeight;
     return;
   }
   var dList = $('player-drawer-list');
@@ -3828,7 +3863,7 @@ function renderHomeOverview(area) {
     var src = resolveIconUrl(items[i].logo);
     var label = items[i].title + (items[i].seriesId ? ' · ' + items[i].season + '×' + items[i].episode : '');
     cards += '<div class="home-preview-card" id="recentContent' + i + '">' +
-      (src ? '<img src="' + escapeHtml(src) + '" onerror="this.style.display=\'none\';" />' : '<div class="home-preview-placeholder">TV</div>') +
+      (src ? '<div style="position:relative;height:108px;padding:0;"><img src="' + escapeHtml(src) + '" onload="fitTvImage(this)" onerror="this.style.display=\'none\';" /></div>' : '<div class="home-preview-placeholder">TV</div>') +
       '<div>' + escapeHtml(label) + '</div></div>';
   }
   area.innerHTML = '<div class="home-overview"><div class="home-eyebrow">TEAMG PLAY</div>' +
@@ -4007,7 +4042,7 @@ function renderChannels() {
     
     var logoSrc = resolveIconUrl(c.logo);
     var thumbContent = logoSrc
-      ? '<img src="' + escapeHtml(logoSrc) + '" onerror="this.style.display=\'none\';" />'
+      ? '<img src="' + escapeHtml(logoSrc) + '" onload="fitTvImage(this)" onerror="this.style.display=\'none\';" />'
       : fallbackSvg;
 
     tile.innerHTML = '<div class="tile-thumb">' +
@@ -5780,6 +5815,13 @@ var currentAspectIdx = 0;
 $('btnPlayerRatio').onclick = function(e) {
   var ev = e || window.event;
   if (ev && ev.stopPropagation) ev.stopPropagation();
+  if (typeof window.NetCastLaunchRATIO === 'function') {
+    try { window.NetCastLaunchRATIO(); return; } catch (nativeErr) {}
+  }
+  if (/NetCast|webOS|Web0S|Tizen|SMART-TV/i.test(navigator.userAgent || '')) {
+    showToast('Usa Ajustes de imagen del televisor para cambiar la proporción.');
+    return;
+  }
   showPlayerOverlay();
   currentAspectIdx = (currentAspectIdx + 1) % ASPECT_MODES.length;
   var mode = ASPECT_MODES[currentAspectIdx];
@@ -6004,7 +6046,6 @@ for (var pti = 0; pti < pTopBtns.length; pti++) {
       btn.onmouseenter = function() {
         state.playerArea = 'top';
         state.playerTopIdx = idx;
-        updatePlayerFocus();
         showPlayerOverlay();
       };
     }
