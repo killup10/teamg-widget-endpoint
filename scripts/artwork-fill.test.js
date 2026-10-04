@@ -1,0 +1,16 @@
+const assert = require('node:assert/strict');
+const { fillArtwork, revision } = require('../artwork-fill');
+const src = '#EXTM3U\r\n#EXTINF:-1 tvg-id="abc" group-title="Accion" tvg-logo="",Film, parte (2000)\r\n#EXTVLCOPT:http-user-agent=custom\r\n#EXTIMG:\r\nhttps://stream/a\r\n#EXTINF:-1 group-title="Accion" tvg-logo="https://old/image",Other\r\nhttps://stream/b\r\n';
+const a = {name:'Film, parte (2000)',group:'Accion',url:'https://stream/a',logo:'https://ott.teamg.store/api/ott/icon/1'};
+const b = {name:'Other',group:'Accion',url:'https://stream/b',logo:'https://ott.teamg.store/api/ott/icon/2'};
+const result = fillArtwork(src, [a,b]);
+assert.equal(result.changed, 1);
+assert.equal(result.preserved, 1);
+assert.ok(result.text.includes('tvg-id="abc"'));
+assert.ok(result.text.includes('#EXTVLCOPT:http-user-agent=custom\r\n'));
+assert.ok(result.text.includes('tvg-logo="https://old/image"'));
+assert.equal(fillArtwork(result.text, [a,b]).text, result.text);
+assert.throws(() => fillArtwork(src, [{...a, url:'https://wrong'}]));
+assert.throws(() => fillArtwork(src, [{...a, logo:'https://bad/"\n'}]));
+assert.notEqual(revision(src), revision(result.text));
+console.log('Artwork: preservation, commas, CRLF, idempotency, missing targets and validation passed.');

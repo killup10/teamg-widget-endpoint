@@ -2,6 +2,7 @@
 // entrega de playlists asignadas y panel admin. Sin dependencias externas.
 const crypto = require('crypto');
 const store = require('./ott-store');
+const artworkFill = require('./artwork-fill');
 
 let SubtitleParser = null;
 try {
@@ -684,7 +685,26 @@ function fetchWithRedirects(targetUrl, options, maxRedirects, callback) {
       const pl = await cols.playlists.findOne({ _id: String(body.id || '') });
       if (!pl) return json(res, 404, { ok: false, error: 'Lista no encontrada' });
       const text = pl.customM3u || (pl.url ? await getCachedOrFetchText(pl.url, false) : '#EXTM3U\n');
-      return json(res, 200, { ok: true, name: pl.name, content: text });
+      return json(res, 200, { ok: true, name: pl.name, content: text, revision: artworkFill.revision(text) });
+    }
+    if (sub === 'playlist/fill-artwork' && req.method === 'POST') {
+      const pl = await cols.playlists.findOne({ _id: String(body.id || '') });
+      if (!pl || !Array.isArray(body.entries) || body.entries.length > 100) return json(res, 400, { ok: false, error: 'Lote inválido' });
+      const text = pl.customM3u || (pl.url ? await getCachedOrFetchText(pl.url, false) : '#EXTM3U\n');
+      if (artworkFill.revision(text) !== body.revision) return json(res, 409, { ok: false, error: 'La lista cambió; vuelve a cargarla' });
+      let patched;
+      try { patched = artworkFill.fillArtwork(text, body.entries); }
+      catch (e) { return json(res, 400, { ok: false, error: e.message }); }
+      const filter = { _id: pl._id };
+      if (pl.customM3u != null) filter.customM3u = pl.customM3u;
+      else if (cols.mode === 'mongo') filter.customM3u = { $exists: false };
+      const result = await cols.playlists.updateOne(filter, { $set: {
+        customM3u: patched.text, artworkBackup: pl.artworkBackup || text,
+        updatedAt: store.nowIso()
+      } });
+      if (!result.matchedCount) return json(res, 409, { ok: false, error: 'Edición simultánea; vuelve a cargar la lista' });
+      if (pl.url) m3uCache.delete(pl.url);
+      return json(res, 200, { ok: true, changed: patched.changed, preserved: patched.preserved, revision: artworkFill.revision(patched.text) });
     }
     if (sub === 'playlist/sync-source' && req.method === 'POST') {
       const pl = await cols.playlists.findOne({ _id: String(body.id || '') });

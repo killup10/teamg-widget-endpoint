@@ -409,7 +409,7 @@ function renderPlaylistEditor(a) {
   var showSeriesCover = isSeriesGroup(filteredChannels);
   var h = "<div class='editor-top-nav'>" +
     "<div class='breadcrumb'><a href='#' id='btnBackToPlaylists'>playlists</a> / <b>" + esc(CURRENT_PL.name) + "</b></div>" +
-    "<div><button class='act' id='btnDownloadPlaylist'>Descargar M3U</button><button class='act' id='btnSyncSource'>Actualizar desde fuente</button><button class='act green' id='btnSaveWholePlaylist'>💾 Guardar Cambios en Servidor</button></div>" +
+    "<div><button class='act' id='btnDownloadPlaylist'>Descargar M3U</button><button class='act' id='btnImportArtwork'>Completar carátulas locales</button><input type='file' accept='.json' id='artworkBundle' style='display:none'/><span id='artworkProgress' class='small' role='status'></span><button class='act' id='btnSyncSource'>Actualizar desde fuente</button><button class='act green' id='btnSaveWholePlaylist'>💾 Guardar Cambios en Servidor</button></div>" +
     "</div>";
 
   h += "<div class='editor-layout'>";
@@ -494,6 +494,18 @@ function renderPlaylistEditor(a) {
 
   document.getElementById("btnSaveWholePlaylist").onclick = function() {
     savePlaylistToServer();
+  };
+  document.getElementById('btnImportArtwork').onclick = function() { document.getElementById('artworkBundle').click(); };
+  document.getElementById('artworkBundle').onchange = function() {
+    var file = this.files[0]; if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function() {
+      var bundle;
+      try { bundle = JSON.parse(reader.result); if (bundle.format !== 'teamg-artwork-v1') throw new Error('Formato incorrecto'); }
+      catch (e) { alert('No se pudo leer el paquete: ' + e.message); return; }
+      importLocalArtwork(bundle);
+    };
+    reader.readAsText(file);
   };
 
   document.getElementById("btnDownloadPlaylist").onclick = function() {
@@ -849,6 +861,54 @@ function renderPlaylistEditor(a) {
     var countEl = document.getElementById("chCountText");
     if (countEl) countEl.textContent = visibleCount + " canales";
   };
+}
+
+function artworkFilename(name) {
+  var yearMatch = name.match(/[\(\[]\s*((?:19|20)\d{2})\s*[\)\]]/);
+  var year = yearMatch ? yearMatch[1] : '';
+  var title = name.replace(/\[.*?\]|\(.*?\)/g, ' ').replace(/\b(4k|uhd|fhd|hd|1080p|720p|latino|castellano|subtitulado|dual|h264|h265|hevc|x264|x265)\b/gi, ' ').replace(/[\-_/|]+/g, ' ').replace(/\s+/g, ' ').trim();
+  return title.replace(/[^a-zA-Z0-9_\-]/g, '_').slice(0, 60).toLowerCase() + (year ? '_' + year : '');
+}
+
+async function importLocalArtwork(bundle) {
+  var playlist = CURRENT_PL;
+  var status = document.getElementById('artworkProgress');
+  var controls = document.querySelectorAll('#app button, .tabs button');
+  var lookup = Object.create(null);
+  (bundle.assets || []).forEach(function(a) {
+    (a.keys || []).forEach(function(k) { lookup[k] = Object.prototype.hasOwnProperty.call(lookup, k) && lookup[k] !== a ? false : a; });
+  });
+  var pending = playlist.channels.filter(function(c) { return !c.logo && lookup[artworkFilename(c.name)]; });
+  for (var i = 0; i < controls.length; i++) controls[i].disabled = true;
+  var changed = 0, uploads = Object.create(null);
+  try {
+    var before = await api('/api/ott/admin/playlist/export', 'POST', {id:playlist.id});
+    var rev = before.revision;
+    for (var start = 0; start < pending.length; start += 50) {
+      var entries = [];
+      for (var j = start; j < Math.min(start + 50, pending.length); j++) {
+        var c = pending[j], asset = lookup[artworkFilename(c.name)];
+        status.textContent = 'Publicando carátulas ' + (j + 1) + '/' + pending.length + '…';
+        if (!uploads[asset.id]) {
+          var image = await api('/api/ott/admin/upload-image', 'POST', {data:asset.data});
+          uploads[asset.id] = image.url;
+        }
+        entries.push({name:c.name,group:c.group,url:c.url,logo:uploads[asset.id]});
+      }
+      var applied = await api('/api/ott/admin/playlist/fill-artwork', 'POST', {id:playlist.id, revision:rev, entries:entries});
+      rev = applied.revision; changed += applied.changed;
+    }
+    var verified = await api('/api/ott/admin/playlist/export', 'POST', {id:playlist.id});
+    if (verified.revision !== rev) throw new Error('La lista cambió durante la verificación');
+    var fresh = await api('/api/ott/admin/playlist/channels?id=' + playlist.id);
+    playlist.channels = fresh.channels; playlist.groups = fresh.groups;
+    render();
+    document.getElementById('artworkProgress').textContent = 'Verificado: ' + changed + ' carátulas publicadas. Se conservaron las imágenes existentes.';
+  } catch (e) {
+    status.textContent = 'Proceso detenido: ' + changed + ' publicadas. ' + e.message + '. Recarga antes de reintentar.';
+  } finally {
+    for (var n = 0; n < controls.length; n++) controls[n].disabled = false;
+  }
 }
 
 function resizeImageForUpload(file, maxW, maxH, callback) {
