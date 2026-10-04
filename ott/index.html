@@ -1516,6 +1516,8 @@ video::cue {
 body.theme-wine, body.theme-wine #app { background: #1c0b0b; }
 body.theme-wine #topbar { background: #1c0b0b; }
 #grid-scrollbar { top: 1vh !important; bottom: 9vh !important; }
+#view-playlists.category-immersive #content-area,
+#view-playlists.category-immersive #grid-scrollbar { bottom: 0 !important; }
 
 /* Valores de respaldo para WebKit antiguos sin unidades de viewport. */
 .home-overview { padding: 30px 24px; font-size: 20px; }
@@ -1660,7 +1662,7 @@ body.theme-wine #topbar { background: #1c0b0b; }
         <h3>Información</h3>
         <p id="optDescText">Usa tu usuario y contraseña otorgados por el administrador para vincular este televisor y descargar tus listas.</p>
         <div style="margin-top:22px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.5.24 — Ajuste de carátulas sin errores
+          VERSIÓN: v2.5.25 — Categorías inmersivas
         </div>
       </div>
     </div>
@@ -3901,7 +3903,7 @@ function restorePlaylistSurface() {
   $('view-series-detail').style.display = 'none';
   $('view-playlists').style.display = 'block';
   $('content-area').style.display = '';
-  $('bottom-tabs-bar').style.display = '';
+  syncCategoryBar();
   updateSearchBanner();
 }
 
@@ -3983,6 +3985,7 @@ function getTabsList() {
 function renderTabs() {
   var bar = $('bottom-tabs-bar');
   if (!bar) return;
+  syncCategoryBar();
   bar.innerHTML = '';
 
   var isInside = (state.currentPlaylist || (state.channels && state.channels.length > 0));
@@ -4118,7 +4121,22 @@ function renderChannels() {
 /* ==========================================================================
    NAVEGACIÓN CON CONTROL REMOTO / D-PAD (LG NETCAST) - ULTRA FLUIDA O(1)
    ========================================================================== */
+function syncCategoryBar() {
+  if (state.screen !== 'playlists') return;
+  var inside = !!(state.currentPlaylist || (state.channels && state.channels.length));
+  var hide = inside && state.categoryConfirmed;
+  var bar = $('bottom-tabs-bar');
+  if (bar && bar.style.display !== (hide ? 'none' : '')) bar.style.display = hide ? 'none' : '';
+  var view = $('view-playlists');
+  if (view) {
+    var active = view.classList.contains('category-immersive');
+    if (hide && !active) view.classList.add('category-immersive');
+    else if (!hide && active) view.classList.remove('category-immersive');
+  }
+}
+
 function updateMainFocus(shouldScroll) {
+  syncCategoryBar();
   if (state.currentFocusedEl) {
     state.currentFocusedEl.classList.remove('focused');
     state.currentFocusedEl = null;

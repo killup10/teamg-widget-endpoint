@@ -1,0 +1,23 @@
+const fs = require('node:fs');
+const vm = require('node:vm');
+const assert = require('node:assert/strict');
+const html = fs.readFileSync('ott/index.html','utf8');
+const source = html.slice(html.indexOf('function syncCategoryBar()'),html.indexOf('function updateMainFocus('));
+const classes = new Set();
+const bar = {style:{display:''}};
+const view = {classList:{contains:n=>classes.has(n),add:n=>classes.add(n),remove:n=>classes.delete(n)}};
+const ctx = {state:{screen:'playlists',currentPlaylist:{id:'same-playlist'},channels:[{}],categoryConfirmed:false},$:id=>id==='bottom-tabs-bar'?bar:view};
+vm.createContext(ctx); vm.runInContext(source,ctx);
+ctx.syncCategoryBar(); assert.equal(bar.style.display,'');
+ctx.state.categoryConfirmed = true; ctx.syncCategoryBar();
+assert.equal(bar.style.display,'none'); assert.ok(classes.has('category-immersive'));
+// Exercise the real Back handler, ensuring first Back stays in the playlist.
+const back = html.slice(html.indexOf('function goBackAction()'),html.indexOf('function handleMainNav('));
+ctx.state.currentFocusArea='content'; ctx.updateMainFocus=()=>ctx.syncCategoryBar();
+ctx.updateSearchBanner=()=>{}; ctx.renderChannels=()=>{};
+vm.runInContext(back,ctx); ctx.goBackAction();
+assert.equal(ctx.state.currentPlaylist.id,'same-playlist');
+assert.equal(ctx.state.currentFocusArea,'tabs'); assert.equal(bar.style.display,'');
+assert.ok(!classes.has('category-immersive'));
+ctx.state.currentPlaylist=null; ctx.state.channels=[];ctx.syncCategoryBar();assert.equal(bar.style.display,'');
+console.log('Category OK hides tabs; Back restores them and keeps the playlist; Home stays visible.');
