@@ -232,13 +232,12 @@ const server = http.createServer((req, res) => {
     const base = baseOf(req);
     const ottContent = {
       "type": "list",
-      "headline": "TeamG Play v2.5.26 — Logo TeamG y carátulas TMDB",
-      "template": { "type": "default", "layout": "0,0,3,2", "imageFiller": "contain" },
+      "headline": "TeamG Play",
+      "template": { "type": "default", "layout": "0,0,3,2", "imageFiller": "fit" },
       "items": [
         {
           "title": "Abrir TeamG Play",
-          "description": "Carga tu lista M3U y mira tus canales",
-          "image": base + "/ott/logo-teamg.png?v=2.5.26",
+          "image": base + "/ott/logo-teamg.png?v=2.5.27",
           "action": "link:" + base + "/ott/index.html?v=" + Date.now()
         }
       ]
