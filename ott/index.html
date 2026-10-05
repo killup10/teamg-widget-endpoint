@@ -1677,7 +1677,7 @@ body.theme-wine #topbar { background: #1c0b0b; }
         <h3>Información</h3>
         <p id="optDescText">Usa tu usuario y contraseña otorgados por el administrador para vincular este televisor y descargar tus listas.</p>
         <div style="margin-top:22px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.5.27 — Inicio limpio y logo sin letras
+          VERSIÓN: v2.5.28 — Carga TV y búsqueda en playlists
         </div>
       </div>
     </div>
@@ -2356,8 +2356,8 @@ function focusRecentContent() {
 }
 
 function openSearch() {
-  if (!state.currentPlaylist && !state.channels.length) return;
-  openKeyboard('Buscar Canal o Película', state.searchQuery || '', 'search');
+  if (!state.channels || !state.channels.length) return;
+  openKeyboard('Buscar en este playlist', state.searchQuery || '', 'search');
 }
 
 function updateSearchBanner() {
@@ -2388,6 +2388,8 @@ function closeKeyboard(commit) {
   if (state.kbTargetField === 'search') {
     if (commit) {
       state.searchQuery = (kbInputText || '').trim();
+      state.currentGroup = '__all';
+      state.categoryConfirmed = true;
     }
     state.currentPage = 0;
     state.tileIdx = 0;
@@ -2396,6 +2398,9 @@ function closeKeyboard(commit) {
     $('view-keyboard').style.display = 'none';
     state.screen = 'playlists';
     state.currentFocusArea = 'content';
+    renderTabs();
+    updateSearchVisibility();
+    updateTopBar();
     updateMainFocus(true);
     return;
   }
@@ -3614,6 +3619,7 @@ function loadDirectM3u(url) {
       renderTabs();
       updateMainFocus(true);
       showToast(state.channels.length + ' títulos disponibles.');
+      updateSearchVisibility();
     } else {
       showToast('Error al descargar M3U directo (' + status + ')');
     }
@@ -3669,6 +3675,7 @@ function loadPlaylistContent(pl, forceFresh) {
       renderTabs();
       updateMainFocus(true);
       showToast(state.channels.length + ' títulos disponibles.');
+      updateSearchVisibility();
       resolveRecentContent();
       return;
     }
@@ -3683,24 +3690,35 @@ function loadPlaylistContent(pl, forceFresh) {
   var murl = (API_BASE || '') + '/api/ott/m3u?token=' + encodeURIComponent(state.auth.token) + '&deviceId=' + encodeURIComponent(state.auth.deviceId) + '&pid=' + encodeURIComponent(pl.id) + cbParam;
   var xhr = new XMLHttpRequest();
   var called = false;
+  var loadTimer = null;
+  function showLoadError(message) {
+    $('content-area').innerHTML = '<div style="padding:40px;font-size:24px">' + escapeHtml(message) + '<br>Usa Actualizar para volver a intentar.</div>';
+    showToast(message);
+  }
   function handleResult(status, text) {
     if (called || state.playlistLoadId !== loadId) return;
     called = true;
+    clearTimeout(loadTimer);
     if (status === 200 && text) {
       state._m3uRetries = 0;
-      state.channels = aggregateSeriesList(parseM3U(text));
-      buildGroups();
-      state._playlistCache[pl.id] = { channels: state.channels, groups: state.groups, time: (new Date()).getTime() };
-      state.currentGroup = '__all';
-      state.categoryConfirmed = false;
-      state.currentPage = 0;
-      state.currentFocusArea = 'tabs';
-      state.tabIdx = 0;
-      renderChannels();
-      renderTabs();
-      updateMainFocus(true);
-      showToast(state.channels.length + ' títulos.');
-      resolveRecentContent();
+      try {
+        state.channels = aggregateSeriesList(parseM3U(text));
+        buildGroups();
+        state.currentGroup = '__all';
+        state.categoryConfirmed = false;
+        state.currentPage = 0;
+        state.currentFocusArea = 'tabs';
+        state.tabIdx = 0;
+        renderChannels();
+        renderTabs();
+        updateMainFocus(true);
+        showToast(state.channels.length + ' títulos.');
+        updateSearchVisibility();
+        resolveRecentContent();
+        state._playlistCache[pl.id] = { channels: state.channels, groups: state.groups, time: (new Date()).getTime() };
+      } catch (parseError) {
+        showLoadError('Error al mostrar títulos: ' + (parseError.message || 'lista incompatible'));
+      }
     } else if (status === 401 && state.auth.login && state.auth.password) {
       showToast('Renovando acceso...');
       doSaveAndLogin();
@@ -3713,9 +3731,9 @@ function loadPlaylistContent(pl, forceFresh) {
         return;
       }
       state._m3uRetries = 0;
-      showToast('Error cargando playlist (' + status + ')');
+      showLoadError('Error cargando playlist (' + status + ')');
     } else {
-      showToast('Error cargando playlist (' + status + ')');
+      showLoadError('Error cargando playlist (' + status + ')');
     }
   }
   xhr.open('GET', murl, true);
@@ -3727,6 +3745,11 @@ function loadPlaylistContent(pl, forceFresh) {
   xhr.onerror = function() {
     handleResult(0, null);
   };
+  // Temporizador independiente para motores de TV que no implementan xhr.timeout.
+  loadTimer = setTimeout(function() {
+    handleResult(0, null);
+    try { xhr.abort(); } catch (abortError) {}
+  }, 45000);
   try {
     xhr.send();
   } catch (err) {
@@ -3748,9 +3771,22 @@ function buildGroups() {
   state.groups = groups;
 }
 
+function normalizePlaylistSearch(value) {
+  return String(value || '').toLowerCase()
+    .replace(/[áàâäãå]/g, 'a').replace(/[éèêë]/g, 'e')
+    .replace(/[íìîï]/g, 'i').replace(/[óòôöõ]/g, 'o')
+    .replace(/[úùûü]/g, 'u').replace(/ñ/g, 'n').replace(/ç/g, 'c')
+    .replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
+}
+
 function getFilteredChannels() {
+  var q = normalizePlaylistSearch(state.searchQuery);
+  var cached = state._filteredChannels;
+  // Una sola vista en caché: banner y paginación comparten el resultado.
+  // Favoritos se consulta de nuevo porque cambia sin reemplazar el catálogo.
+  if (state.currentGroup !== '__fav' && cached && cached.channels === state.channels &&
+      cached.group === state.currentGroup && cached.query === q) return cached.items;
   var res = [];
-  var q = (state.searchQuery || '').trim().toLowerCase();
   for (var i = 0; i < state.channels.length; i++) {
     var c = state.channels[i];
     if (state.currentGroup === '__fav') {
@@ -3759,12 +3795,15 @@ function getFilteredChannels() {
       continue;
     }
     if (q.length > 0) {
-      var nMatch = c.name && c.name.toLowerCase().indexOf(q) !== -1;
-      var gMatch = c.group && c.group.toLowerCase().indexOf(q) !== -1;
+      // Se prepara cada título solo al buscar; no se procesa en cada tecla.
+      if (typeof c._searchName !== 'string') c._searchName = normalizePlaylistSearch(c.name);
+      var nMatch = c._searchName.indexOf(q) !== -1;
+      var gMatch = normalizePlaylistSearch(c.group).indexOf(q) !== -1;
       if (!nMatch && !gMatch) continue;
     }
     res.push(c);
   }
+  state._filteredChannels = {channels: state.channels, group: state.currentGroup, query: q, items: res};
   return res;
 }
 
