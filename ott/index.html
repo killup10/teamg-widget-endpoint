@@ -1677,7 +1677,7 @@ body.theme-wine #topbar { background: #1c0b0b; }
         <h3>Información</h3>
         <p id="optDescText">Usa tu usuario y contraseña otorgados por el administrador para vincular este televisor y descargar tus listas.</p>
         <div style="margin-top:22px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.5.30 — Motores TV y subtítulos ligeros
+          VERSIÓN: v2.5.31 — TV estable, carátulas y subtítulos
         </div>
       </div>
     </div>
@@ -1861,7 +1861,7 @@ body.theme-wine #topbar { background: #1c0b0b; }
 
 <!-- Script HLS Vendor -->
 <script src="vendor/hls.min.js"></script>
-<script src="native-player.js?v=2.5.30"></script>
+<script src="native-player.js?v=2.5.31"></script>
 <script>
 (function() {
 'use strict';
@@ -1895,6 +1895,7 @@ function resolveIconUrl(url) {
     var parts = u.split('/api/ott/icon/');
     return (API_BASE || '') + '/api/ott/icon/' + parts[1];
   }
+  if (u.indexOf('/api/ott/subtitle/') !== -1) return (API_BASE || '') + '/api/ott/subtitle/' + u.split('/api/ott/subtitle/')[1];
   return u;
 }
 
@@ -5045,7 +5046,7 @@ function probeSubtitles(rawUrl, channelSubs) {
   if (channelSubs) {
     var subtitleUrl = resolveIconUrl(channelSubs);
     state.activeSubTracks.push({id:'custom', type:'external',
-      url:(API_BASE || '') + '/api/ott/subtitles?url=' + encodeURIComponent(subtitleUrl),
+      url:subtitleUrl.indexOf('/api/ott/subtitle/') !== -1 ? subtitleUrl : (API_BASE || '') + '/api/ott/subtitles?url=' + encodeURIComponent(subtitleUrl),
       name:'Subtítulos externos'});
   }
   // Embedded tracks are read by the native player, never by downloading the movie on Render.

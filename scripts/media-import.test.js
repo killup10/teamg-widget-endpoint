@@ -16,6 +16,17 @@ assert.equal(merged.channels[2].seriesPoster,'https://example/v.jpg');
 assert.equal(merged.added,1);
 const sourceOnly=context.mergePlaylistSource([], [{name:'E1',group:'Nueva',url:'https://example/new',seriesLogo:'https://example/source.jpg'}]);
 assert.equal(sourceOnly.channels[0].seriesLogo,'https://example/source.jpg');
+const tv=fs.readFileSync('ott/index.html','utf8');
+const tvContext={API_BASE:'http://ott.teamg.store',state:{},$:()=>({style:{}})};
+vm.createContext(tvContext);
+vm.runInContext(tv.slice(tv.indexOf('function resolveIconUrl('),tv.indexOf('function fitTvImage(')),tvContext);
+vm.runInContext(tv.slice(tv.indexOf('function probeSubtitles('),tv.indexOf('function playChannelAt(')),tvContext);
+assert.equal(tvContext.resolveIconUrl('https://backend.onrender.com/api/ott/subtitle/id.vtt'),'http://ott.teamg.store/api/ott/subtitle/id.vtt');
+assert.match(tvContext.resolveIconUrl('https://disney.images.edge.bamgrid.com/test?format=webp&amp;width=1200'),/format=jpeg&width=400/);
+tvContext.probeSubtitles('https://example/movie.mkv','https://backend.onrender.com/api/ott/subtitle/id.vtt');
+assert.equal(tvContext.state.activeSubTracks[0].url,'http://ott.teamg.store/api/ott/subtitle/id.vtt');
+tvContext.probeSubtitles('https://example/movie.mkv','');
+assert.equal(tvContext.state.activeSubTracks.length,0); // No server movie probe.
 (async()=>{
   const input=await sharp({create:{width:800,height:800,channels:3,background:'#ff0000'}}).webp().toBuffer();
   const data='data:image/webp;base64,'+input.toString('base64');

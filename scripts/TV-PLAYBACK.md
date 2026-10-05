@@ -1,4 +1,4 @@
-# v2.5.30 — Motores TV y subtítulos ligeros
+# v2.5.31 — TV estable, carátulas y subtítulos
 
 El widget sigue siendo ES5. `native-player.js` es un adaptador opcional de Samsung AVPlay. Auto comprueba funciones reales; una marca detectada no garantiza acceso a la API desde Media Station X. Sin API o si falla la preparación (máximo 20 segundos), vuelve a HTML5. Errores reales durante reproducción usan la recuperación existente; ningún temporizador recarga una señal sana.
 
