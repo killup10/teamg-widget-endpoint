@@ -4,13 +4,6 @@ const crypto = require('crypto');
 const store = require('./ott-store');
 const artworkFill = require('./artwork-fill');
 
-let SubtitleParser = null;
-try {
-  SubtitleParser = require('matroska-subtitles').SubtitleParser;
-} catch (e) {
-  console.warn('[Subtitles] matroska-subtitles no disponible:', e.message);
-}
-
 const secret = () => process.env.TOKEN_SECRET || process.env.ADMIN_KEY || 'dev-secret';
 const ADMIN = () => process.env.ADMIN_KEY || '';
 
@@ -175,17 +168,21 @@ function mergePlaylistSource(existing, incoming) {
   for (const c of result) {
     if (c.url) byUrl.set(c.url, c);
     const k = key(c); byName.set(k, byName.has(k) ? null : c);
-    if (c.seriesLogo || c.seriesPoster) covers.set(c.group, { seriesLogo: c.seriesLogo || '', seriesPoster: c.seriesPoster || '' });
+    if (c.seriesLogo || c.seriesPoster) {
+      const cover = covers.get(c.group) || {};
+      covers.set(c.group, {seriesLogo:c.seriesLogo || cover.seriesLogo || '', seriesPoster:c.seriesPoster || cover.seriesPoster || ''});
+    }
   }
   for (const source of incoming) {
     const old = byUrl.get(source.url) || byName.get(key(source));
+    const cover = covers.get(source.group) || {};
     if (old) {
       if (old.url !== source.url) { old.url = source.url; updated++; }
       if (!old.logo) old.logo = source.logo || '';
-      if (!old.seriesLogo) old.seriesLogo = source.seriesLogo || '';
-      if (!old.seriesPoster) old.seriesPoster = source.seriesPoster || '';
+      if (!old.seriesLogo) old.seriesLogo = cover.seriesLogo || source.seriesLogo || '';
+      if (!old.seriesPoster) old.seriesPoster = cover.seriesPoster || source.seriesPoster || '';
     } else {
-      const c = { ...source, ...(covers.get(source.group) || {}) };
+      const c = { ...source, seriesLogo:cover.seriesLogo || source.seriesLogo || '', seriesPoster:cover.seriesPoster || source.seriesPoster || '' };
       result.push(c); if (c.url) byUrl.set(c.url, c); byName.set(key(c), c); added++;
     }
   }
@@ -339,7 +336,7 @@ async function handle(req, res, pathname, query, body) {
       const text = await getCachedOrFetchText(target, isFresh);
       res.writeHead(200, {
         'Content-Type': pathname === '/api/ott/m3u' ? 'text/plain; charset=utf-8' : 'application/xml; charset=utf-8',
-        'Cache-Control': 'public, max-age=300'
+        'Cache-Control': pathname === '/api/ott/m3u' ? 'no-cache, no-store, must-revalidate' : 'public, max-age=300'
       });
       res.end(text);
     } catch (e) { return json(res, 502, { ok: false, error: 'No se pudo descargar: ' + e.message }); }
@@ -400,164 +397,51 @@ function fetchWithRedirects(targetUrl, options, maxRedirects, callback) {
   }
 }
 
-  // ---- Deteccion de pistas (subtitulos y audio embebido MKV) ----
+  // Embedded subtitle extraction is an offline/admin operation, never a playback request.
   if (pathname === '/api/ott/tracks' && req.method === 'GET') {
-    let targetUrl = String(query.url || '').trim();
-    if (!targetUrl) return json(res, 400, { ok: false, error: 'Falta url' });
-    if (!SubtitleParser) return json(res, 200, { ok: true, tracks: [], audioTracks: [] });
-
-    let responded = false;
-    const timer = setTimeout(() => {
-      if (!responded) {
-        responded = true;
-        return json(res, 200, { ok: true, tracks: [], audioTracks: [] });
-      }
-    }, 12000);
-
-    fetchWithRedirects(targetUrl, {
-      headers: {
-        'Range': 'bytes=0-10485760' // primeros 10MB para capturar cabecera Tracks de Matroska
-      },
-      timeout: 10000
-    }, 5, (err, upRes, upReq) => {
-      if (err || !upRes) {
-        if (!responded) {
-          responded = true;
-          clearTimeout(timer);
-          return json(res, 200, { ok: true, tracks: [], audioTracks: [] });
-        }
-        return;
-      }
-
-      const parser = new SubtitleParser();
-
-      parser.once('tracks', (tracks) => {
-        if (!responded) {
-          responded = true;
-          clearTimeout(timer);
-          try { upReq.destroy(); } catch (e) {}
-          const subTracks = (tracks || []).filter(t => t.type === 'subtitle');
-          const audTracks = (tracks || []).filter(t => t.type === 'audio');
-          return json(res, 200, { ok: true, tracks: subTracks, audioTracks: audTracks });
-        }
-      });
-
-      upRes.pipe(parser);
-
-      upRes.on('error', () => {
-        if (!responded) {
-          responded = true;
-          clearTimeout(timer);
-          return json(res, 200, { ok: true, tracks: [], audioTracks: [] });
-        }
-      });
-      upRes.on('end', () => {
-        setTimeout(() => {
-          if (!responded) {
-            responded = true;
-            clearTimeout(timer);
-            return json(res, 200, { ok: true, tracks: [], audioTracks: [] });
-          }
-        }, 1000);
-      });
-    });
-    return;
+    return json(res, 200, {ok:true, tracks:[], audioTracks:[], nativeOnly:true});
   }
-
-  // ---- Subtitulos en formato WebVTT ----
+  if (pathname.indexOf('/api/ott/subtitle/') === 0 && req.method === 'GET') {
+    const id = pathname.slice('/api/ott/subtitle/'.length).replace(/\.vtt$/, '');
+    const saved = await cols.icons.findOne({_id:id});
+    if (!saved || saved.type !== 'subtitle') return json(res, 404, {ok:false});
+    res.writeHead(200, {'Content-Type':'text/vtt; charset=utf-8', 'Access-Control-Allow-Origin':'*', 'Cache-Control':'public, max-age=86400'});
+    return res.end(saved.text);
+  }
   if (pathname === '/api/ott/subtitles' && req.method === 'GET') {
-    let targetUrl = String(query.url || '').trim();
-    const trackNum = parseInt(query.track, 10) || 0;
-    if (!targetUrl) {
-      res.writeHead(400, { 'Content-Type': 'text/plain', 'Access-Control-Allow-Origin': '*' });
-      return res.end('Falta url');
+    const target = String(query.url || '').trim();
+    let parsed;
+    try { parsed = new URL(target); } catch (e) { return json(res, 400, {ok:false,error:'URL inválida'}); }
+    if (!/^https?:$/.test(parsed.protocol) || !/\.(srt|vtt)$/i.test(parsed.pathname)) {
+      return json(res, 422, {ok:false,error:'Usa una pista nativa de la TV o un archivo externo SRT/VTT preparado.'});
     }
-
-    // Archivo .srt o .vtt externo
-    if (targetUrl.toLowerCase().indexOf('.vtt') !== -1 || targetUrl.toLowerCase().indexOf('.srt') !== -1) {
-      fetchWithRedirects(targetUrl, { timeout: 15000 }, 5, (err, upRes) => {
-        if (err || !upRes) {
-          res.writeHead(200, { 'Content-Type': 'text/vtt; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
-          return res.end('WEBVTT\n\n');
-        }
-        let data = '';
-        upRes.on('data', (c) => { data += c; });
-        upRes.on('end', () => {
-          let vtt = data;
-          if (targetUrl.toLowerCase().indexOf('.srt') !== -1 && data.indexOf('WEBVTT') === -1) {
-            vtt = 'WEBVTT\n\n' + data.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, '$1.$2');
-          }
-          res.writeHead(200, {
-            'Content-Type': 'text/vtt; charset=utf-8',
-            'Access-Control-Allow-Origin': '*',
-            'Cache-Control': 'public, max-age=86400'
-          });
-          res.end(vtt);
-        });
-      });
-      return;
+    let finished = false, request, upstream, chunks = [], bytes = 0;
+    function fail(code) {
+      if (finished) return;
+      finished = true; clearTimeout(deadline);
+      if (upstream) upstream.destroy(); if (request) request.destroy();
+      return json(res, code, {ok:false,error:'No se pudo cargar el subtítulo externo.'});
     }
-
-    // Extraccion de subtitulos embebidos de MKV
-    if (!SubtitleParser) {
-      res.writeHead(200, { 'Content-Type': 'text/vtt; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
-      return res.end('WEBVTT\n\n');
-    }
-
-    fetchWithRedirects(targetUrl, { timeout: 45000 }, 5, (err, upRes, upReq) => {
-      if (err || !upRes) {
-        res.writeHead(200, { 'Content-Type': 'text/vtt; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
-        return res.end('WEBVTT\n\n');
-      }
-
-      const parser = new SubtitleParser();
-      let cues = [];
-
-      function msToVtt(ms) {
-        if (!ms || ms < 0) ms = 0;
-        const s = Math.floor(ms / 1000);
-        const remMs = Math.floor(ms % 1000);
-        const h = Math.floor(s / 3600);
-        const m = Math.floor((s % 3600) / 60);
-        const sec = s % 60;
-        const hh = (h < 10 ? '0' : '') + h;
-        const mm = (m < 10 ? '0' : '') + m;
-        const ss = (sec < 10 ? '0' : '') + sec;
-        const mss = (remMs < 10 ? '00' : (remMs < 100 ? '0' : '')) + remMs;
-        return hh + ':' + mm + ':' + ss + '.' + mss;
-      }
-
-      parser.on('subtitle', (sub, track) => {
-        if (trackNum === 0 || track === trackNum) {
-          const startTime = msToVtt(sub.time);
-          const endTime = msToVtt(sub.time + (sub.duration || 3000));
-          const text = (sub.text || '').replace(/\\N/g, '\n').replace(/\{.*?\}/g, '').trim();
-          if (text) {
-            cues.push(startTime + ' --> ' + endTime + '\n' + text + '\n\n');
-          }
-        }
-      });
-
-      upRes.pipe(parser);
+    const deadline = setTimeout(() => fail(504), 15000);
+    res.on && res.on('close', () => { if (!finished) { finished=true; clearTimeout(deadline); if (upstream) upstream.destroy(); if (request) request.destroy(); } });
+    fetchWithRedirects(target, {timeout:12000}, 5, (err, upRes, upReq) => {
+      if (finished) { if (upRes) upRes.destroy(); if (upReq) upReq.destroy(); return; }
+      request = upReq; upstream = upRes;
+      if (err || !upRes || upRes.statusCode !== 200) return fail(502);
+      upRes.on('data', chunk => { bytes += chunk.length; if (bytes > 2097152) return fail(413); chunks.push(chunk); });
+      upRes.on('error', () => fail(502));
       upRes.on('end', () => {
-        res.writeHead(200, {
-          'Content-Type': 'text/vtt; charset=utf-8',
-          'Access-Control-Allow-Origin': '*',
-          'Cache-Control': 'public, max-age=86400'
-        });
-        res.end('WEBVTT\n\n' + cues.join(''));
-      });
-      upRes.on('error', () => {
-        if (!res.headersSent) {
-          res.writeHead(200, { 'Content-Type': 'text/vtt; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
-          res.end('WEBVTT\n\n');
-        }
+        if (finished) return;
+        let vtt;
+        try { vtt = require('./subtitle-utils').toVtt(Buffer.concat(chunks).toString('utf8')); } catch(e) { return fail(422); }
+        finished = true; clearTimeout(deadline);
+        res.writeHead(200, {'Content-Type':'text/vtt; charset=utf-8','Access-Control-Allow-Origin':'*','Cache-Control':'public, max-age=86400'});
+        res.end(vtt);
       });
     });
     return;
   }
 
-  // ---- Icono público subido por el admin ----
   if (pathname.indexOf('/api/ott/icon/') === 0 && req.method === 'GET') {
     const iconId = pathname.replace('/api/ott/icon/', '').trim();
     if (!iconId) return json(res, 404, { ok: false });
@@ -767,6 +651,31 @@ function fetchWithRedirects(targetUrl, options, maxRedirects, callback) {
       const m3uText = serializeChannelsToM3u(body.channels);
       await cols.playlists.updateOne({ _id: String(body.id) }, { $set: { customM3u: m3uText, count: body.channels.length, updatedAt: store.nowIso() } });
       return json(res, 200, { ok: true, count: body.channels.length });
+    }
+
+    if (sub === 'upload-subtitle' && req.method === 'POST') {
+      let text;
+      try { text = require('./subtitle-utils').toVtt(body.text); }
+      catch (e) { return json(res, 400, {ok:false,error:e.message}); }
+      const id = 'subtitle_' + require('crypto').createHash('sha256').update(text).digest('hex');
+      if (!await cols.icons.findOne({_id:id})) {
+        try { await cols.icons.insertOne({_id:id,type:'subtitle',text,created:store.nowIso()}); }
+        catch(e) { if (e.code !== 11000) throw e; }
+      }
+      const host = req.headers.host || 'ott.teamg.store';
+      return json(res, 200, {ok:true,url:'https://' + host + '/api/ott/subtitle/' + id + '.vtt'});
+    }
+
+    if (sub === 'prepare-image' && req.method === 'POST') {
+      let bytes;
+      try { bytes = await require('./media-import').prepareImage(body); }
+      catch(e) { return json(res, 400, {ok:false,error:e.message}); }
+      const id = 'image_' + crypto.createHash('sha256').update(bytes).digest('hex');
+      if (!await cols.icons.findOne({_id:id})) {
+        try { await cols.icons.insertOne({_id:id,data:'data:image/jpeg;base64,' + bytes.toString('base64'),created:store.nowIso()}); }
+        catch(e) { if(e.code!==11000) throw e; }
+      }
+      return json(res,200,{ok:true,url:'https://' + (req.headers.host || 'ott.teamg.store') + '/api/ott/icon/' + id});
     }
 
     if (sub === 'upload-image' && req.method === 'POST') {

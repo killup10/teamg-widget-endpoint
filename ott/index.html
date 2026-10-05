@@ -913,7 +913,7 @@ body.theme-classic .tile.focused { border-color: #ff8800 !important; box-shadow:
 
 #player-container.open { display: block; }
 
-#video-el, #netcast-player {
+#video-el, #netcast-player, #samsung-player {
   position: absolute;
   top: 0;
   left: 0;
@@ -1677,7 +1677,7 @@ body.theme-wine #topbar { background: #1c0b0b; }
         <h3>Información</h3>
         <p id="optDescText">Usa tu usuario y contraseña otorgados por el administrador para vincular este televisor y descargar tus listas.</p>
         <div style="margin-top:22px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.5.28 — Carga TV y búsqueda en playlists
+          VERSIÓN: v2.5.30 — Motores TV y subtítulos ligeros
         </div>
       </div>
     </div>
@@ -1771,7 +1771,7 @@ body.theme-wine #topbar { background: #1c0b0b; }
     <object id="netcast-player" type="application/x-netcast-av" width="100%" height="100%" style="display:none;" tabindex="-1">
       <param name="wmode" value="transparent">
     </object>
-    
+    <object id="samsung-player" type="application/avplayer" style="display:none;" tabindex="-1"></object>
     <!-- Renderizado Universal de Subtítulos en Pantalla -->
     <div id="player-subtitles-overlay"></div>
     
@@ -1861,6 +1861,7 @@ body.theme-wine #topbar { background: #1c0b0b; }
 
 <!-- Script HLS Vendor -->
 <script src="vendor/hls.min.js"></script>
+<script src="native-player.js?v=2.5.30"></script>
 <script>
 (function() {
 'use strict';
@@ -1883,10 +1884,12 @@ var API_BASE = (window.location && window.location.protocol && window.location.h
 
 function resolveIconUrl(url) {
   if (!url) return '';
-  var u = String(url).trim();
+  var u = String(url).trim().replace(/&amp;/g, '&');
   if (/^https?:\/\/disney\.images\.edge\.bamgrid\.com\//i.test(u)) {
-    u = u.replace(/([?&])format=webp(?=&|$)/i, '$1format=jpeg');
+    u = u.replace(/([?&])format=[^&]+/i, '$1format=jpeg');
+    if (!/[?&]format=/i.test(u)) u += (u.indexOf('?') === -1 ? '?' : '&') + 'format=jpeg';
     u = u.replace(/([?&])width=\d+/i, '$1width=400');
+    if (!/[?&]width=/i.test(u)) u += '&width=400';
   }
   if (u.indexOf('/api/ott/icon/') !== -1) {
     var parts = u.split('/api/ott/icon/');
@@ -2091,8 +2094,35 @@ var OPT_VIDEO_ENGINES = [
   { id: 'mediaplayer', label: 'MediaPlayer (LG NetCast)' },
   { id: 'html5', label: 'HTML5 player' }
 ];
-var OPT_IPTV_ENGINES = ['HTML5 player', 'Native TV player', 'HLS JS stream'];
-var OPT_HLS_ENGINES = ['JS player (hls.js)', 'Native HLS player', 'Auto Proxy'];
+var OPT_IPTV_ENGINES = ['Automático', 'HTML5 player', 'Native TV player'];
+var OPT_HLS_ENGINES = ['Automático', 'Native HLS player', 'JS player (hls.js)'];
+function availableVideoEngines() {
+  var out = [{id:'auto', label:'Auto (Recomendado)'}];
+  var obj = $('netcast-player');
+  if (/NetCast/i.test(navigator.userAgent || '') && obj && typeof obj.play === 'function') out.push({id:'mediaplayer',label:'MediaPlayer (LG NetCast)'});
+  if (window.TeamGNative && TeamGNative.available()) out.push({id:'avplay',label:'AVPlay (Samsung)'});
+  out.push({id:'html5',label:'HTML5 player'});
+  return out;
+}
+function detectedPlatform() {
+  var ua = navigator.userAgent || '';
+  if (/Tizen/i.test(ua)) return 'Samsung Smart TV (Tizen)';
+  if (/webOS|Web0S/i.test(ua)) return 'LG webOS TV';
+  if (/NetCast/i.test(ua)) return 'LG NetCast TV';
+  if (/Android/i.test(ua)) return 'Android TV / Google TV';
+  return 'PC / Navegador Web';
+}
+function availableHlsEngines() {
+  var out = ['Automático'], v = $('video-el');
+  if (v && v.canPlayType && v.canPlayType('application/vnd.apple.mpegurl')) out.push('Native HLS player');
+  if (window.Hls && Hls.isSupported()) out.push('JS player (hls.js)');
+  return out;
+}
+function availableIptvEngines() {
+  var out = ['Automático', 'HTML5 player'];
+  if (availableVideoEngines().length > 2) out.push('Native TV player');
+  return out;
+}
 var OPT_THEMES = [
   { id: 'wine', label: 'Wine Red' },
   { id: 'dark', label: 'Dark Night' },
@@ -2110,7 +2140,12 @@ function updatePlayerEngineDisplay() {
   var eng = state.auth.playerEngine || 'auto';
   var label = '< Auto (Recomendado) >';
   if (eng === 'mediaplayer') label = '< MediaPlayer (LG NetCast) >';
+  else if (eng === 'avplay') label = '< AVPlay (Samsung) >';
   else if (eng === 'html5') label = '< HTML5 player >';
+  else {
+    var choices = availableVideoEngines();
+    label = '< Auto · ' + choices[1].label + ' >';
+  }
   var el = $('valVideoPlayer');
   if (el) el.textContent = label;
 }
@@ -2158,6 +2193,7 @@ function cycleOption(idx, dir) {
     updateOptionsDisplay();
     showToast('Idioma: ' + state.auth.lang);
   } else if (idx === 5) {
+    OPT_VIDEO_ENGINES = availableVideoEngines();
     var curEngIdx = 0;
     for (var ve = 0; ve < OPT_VIDEO_ENGINES.length; ve++) {
       if (OPT_VIDEO_ENGINES[ve].id === (state.auth.playerEngine || 'auto')) { curEngIdx = ve; break; }
@@ -2168,6 +2204,7 @@ function cycleOption(idx, dir) {
     updateOptionsDisplay();
     showToast('Motor: ' + OPT_VIDEO_ENGINES[nextEngIdx].label);
   } else if (idx === 6) {
+    OPT_IPTV_ENGINES = availableIptvEngines();
     var curIptvIdx = OPT_IPTV_ENGINES.indexOf(state.auth.iptvPlayer || 'HTML5 player');
     if (curIptvIdx < 0) curIptvIdx = 0;
     var nextIptvIdx = (curIptvIdx + d + OPT_IPTV_ENGINES.length) % OPT_IPTV_ENGINES.length;
@@ -2176,6 +2213,7 @@ function cycleOption(idx, dir) {
     updateOptionsDisplay();
     showToast('IPTV: ' + state.auth.iptvPlayer);
   } else if (idx === 7) {
+    OPT_HLS_ENGINES = availableHlsEngines();
     var curHlsIdx = OPT_HLS_ENGINES.indexOf(state.auth.hlsPlayer || 'JS player');
     if (curHlsIdx < 0) curHlsIdx = 0;
     var nextHlsIdx = (curHlsIdx + d + OPT_HLS_ENGINES.length) % OPT_HLS_ENGINES.length;
@@ -2242,9 +2280,16 @@ function loadStorage() {
   }
   if (!state.auth.playerEngine) state.auth.playerEngine = 'auto';
   if (!state.auth.lang) state.auth.lang = 'Español';
-  if (!state.auth.iptvPlayer) state.auth.iptvPlayer = 'HTML5 player';
-  if (!state.auth.hlsPlayer) state.auth.hlsPlayer = 'JS player';
+  if (!state.auth.iptvPlayer || state.auth.iptvPlayer === 'HLS JS stream') state.auth.iptvPlayer = 'Automático';
+  if (!state.auth.hlsPlayer || state.auth.hlsPlayer === 'JS player' || state.auth.hlsPlayer === 'Auto Proxy') state.auth.hlsPlayer = 'Automático';
+  state.auth.platform = detectedPlatform();
+  state.auth.deviceName = state.auth.platform;
   if (!state.auth.theme) state.auth.theme = 'wine';
+  if (!state.auth.engineOptionsVersion) {
+    state.auth.iptvPlayer = 'Automático';
+    state.auth.hlsPlayer = 'Automático';
+    state.auth.engineOptionsVersion = 1;
+  }
 
   applyTheme(state.auth.theme);
   updateOptionsDisplay();
@@ -2271,9 +2316,11 @@ function apiCall(method, path, body, callback) {
   var fullUrl = (path.indexOf('http://') === 0 || path.indexOf('https://') === 0) ? path : (API_BASE + path);
   var xhr = new XMLHttpRequest();
   var called = false;
+  var requestTimer = null;
   function done(status, res, text) {
     if (called) return;
     called = true;
+    clearTimeout(requestTimer);
     try {
       callback(status, res, text);
     } catch (cbErr) {
@@ -2294,6 +2341,10 @@ function apiCall(method, path, body, callback) {
   xhr.onerror = function() {
     done(0, null, 'Error de conexión');
   };
+  requestTimer = setTimeout(function() {
+    done(0, null, 'Tiempo de espera agotado');
+    try { xhr.abort(); } catch (abortErr) {}
+  }, 30000);
   try {
     xhr.send(body ? JSON.stringify(body) : null);
   } catch (sendErr) {
@@ -2527,9 +2578,9 @@ var OPT_DESCRIPTIONS = [
   'Device registration/selection. Identificador de este TV LG en tu cuenta.',
   'Direct M3U URL. Si tienes una lista directa M3U externa, puedes ingresarla aquí.',
   'App. language. Idioma de la interfaz de la aplicación.',
-  'Videoplayer engine. Motor nativo de video para óptima reproducción en TV.',
-  'IPTV player engine. Motor IPTV por defecto.',
-  'HLS player engine. JS player (hls.js) para reproducción fluida de streams HLS.',
+  'Motor de video. Automático detecta funciones reales del equipo; puedes elegir otra alternativa disponible.',
+  'Canales en vivo. Automático usa el motor de video seleccionado; HTML5 o nativo permiten cambiarlo para IPTV.',
+  'HLS en HTML5. Automático prioriza HLS nativo; HLS.js se usa cuando es necesario y está disponible.',
   'Color theme. Paleta de colores de la interfaz.',
   'Iniciar sesión y vincular TV. Conecta con el servidor para descargar tus listas.'
 ];
@@ -2634,7 +2685,7 @@ function doSaveAndLogin() {
       token: state.auth.token,
       deviceId: state.auth.deviceId,
       name: state.auth.deviceName || 'LG NetCast TV',
-      platform: 'LG NetCast'
+      platform: detectedPlatform()
     }, function(st2, res2) {
       if (res2 && res2.playlists && res2.playlists.length > 0) {
         state.playlists = res2.playlists;
@@ -2653,6 +2704,8 @@ function doSaveAndLogin() {
 }
 
 function fetchFeed() {
+  var feedId = (state.feedLoadId || 0) + 1;
+  state.feedLoadId = feedId;
   if (!state.auth.token && state.auth.login && state.auth.password) {
     doSaveAndLogin();
     return;
@@ -2664,6 +2717,7 @@ function fetchFeed() {
   }
   showToast('Cargando listas...');
   apiCall('GET', '/api/ott/feed?token=' + encodeURIComponent(state.auth.token) + '&deviceId=' + encodeURIComponent(state.auth.deviceId), null, function(st, res) {
+    if (state.feedLoadId !== feedId) return;
     if (st === 200 && res && res.ok) {
       state._feedRetries = 0;
       state.playlists = res.playlists || [];
@@ -2692,7 +2746,7 @@ function fetchFeed() {
       if (state._feedRetries < 4) {
         state._feedRetries++;
         showToast('Servidor iniciando... Reintentando (' + state._feedRetries + '/4)');
-        setTimeout(fetchFeed, 3500);
+        setTimeout(function() { if (state.feedLoadId === feedId) fetchFeed(); }, 3500);
         return;
       }
       state._feedRetries = 0;
@@ -3641,8 +3695,19 @@ function loadDirectM3u(url) {
 }
 
 function loadPlaylistContent(pl, forceFresh) {
+  state.feedLoadId = (state.feedLoadId || 0) + 1;
   var loadId = (state.playlistLoadId || 0) + 1;
   state.playlistLoadId = loadId;
+  clearTimeout(state.playlistRetryTimer);
+  clearTimeout(state.playlistRequestTimer);
+  if (state.playlistRequest) {
+    try { state.playlistRequest.abort(); } catch (previousAbortError) {}
+    state.playlistRequest = null;
+  }
+  if (state._m3uRetryPlaylist !== pl.id) {
+    state._m3uRetries = 0;
+    state._m3uRetryPlaylist = pl.id;
+  }
   if (state.pendingRecentContent && state.pendingRecentContent.playlistId !== pl.id) state.pendingRecentContent = null;
   state.screen = 'playlists';
   state.currentSeries = null;
@@ -3689,6 +3754,7 @@ function loadPlaylistContent(pl, forceFresh) {
   var cbParam = forceFresh ? ('&_cb=' + (new Date()).getTime()) : '';
   var murl = (API_BASE || '') + '/api/ott/m3u?token=' + encodeURIComponent(state.auth.token) + '&deviceId=' + encodeURIComponent(state.auth.deviceId) + '&pid=' + encodeURIComponent(pl.id) + cbParam;
   var xhr = new XMLHttpRequest();
+  state.playlistRequest = xhr;
   var called = false;
   var loadTimer = null;
   function showLoadError(message) {
@@ -3699,6 +3765,7 @@ function loadPlaylistContent(pl, forceFresh) {
     if (called || state.playlistLoadId !== loadId) return;
     called = true;
     clearTimeout(loadTimer);
+    state.playlistRequest = null;
     if (status === 200 && text) {
       state._m3uRetries = 0;
       try {
@@ -3727,7 +3794,7 @@ function loadPlaylistContent(pl, forceFresh) {
       if (state._m3uRetries < 3) {
         state._m3uRetries++;
         showToast('Conectando con playlist (' + state._m3uRetries + '/3)...');
-        setTimeout(function() { if (state.playlistLoadId === loadId) loadPlaylistContent(pl, forceFresh); }, 3500);
+        state.playlistRetryTimer = setTimeout(function() { if (state.playlistLoadId === loadId) loadPlaylistContent(pl, forceFresh); }, 3500);
         return;
       }
       state._m3uRetries = 0;
@@ -3750,6 +3817,7 @@ function loadPlaylistContent(pl, forceFresh) {
     handleResult(0, null);
     try { xhr.abort(); } catch (abortError) {}
   }, 45000);
+  state.playlistRequestTimer = loadTimer;
   try {
     xhr.send();
   } catch (err) {
@@ -4282,6 +4350,12 @@ function goBackAction() {
       }
       // Si ya estamos en las pestañas ('tabs'), RETROCEDER regresa a la lista de Playlists (Home)
       state.playlistLoadId = (state.playlistLoadId || 0) + 1;
+      clearTimeout(state.playlistRequestTimer);
+      clearTimeout(state.playlistRetryTimer);
+      if (state.playlistRequest) {
+        try { state.playlistRequest.abort(); } catch (backAbortError) {}
+        state.playlistRequest = null;
+      }
       state.pendingRecentContent = null;
       state.currentSeries = null;
       state.activeSeriesEpisodes = null;
@@ -4572,6 +4646,12 @@ function hideTuning() {
 }
 
 function seekRelative(step) {
+  if (window.TeamGNative && TeamGNative.active()) {
+    var nativeTime = TeamGNative.info();
+    if (TeamGNative.seek(nativeTime.currentTime + step)) showToast('Posición: ' + formatTime(nativeTime.currentTime + step));
+    showPlayerOverlay();
+    return;
+  }
   var v = $('video-el');
   var netcastObj = $('netcast-player');
   var dur = state.activeDuration || (v && v.duration && isFinite(v.duration) ? v.duration : 0);
@@ -4653,6 +4733,16 @@ function hidePlayerOverlay() {
 var lastChannelChangeTime = 0;
 
 function cleanPlayerEngines() {
+  state.playerGeneration = (state.playerGeneration || 0) + 1;
+  if (window.TeamGNative && TeamGNative.active()) TeamGNative.stop();
+  var samsungSurface = $('samsung-player');
+  if (samsungSurface) samsungSurface.style.display = 'none';
+  clearTimeout(state.nativeSubtitleTimer);
+  state.nativeSubtitleText = '';
+  state.nativeTextIndex = -1;
+  state.nativeAudioIndex = -1;
+  clearTimeout(state.subtitleRequestTimer);
+  if (state.subtitleRequest) { try { state.subtitleRequest.abort(); } catch (subtitleAbort) {} state.subtitleRequest = null; }
   hideTuning();
   if (state.tuningWatchdog) {
     clearInterval(state.tuningWatchdog);
@@ -4666,6 +4756,9 @@ function cleanPlayerEngines() {
     v.onloadedmetadata = null;
     v.onerror = null;
     v.ontimeupdate = null;
+    v.onwaiting = null;
+    v.oncanplay = null;
+    v.onpause = null;
     try { v.pause(); } catch (e1) {}
   }
 
@@ -4753,7 +4846,11 @@ function startPlaybackTicker() {
     var netcastObj = $('netcast-player');
     var cur = 0, dur = 0, isLive = true;
 
-    if (netcastObj && netcastObj.style.display !== 'none' && typeof netcastObj.playPosition !== 'undefined') {
+    if (window.TeamGNative && TeamGNative.active()) {
+      var nativeClock = TeamGNative.info();
+      cur = nativeClock.currentTime; dur = nativeClock.duration;
+      if (dur > 0) { isLive = false; state.activeDuration = dur; }
+    } else if (netcastObj && netcastObj.style.display !== 'none' && typeof netcastObj.playPosition !== 'undefined') {
       try {
         cur = (netcastObj.playPosition || 0) / 1000;
         dur = (netcastObj.playTime || 0) / 1000;
@@ -4797,7 +4894,10 @@ function startPlaybackTicker() {
     // Renderizado universal de subtítulos en pantalla (Overlay directo para cualquier Smart TV)
     var subEl = $('player-subtitles-overlay');
     if (subEl) {
-      if (state.selectedSubTrack === -1 || !state.subCues || state.subCues.length === 0) {
+      if (window.TeamGNative && TeamGNative.active() && state.nativeTextIndex >= 0) {
+        subEl.textContent = state.nativeSubtitleText || '';
+        subEl.style.display = state.nativeSubtitleText ? 'block' : 'none';
+      } else if (state.selectedSubTrack === -1 || !state.subCues || state.subCues.length === 0) {
         subEl.style.display = 'none';
         subEl.textContent = '';
       } else {
@@ -4841,10 +4941,12 @@ function monitorPlaybackRecovery(cur, dur, v, netcastObj) {
   if (state.screen !== 'player' || !state.recoveryItem) return;
   var now = (new Date()).getTime();
   var nativeActive = netcastObj && netcastObj.style.display !== 'none';
-  var paused = nativeActive ? netcastObj.playState === 2 : v && v.paused && !v.error;
+  var samsungActive = window.TeamGNative && TeamGNative.active();
+  var paused = samsungActive ? TeamGNative.info().paused : (nativeActive ? netcastObj.playState === 2 : v && v.paused && !v.error);
   if (state.recoverySeek > 0 && dur > state.recoverySeek) {
     try {
-      if (nativeActive && netcastObj.playState === 1) netcastObj.playPosition = Math.floor(state.recoverySeek * 1000);
+      if (samsungActive) { if (!TeamGNative.seek(state.recoverySeek)) return; }
+      else if (nativeActive && netcastObj.playState === 1) netcastObj.playPosition = Math.floor(state.recoverySeek * 1000);
       else if (!nativeActive && v && v.readyState >= 1) v.currentTime = state.recoverySeek;
       else return;
       state.recoveryPosition = state.recoverySeek;
@@ -4853,7 +4955,7 @@ function monitorPlaybackRecovery(cur, dur, v, netcastObj) {
       return;
     } catch (seekErr) {}
   }
-  if (paused || (!nativeActive && v && v.ended && state.recoveryVod) || (state.recoveryVod && dur > 0 && cur >= dur - 1)) {
+  if (paused || (!samsungActive && !nativeActive && v && v.ended && state.recoveryVod) || (state.recoveryVod && dur > 0 && cur >= dur - 1)) {
     state.recoveryLastTime = now;
     return;
   }
@@ -4876,21 +4978,31 @@ function stopPlaybackTicker() {
 
 function loadSubtitleCues(vttUrl) {
   state.subCues = [];
-  var xhr = new XMLHttpRequest();
+  if (state.subtitleRequest) { try { state.subtitleRequest.abort(); } catch (e0) {} }
+  clearTimeout(state.subtitleRequestTimer);
+  var xhr = new XMLHttpRequest(), generation = state.playerGeneration;
+  state.subtitleRequest = xhr;
+  var completed = false;
+  function done() {
+    if (completed) return;
+    completed = true; clearTimeout(state.subtitleRequestTimer);
+    if (state.subtitleRequest !== xhr || generation !== state.playerGeneration) return;
+    state.subtitleRequest = null;
+    if (xhr.status === 200 && xhr.responseText) parseVttText(xhr.responseText);
+    else showToast('No se pudieron cargar los subtítulos.');
+  }
   xhr.open('GET', vttUrl, true);
-  xhr.onreadystatechange = function() {
-    if (xhr.readyState === 4 && xhr.status === 200) {
-      parseVttText(xhr.responseText);
-    }
-  };
-  try { xhr.send(); } catch (e) {}
+  xhr.onreadystatechange = function() { if (xhr.readyState === 4) done(); };
+  xhr.onerror = done;
+  state.subtitleRequestTimer = setTimeout(function() { done(); try { xhr.abort(); } catch (e1) {} }, 15000);
+  try { xhr.send(); } catch (e2) { done(); }
 }
 
 function parseVttText(txt) {
   state.subCues = [];
   if (!txt) return;
   var lines = txt.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
-  var timeRegex = /(\d{2}:\d{2}:\d{2}[\.,]\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2}[\.,]\d{3})/;
+  var timeRegex = /((?:\d{2}:)?\d{2}:\d{2}[\.,]\d{3})\s*-->\s*((?:\d{2}:)?\d{2}:\d{2}[\.,]\d{3})/;
 
   function toSec(tStr) {
     tStr = tStr.replace(',', '.');
@@ -4898,6 +5010,7 @@ function parseVttText(txt) {
     if (p.length === 3) {
       return parseFloat(p[0]) * 3600 + parseFloat(p[1]) * 60 + parseFloat(p[2]);
     }
+    if (p.length === 2) return parseFloat(p[0]) * 60 + parseFloat(p[1]);
     return 0;
   }
 
@@ -4929,42 +5042,13 @@ function probeSubtitles(rawUrl, channelSubs) {
   state.subCues = [];
   var subEl = $('player-subtitles-overlay');
   if (subEl) { subEl.style.display = 'none'; subEl.textContent = ''; }
-
   if (channelSubs) {
-    state.activeSubTracks.push({
-      id: 'custom',
-      type: 'external',
-      url: (API_BASE || '') + '/api/ott/subtitles?url=' + encodeURIComponent(channelSubs),
-      name: 'Subtítulos externos'
-    });
+    var subtitleUrl = resolveIconUrl(channelSubs);
+    state.activeSubTracks.push({id:'custom', type:'external',
+      url:(API_BASE || '') + '/api/ott/subtitles?url=' + encodeURIComponent(subtitleUrl),
+      name:'Subtítulos externos'});
   }
-
-  var isVod = (rawUrl.indexOf('.m3u8') === -1);
-  if (isVod) {
-    var xhr = new XMLHttpRequest();
-    xhr.open('GET', (API_BASE || '') + '/api/ott/tracks?url=' + encodeURIComponent(rawUrl), true);
-    xhr.onreadystatechange = function() {
-      if (xhr.readyState === 4 && xhr.status === 200) {
-        try {
-          var res = JSON.parse(xhr.responseText);
-          if (res && res.tracks && res.tracks.length > 0) {
-            for (var t = 0; t < res.tracks.length; t++) {
-              var tr = res.tracks[t];
-              var tName = tr.name || (tr.language ? ('[' + tr.language.toUpperCase() + ']') : ('Pista ' + (t + 1)));
-              state.activeSubTracks.push({
-                id: 'track_' + tr.number,
-                type: 'mkv',
-                number: tr.number,
-                name: tName,
-                url: (API_BASE || '') + '/api/ott/subtitles?url=' + encodeURIComponent(rawUrl) + '&track=' + tr.number
-              });
-            }
-          }
-        } catch (eTr) {}
-      }
-    };
-    try { xhr.send(); } catch (eSend) {}
-  }
+  // Embedded tracks are read by the native player, never by downloading the movie on Render.
 }
 
 function playChannelAt(idx) {
@@ -5089,6 +5173,10 @@ function playItem(c, recovering) {
   var v = $('video-el');
   var netcastObj = $('netcast-player');
   var engine = state.auth.playerEngine || 'auto';
+  var useNative = window.TeamGNative && TeamGNative.available() &&
+    (engine === 'avplay' || engine === 'auto');
+  if (!state.recoveryVod && state.auth.iptvPlayer === 'HTML5 player') { engine = 'html5'; useNative = false; }
+  if (!state.recoveryVod && state.auth.iptvPlayer === 'Native TV player' && window.TeamGNative && TeamGNative.available()) useNative = true;
   var preferNetcast = false;
   
   var ua = navigator.userAgent || '';
@@ -5101,14 +5189,44 @@ function playItem(c, recovering) {
       preferNetcast = true;
     }
   }
+  if (!state.recoveryVod && state.auth.iptvPlayer === 'Native TV player' && isLegacyNetcast && netcastObj && typeof netcastObj.play === 'function') preferNetcast = true;
 
   probeSubtitles(c.url || playUrl, c.subs);
 
-  if (preferNetcast && netcastObj) {
+  if (useNative) {
+    startSamsungPlayer(v, netcastObj, playUrl, streamUrl, c);
+  } else if (preferNetcast && netcastObj) {
     startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c);
   } else {
     playHtml5(v, netcastObj, playUrl, streamUrl, c);
   }
+}
+
+function startSamsungPlayer(v, netcastObj, playUrl, streamUrl, c) {
+  var generation = state.playerGeneration;
+  var surface = $('samsung-player');
+  if (v) v.style.display = 'none';
+  if (netcastObj) netcastObj.style.display = 'none';
+  if (surface) surface.style.display = 'block';
+  function current() { return state.screen === 'player' && state.playerGeneration === generation; }
+  TeamGNative.start(playUrl, {
+    ready: function() { if (current()) { hideTuning(); $('btnPlayPause').textContent = '▶❚❚'; } },
+    buffer: function(waiting) { if (current()) setBuffering(waiting); },
+    error: function() { if (current()) { hideTuning(); recoverPlayback(); } },
+    ended: function() { if (current()) { hideTuning(); if (!state.recoveryVod) recoverPlayback(); } },
+    failed: function() {
+      if (!current()) return;
+      if (surface) surface.style.display = 'none';
+      showToast('AVPlay no pudo iniciar. Usando HTML5.');
+      playHtml5(v, netcastObj, playUrl, streamUrl, c);
+    },
+    subtitle: function(text, duration) {
+      if (!current() || state.nativeTextIndex < 0) return;
+      clearTimeout(state.nativeSubtitleTimer);
+      state.nativeSubtitleText = text.replace(/<[^>]*>/g, '');
+      state.nativeSubtitleTimer = setTimeout(function() { if (current()) state.nativeSubtitleText = ''; }, Math.max(250, Math.min(duration, 30000)));
+    }
+  });
 }
 
 function startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c) {
@@ -5214,7 +5332,10 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c) {
     }
   };
 
-  if (window.Hls && Hls.isSupported() && (playUrl.indexOf('.m3u8') !== -1 || streamUrl.indexOf('.m3u8') !== -1)) {
+  var nativeHls = !!(v.canPlayType && v.canPlayType('application/vnd.apple.mpegurl'));
+  var wantsJs = state.auth.hlsPlayer === 'JS player (hls.js)' ||
+    (state.auth.hlsPlayer !== 'Native HLS player' && !nativeHls);
+  if (wantsJs && window.Hls && Hls.isSupported() && (playUrl.indexOf('.m3u8') !== -1 || streamUrl.indexOf('.m3u8') !== -1)) {
     state.hlsInstance = new Hls({ maxBufferLength: 15, enableWorker: false });
     state.hlsInstance.loadSource(playUrl);
     state.hlsInstance.attachMedia(v);
@@ -5270,6 +5391,7 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c) {
 }
 
 function stopPlayer() {
+  state._playlistCache = {};
   if (state.recoveryTimer) clearTimeout(state.recoveryTimer);
   state.recoveryTimer = null;
   state.recoveryItem = null;
@@ -5368,6 +5490,7 @@ function handlePlayerNav(kc, eObj) {
   var isRewind = (kc === 412 || kc === 69 || (eObj && eObj.key === 'MediaRewind'));
   var isForward = (kc === 417 || kc === 72 || (eObj && eObj.key === 'MediaFastForward'));
   if (isRewind || isForward) {
+    if (window.TeamGNative && TeamGNative.active()) { seekRelative(isForward ? 30 : -15); return; }
     var v = $('video-el');
     var netcastObj = $('netcast-player');
     var dur = state.activeDuration || (v && v.duration && isFinite(v.duration) ? v.duration : 0);
@@ -5747,6 +5870,7 @@ if (document.addEventListener) {
    INICIALIZACIÓN
    ========================================================================== */
 loadStorage();
+if (window.TeamGNative) TeamGNative.load(function() { updateOptionsDisplay(); });
 if (state.auth.token) {
   fetchFeed();
 } else if (state.auth.login && state.auth.password) {
@@ -6021,6 +6145,16 @@ $('btnPlayerAudio').onclick = function(e) {
   var ev = e || window.event;
   if (ev && ev.stopPropagation) ev.stopPropagation();
   showPlayerOverlay();
+  if (window.TeamGNative && TeamGNative.active()) {
+    var audio = TeamGNative.tracks('AUDIO');
+    if (!audio.length) { showToast('No hay pistas de audio disponibles.'); return; }
+    var nextAudio = ((state.nativeAudioIndex == null ? -1 : state.nativeAudioIndex) + 1) % audio.length;
+    if (TeamGNative.select('AUDIO', audio[nextAudio].index)) {
+      state.nativeAudioIndex = nextAudio;
+      showToast('Audio: pista ' + (nextAudio + 1));
+    } else showToast('La TV no permite cambiar esta pista.');
+    return;
+  }
   var v = $('video-el');
   if (state.hlsInstance && state.hlsInstance.audioTracks && state.hlsInstance.audioTracks.length > 1) {
     var cur = state.hlsInstance.audioTrack;
@@ -6051,6 +6185,19 @@ $('btnPlayerSubs').onclick = function(e) {
   if (ev && ev.stopPropagation) ev.stopPropagation();
   showPlayerOverlay();
   var v = $('video-el');
+  if (window.TeamGNative && TeamGNative.active()) {
+    var nativeSubs = TeamGNative.tracks('TEXT');
+    if (nativeSubs.length) {
+      var nextSub = (state.nativeTextIndex == null ? -1 : state.nativeTextIndex) + 1;
+      if (nextSub >= nativeSubs.length) nextSub = -1;
+      if (nextSub < 0 || TeamGNative.select('TEXT', nativeSubs[nextSub].index)) {
+        state.nativeTextIndex = nextSub;
+        state.nativeSubtitleText = '';
+        showToast(nextSub < 0 ? 'Subtítulos: Desactivados' : 'Subtítulos: pista ' + (nextSub + 1));
+      } else showToast('Esta pista no es compatible con la TV.');
+      return;
+    }
+  }
 
   // Si hay pistas detectadas (externas o MKV embebidas)
   if (state.activeSubTracks && state.activeSubTracks.length > 0) {
@@ -6071,19 +6218,6 @@ $('btnPlayerSubs').onclick = function(e) {
     } else {
       var sub = state.activeSubTracks[state.selectedSubTrack];
       loadSubtitleCues(sub.url);
-      if (v) {
-        try { v.setAttribute('crossorigin', 'anonymous'); } catch (eCr) {}
-        var trk = document.createElement('track');
-        trk.kind = 'subtitles';
-        trk.label = sub.name;
-        trk.srclang = 'es';
-        trk.src = sub.url;
-        trk.default = true;
-        v.appendChild(trk);
-        try {
-          if (v.textTracks && v.textTracks[0]) v.textTracks[0].mode = 'showing';
-        } catch (eM) {}
-      }
       showToast('Subtítulos: ' + sub.name);
     }
     return;
@@ -6147,6 +6281,10 @@ $('btnPlayPause').onclick = function(e) {
   var ev = e || window.event;
   if (ev && ev.stopPropagation) ev.stopPropagation();
   showPlayerOverlay();
+  if (window.TeamGNative && TeamGNative.active()) {
+    if (TeamGNative.toggle()) $('btnPlayPause').textContent = TeamGNative.info().paused ? '▶' : '▶❚❚';
+    return;
+  }
   var netcastObj = $('netcast-player');
   if (netcastObj && netcastObj.style.display !== 'none') {
     if (netcastObj.playState === 1) { try { netcastObj.pause(); $('btnPlayPause').textContent = '▶'; } catch (e2) {} }
@@ -6252,6 +6390,10 @@ for (var pbi = 0; pbi < pBotBtns.length; pbi++) {
 }
 
 function seekToPercent(pct) {
+  if (window.TeamGNative && TeamGNative.active()) {
+    if (TeamGNative.seek(Math.max(0, Math.min(1, pct)) * TeamGNative.info().duration)) showToast('Posición: ' + Math.round(pct * 100) + '%');
+    return;
+  }
   var v = $('video-el');
   var netcastObj = $('netcast-player');
   var dur = state.activeDuration || (v && v.duration && isFinite(v.duration) ? v.duration : 0);

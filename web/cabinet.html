@@ -207,9 +207,12 @@ h4{font-weight:400;color:#555;margin:18px 0 6px}
       </div>
 
       <div class="form-field-row">
-        <div class="form-field-label">subtitles</div>
+        <div class="form-field-label">Subtítulos externos</div>
         <div class="form-field-input">
           <input id="mChSubs" placeholder="https://... o archivo .srt / .vtt (Opcional)" />
+          <button type="button" id="btnUploadSubtitle">Subir SRT / VTT</button>
+          <input type="file" id="subtitleFile" accept=".srt,.vtt" style="display:none" />
+          <small>Archivo de texto UTF-8, máximo 2 MB. Se guarda para todos los clientes. Después pulsa Guardar. Las pistas incrustadas del MKV se usan cuando el reproductor de la TV lo permite.</small>
         </div>
       </div>
 
@@ -462,7 +465,7 @@ function renderPlaylistEditor(a) {
       "<button type='button' id='btnRemoveSeriesPoster'>Quitar</button>" +
       "<img id='seriesPosterPreview' alt='Vista previa de la carátula' src='" + esc(getGroupSeriesPoster(CURRENT_GROUP)) + "' style='width:110px;height:140px;object-fit:contain;display:" + (getGroupSeriesPoster(CURRENT_GROUP) ? "block" : "none") + "' onerror=\"this.style.display='none'\" />" +
       "<button id='btnSaveSeriesPoster' class='btn-create-channel'>Guardar póster</button>" +
-      "<span class='small'>Usa una imagen vertical 2:3, recomendada 300 × 450 píxeles, para la ficha que muestra temporadas y episodios. Solo cambia el póster interior de «" + esc(CURRENT_GROUP) + "». Sus episodios y trailer conservan sus propias imágenes. Pulsa Guardar carátula para publicar el cambio.</span>" +
+      "<span class='small'>Usa una imagen vertical 2:3, recomendada 300 × 450 píxeles, para la ficha que muestra temporadas y episodios. Se prepara como JPEG ligero para TV, conservando la proporción. Solo cambia el póster interior de «" + esc(CURRENT_GROUP) + "». Sus episodios y trailer conservan sus propias imágenes. Pulsa Guardar carátula para publicar el cambio.</span>" +
     "</div></details>" : "") +
     "<div class='channels-container " + (CURRENT_VIEW_MODE === "grid" ? "grid-view" : "") + "' id='channelsListContainer'>";
 
@@ -584,14 +587,7 @@ function renderPlaylistEditor(a) {
     };
   }
   if (seriesCoverButton) seriesCoverButton.onclick = function() {
-    var cover = document.getElementById("seriesCoverUrl").value.trim();
-    if (cover && (!/^https?:\/\/[^\s"<>]+$/i.test(cover))) { alert("Ingresa una URL HTTP o HTTPS válida para la carátula."); return; }
-    var count = 0;
-    CURRENT_PL.channels.forEach(function(c) {
-      if (c.group === CURRENT_GROUP) { c.seriesLogo = cover; count++; }
-    });
-    if (!count) { alert("Añade primero un episodio o trailer a este grupo."); return; }
-    savePlaylistToServer();
+    prepareSeriesArtwork('seriesLogo', 'seriesCoverUrl', 'horizontal', seriesCoverButton);
   };
 
   })();
@@ -637,14 +633,7 @@ function renderPlaylistEditor(a) {
     };
   }
   if (seriesPosterButton) seriesPosterButton.onclick = function() {
-    var cover = document.getElementById("seriesPosterUrl").value.trim();
-    if (cover && (!/^https?:\/\/[^\s"<>]+$/i.test(cover))) { alert("Ingresa una URL HTTP o HTTPS válida para la carátula."); return; }
-    var count = 0;
-    CURRENT_PL.channels.forEach(function(c) {
-      if (c.group === CURRENT_GROUP) { c.seriesPoster = cover; count++; }
-    });
-    if (!count) { alert("Añade primero un episodio o trailer a este grupo."); return; }
-    savePlaylistToServer();
+    prepareSeriesArtwork('seriesPoster', 'seriesPosterUrl', 'vertical', seriesPosterButton);
   };
 
   })();
@@ -1088,6 +1077,25 @@ document.getElementById("btnIconUpload").onclick = function() {
   document.getElementById("mChIconFileInput").click();
 };
 
+document.getElementById("btnUploadSubtitle").onclick = function() { document.getElementById("subtitleFile").click(); };
+document.getElementById("subtitleFile").onchange = function() {
+  var file = this.files && this.files[0];
+  if (!file) return;
+  if (!/\.(srt|vtt)$/i.test(file.name) || file.size > 2097152) { alert("Elige un SRT o VTT de texto de máximo 2 MB."); return; }
+  var upload = document.getElementById("btnUploadSubtitle"), save = document.getElementById("btnSaveChModal");
+  upload.disabled = save.disabled = true;
+  var reader = new FileReader();
+  function finish() { upload.disabled = save.disabled = false; }
+  reader.onerror = function() { finish(); alert("No se pudo leer el subtítulo."); };
+  reader.onload = function() {
+    api("/api/ott/admin/upload-subtitle", "POST", {text:reader.result}).then(function(result) {
+      document.getElementById("mChSubs").value = result.url;
+      finish();
+    }).catch(function(err) { finish(); alert("No se pudo publicar el subtítulo: " + err.message); });
+  };
+  reader.readAsText(file, "UTF-8");
+};
+
 document.getElementById("btnToolUploadPic").onclick = function() {
   document.getElementById("mChIconFileInput").click();
 };
@@ -1217,6 +1225,24 @@ function reorderChannelsByGroupOrder() {
     return a.origIdx - b.origIdx;
   });
   CURRENT_PL.channels = indexed.map(function(x) { return x.c; });
+}
+
+function prepareSeriesArtwork(field, inputId, shape, button) {
+  var playlist = CURRENT_PL, group = CURRENT_GROUP;
+  var cover = document.getElementById(inputId).value.trim().replace(/&amp;/g, '&');
+  if (cover && !/^https?:\/\/[^\s"<>]+$/i.test(cover)) { alert("Ingresa un enlace público HTTP o HTTPS de imagen."); return; }
+  if (!playlist.channels.some(function(c) { return c.group === group; })) { alert("Añade primero un episodio o trailer a este grupo."); return; }
+  button.disabled = true;
+  var previousLabel = button.textContent;
+  button.textContent = "Preparando para TV…";
+  var prepared = cover ? api("/api/ott/admin/prepare-image", "POST", {url:cover,shape:shape}) : Promise.resolve({url:""});
+  prepared.then(function(result) {
+    if (CURRENT_PL !== playlist || CURRENT_GROUP !== group) { alert("Cambiaste de serie durante la preparación. Vuelve a guardar la carátula en su serie."); return; }
+    playlist.channels.forEach(function(c) { if (c.group === group) c[field] = result.url; });
+    document.getElementById(inputId).value = result.url;
+    savePlaylistToServer();
+  }).catch(function(err) { alert("No se guardó la carátula: " + err.message); })
+    .then(function() { button.disabled = false; button.textContent = previousLabel; });
 }
 
 function savePlaylistToServer(silent) {

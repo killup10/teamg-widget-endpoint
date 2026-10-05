@@ -41,4 +41,31 @@ for (let i = 0; i < 4; i++) {
   if (retry) { t.timers.delete(retry[0]); retry[1].fn(); }
 }
 assert.match(t.area.innerHTML, /Error cargando playlist/);
+const switched = setup(false);
+const previous = switched.requests[0];
+switched.ctx.loadPlaylistContent({id: 'series', name: 'Series'});
+assert.equal(previous.aborted, true);
+previous.readyState = 4; previous.status = 200; previous.responseText = '#EXTM3U';
+previous.onreadystatechange();
+assert.match(switched.area.innerHTML, /Cargando Series/);
+assert.equal(switched.ctx.state.currentPlaylist.id, 'series');
+assert.equal(switched.timers.size, 1);
+const apiSource = html.slice(html.indexOf('function apiCall('), html.indexOf('var KB_ROWS'));
+const apiTimers = new Map();
+const results = [];
+let apiRequest;
+const apiContext = {
+  API_BASE: '', clearTimeout: id => apiTimers.delete(id),
+  setTimeout: fn => { apiTimers.set(1, fn); return 1; },
+  XMLHttpRequest: function() {
+    apiRequest = this; this.open = () => {}; this.send = () => {};
+    this.abort = () => { this.aborted = true; this.readyState = 4; this.status = 0; this.onreadystatechange(); };
+  }
+};
+vm.createContext(apiContext); vm.runInContext(apiSource, apiContext);
+apiContext.apiCall('GET', '/feed', null, status => results.push(status));
+apiTimers.get(1)();
+assert.deepEqual(results, [0]);
+assert.equal(apiRequest.aborted, true);
+assert.equal(apiTimers.size, 0);
 console.log('Playlist success, TV rendering errors, and bounded timeout retries pass.');
