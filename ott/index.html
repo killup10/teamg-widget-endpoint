@@ -3743,6 +3743,7 @@ function buildGroups() {
       map[g] = true;
       groups.push(g);
     }
+  }
   // Conserva el orden exacto de categorías definido en la playlist
   state.groups = groups;
 }
@@ -4086,7 +4087,7 @@ function renderChannels() {
     
     var favHtml = state.favorites[c.id] ? '<div class="tile-fav-mark"><svg width="13" height="13" viewBox="0 0 24 24" fill="#ffcc00"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>' : '';
     var seriesBadge = c.isSeries ? '<div class="tile-series-badge">SERIE</div>' : '';
-    var is4k = !c.isSeries && (/\b(4k|uhd)\b/i.test(c.name) || (c.group && /\b(4k|uhd)\b/i.test(c.group)) || (CURRENT_PL && /\b(4k|uhd)\b/i.test(CURRENT_PL.name)));
+    var is4k = !c.isSeries && (/\b(4k|uhd)\b/i.test(c.name) || (c.group && /\b(4k|uhd)\b/i.test(c.group)) || (state.currentPlaylist && /\b(4k|uhd)\b/i.test(state.currentPlaylist.name)));
     var badge4k = is4k ? '<div class="tile-4k-badge">4K UHD</div>' : '';
     
     var logoSrc = resolveIconUrl(c.logo);
