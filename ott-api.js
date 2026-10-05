@@ -164,7 +164,7 @@ function parseM3uText(text) {
       }
     }
   }
-  return { channels, groups: Array.from(groupsSet).sort() };
+  return { channels, groups: Array.from(groupsSet) };
 }
 
 function mergePlaylistSource(existing, incoming) {
@@ -702,6 +702,25 @@ function fetchWithRedirects(targetUrl, options, maxRedirects, callback) {
         const id = 'artwork_' + crypto.createHash('sha256').update(bytes).digest('hex');
         images.set(id, entry.data);
         entry.logo = 'https://' + hostHeader + '/api/ott/icon/' + id;
+
+        if (entry.posterData) {
+          if (!/^data:image\/jpeg;base64,[A-Za-z0-9+/]+=*$/.test(entry.posterData) || entry.posterData.length > 150000) return json(res, 400, {ok:false,error:'Póster inválido o demasiado grande'});
+          const pBytes = Buffer.from(entry.posterData.split(',')[1], 'base64');
+          if (pBytes[0] !== 255 || pBytes[1] !== 216) return json(res, 400, {ok:false,error:'Formato JPEG de póster inválido'});
+          const pId = 'artwork_' + crypto.createHash('sha256').update(pBytes).digest('hex');
+          images.set(pId, entry.posterData);
+          entry.seriesPoster = 'https://' + hostHeader + '/api/ott/icon/' + pId;
+        }
+        if (entry.seriesLogoData) {
+          if (!/^data:image\/jpeg;base64,[A-Za-z0-9+/]+=*$/.test(entry.seriesLogoData) || entry.seriesLogoData.length > 150000) return json(res, 400, {ok:false,error:'Carátula de serie inválida'});
+          const sBytes = Buffer.from(entry.seriesLogoData.split(',')[1], 'base64');
+          if (sBytes[0] !== 255 || sBytes[1] !== 216) return json(res, 400, {ok:false,error:'Formato JPEG de carátula de serie inválido'});
+          const sId = 'artwork_' + crypto.createHash('sha256').update(sBytes).digest('hex');
+          images.set(sId, entry.seriesLogoData);
+          entry.seriesLogo = 'https://' + hostHeader + '/api/ott/icon/' + sId;
+        } else if (entry.isSeries) {
+          entry.seriesLogo = entry.logo;
+        }
       }
       let patched;
       try { patched = artworkFill.fillArtwork(text, body.entries); }

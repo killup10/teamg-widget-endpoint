@@ -57,10 +57,10 @@ h4{font-weight:400;color:#555;margin:18px 0 6px}
 .group-item:hover{background:#f0fdf4}
 .group-item.active{background:#e8f5e9;color:#15803d;font-weight:bold;border-left:4px solid #22c55e}
 .group-item-name{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.group-item-actions{display:flex;gap:6px;margin-left:6px;opacity:0.6}
+.group-item-actions{display:flex;gap:4px;margin-left:6px;opacity:0.9}
 .group-item:hover .group-item-actions{opacity:1}
-.group-item-actions span{cursor:pointer;font-size:14px;padding:2px}
-.group-item-actions span:hover{color:#22c55e}
+.group-item-actions span{cursor:pointer;font-size:13px;padding:2px 6px;background:#f3f4f6;border-radius:3px;border:1px solid #e5e7eb;display:inline-flex;align-items:center;justify-content:center}
+.group-item-actions span:hover{background:#22c55e;color:#fff;border-color:#22c55e}
 
 .editor-main{flex:1;display:flex;flex-direction:column}
 .editor-main-header{display:flex;align-items:center;gap:12px;margin-bottom:12px}
@@ -419,12 +419,16 @@ function renderPlaylistEditor(a) {
     "<button class='btn-new-group' id='btnAddNewGroup'>+ NEW GROUP</button>" +
     "<div class='groups-list'>";
 
-  CURRENT_PL.groups.forEach(function(g) {
+  CURRENT_PL.groups.forEach(function(g, gIdx) {
     var count = groupCounts[g] || 0;
     var isActive = g === CURRENT_GROUP;
-    h += "<div class='group-item " + (isActive ? "active" : "") + "' data-group-select='" + esc(g) + "'>" +
-      "<span class='group-item-name'>" + esc(g) + " (" + count + ")</span>" +
+    var isFirst = gIdx === 0;
+    var isLast = gIdx === CURRENT_PL.groups.length - 1;
+    h += "<div class='group-item " + (isActive ? "active" : "") + "' draggable='true' data-group-select='" + esc(g) + "' data-group-drag='" + esc(g) + "'>" +
+      "<span class='group-item-name' title='" + esc(g) + "'>" + esc(g) + " (" + count + ")</span>" +
       "<div class='group-item-actions'>" +
+        (!isFirst ? "<span title='Subir categoría' data-group-up='" + esc(g) + "'>▲</span>" : "<span style='opacity:0.2;cursor:default'>▲</span>") +
+        (!isLast ? "<span title='Bajar categoría' data-group-down='" + esc(g) + "'>▼</span>" : "<span style='opacity:0.2;cursor:default'>▼</span>") +
         "<span title='Renombrar grupo' data-group-rename='" + esc(g) + "'>✏</span>" +
         "<span title='Borrar grupo' data-group-del='" + esc(g) + "'>🗑</span>" +
       "</div></div>";
@@ -649,6 +653,81 @@ function renderPlaylistEditor(a) {
     gItems[i].onclick = function() {
       CURRENT_GROUP = this.getAttribute("data-group-select");
       render();
+    };
+  }
+
+  var upBtns = document.querySelectorAll("[data-group-up]");
+  for (var i = 0; i < upBtns.length; i++) {
+    upBtns[i].onclick = function(e) {
+      e.stopPropagation();
+      var g = this.getAttribute("data-group-up");
+      var idx = CURRENT_PL.groups.indexOf(g);
+      if (idx > 0) {
+        var tmp = CURRENT_PL.groups[idx];
+        CURRENT_PL.groups[idx] = CURRENT_PL.groups[idx - 1];
+        CURRENT_PL.groups[idx - 1] = tmp;
+        reorderChannelsByGroupOrder();
+        render();
+        savePlaylistToServer(true);
+      }
+    };
+  }
+
+  var downBtns = document.querySelectorAll("[data-group-down]");
+  for (var i = 0; i < downBtns.length; i++) {
+    downBtns[i].onclick = function(e) {
+      e.stopPropagation();
+      var g = this.getAttribute("data-group-down");
+      var idx = CURRENT_PL.groups.indexOf(g);
+      if (idx > -1 && idx < CURRENT_PL.groups.length - 1) {
+        var tmp = CURRENT_PL.groups[idx];
+        CURRENT_PL.groups[idx] = CURRENT_PL.groups[idx + 1];
+        CURRENT_PL.groups[idx + 1] = tmp;
+        reorderChannelsByGroupOrder();
+        render();
+        savePlaylistToServer(true);
+      }
+    };
+  }
+
+  var draggedGroup = null;
+  var dragGroupItems = document.querySelectorAll("[data-group-drag]");
+  for (var i = 0; i < dragGroupItems.length; i++) {
+    dragGroupItems[i].ondragstart = function(e) {
+      draggedGroup = this.getAttribute("data-group-drag");
+      e.dataTransfer.setData("text/plain", draggedGroup);
+      e.dataTransfer.effectAllowed = "move";
+      this.style.opacity = "0.4";
+    };
+    dragGroupItems[i].ondragend = function() {
+      this.style.opacity = "1";
+      document.querySelectorAll("[data-group-drag]").forEach(function(el) {
+        el.classList.remove("drag-over");
+      });
+    };
+    dragGroupItems[i].ondragover = function(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      this.classList.add("drag-over");
+    };
+    dragGroupItems[i].ondragleave = function() {
+      this.classList.remove("drag-over");
+    };
+    dragGroupItems[i].ondrop = function(e) {
+      e.preventDefault();
+      this.classList.remove("drag-over");
+      var targetG = this.getAttribute("data-group-drag");
+      if (draggedGroup && targetG && draggedGroup !== targetG) {
+        var fromIdx = CURRENT_PL.groups.indexOf(draggedGroup);
+        var toIdx = CURRENT_PL.groups.indexOf(targetG);
+        if (fromIdx > -1 && toIdx > -1) {
+          CURRENT_PL.groups.splice(fromIdx, 1);
+          CURRENT_PL.groups.splice(toIdx, 0, draggedGroup);
+          reorderChannelsByGroupOrder();
+          render();
+          savePlaylistToServer(true);
+        }
+      }
     };
   }
 
@@ -1123,7 +1202,25 @@ function getGroupSeriesPoster(group) {
 }
 
 
+function reorderChannelsByGroupOrder() {
+  if (!CURRENT_PL || !CURRENT_PL.groups || !CURRENT_PL.channels) return;
+  var order = {};
+  CURRENT_PL.groups.forEach(function(g, idx) {
+    order[g] = idx;
+  });
+  var indexed = CURRENT_PL.channels.map(function(c, i) {
+    var gOrder = Object.prototype.hasOwnProperty.call(order, c.group) ? order[c.group] : 999999;
+    return { c: c, gOrder: gOrder, origIdx: i };
+  });
+  indexed.sort(function(a, b) {
+    if (a.gOrder !== b.gOrder) return a.gOrder - b.gOrder;
+    return a.origIdx - b.origIdx;
+  });
+  CURRENT_PL.channels = indexed.map(function(x) { return x.c; });
+}
+
 function savePlaylistToServer(silent) {
+  reorderChannelsByGroupOrder();
   api("/api/ott/admin/playlist/save-channels", "POST", {
     id: CURRENT_PL.id,
     channels: CURRENT_PL.channels

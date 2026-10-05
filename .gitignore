@@ -4,3 +4,4 @@ node_modules/
 *.log
 .private-artwork/
 __pycache__/
+scratch/

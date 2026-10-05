@@ -87,23 +87,87 @@ def main():
                 unresolved.append({'name':item['name'],'reason':'ambiguous-or-no-image','candidates':[{'id':r['id'],'title':r.get('title'),'date':r.get('release_date')} for r in results.get('results',[])[:5]]})
                 continue
             movie = matches[0]
+            images_cache = folder / ('images-' + str(movie['id']) + '.json')
+            if images_cache.exists():
+                images = json.loads(images_cache.read_text(encoding='utf-8'))
+            else:
+                images = json.loads(request('https://api.themoviedb.org/3/movie/' + str(movie['id']) + '/images', True))
+                images_cache.write_text(json.dumps(images), encoding='utf-8')
+
+            backdrops = images.get('backdrops', [])
+            logos = images.get('logos', [])
+            posters = images.get('posters', [])
+
+            # Hierarchy:
+            # 1. Spanish backdrop (with localized title)
+            es_bds = [b for b in backdrops if b.get('iso_639_1') == 'es']
+            # 2. English / original language backdrop (with title)
+            en_bds = [b for b in backdrops if b.get('iso_639_1') == 'en']
+
+            # Logos: prefer 'es', then 'en', then any
+            es_logos = [l for l in logos if l.get('iso_639_1') == 'es']
+            en_logos = [l for l in logos if l.get('iso_639_1') == 'en']
+            best_logo = es_logos[0]['file_path'] if es_logos else (en_logos[0]['file_path'] if en_logos else (logos[0]['file_path'] if logos else None))
+
+            best_bd = backdrops[0]['file_path'] if backdrops else movie.get('backdrop_path')
+            es_posters = [p for p in posters if p.get('iso_639_1') == 'es']
+            best_poster = es_posters[0]['file_path'] if es_posters else (movie.get('poster_path') or (posters[0]['file_path'] if posters else None))
+
+            selected_bg = None
+            selected_logo = None
+            image_type = 'backdrop'
+
+            if es_bds:
+                selected_bg = es_bds[0]['file_path']
+                image_type = 'backdrop_es'
+            elif en_bds:
+                selected_bg = en_bds[0]['file_path']
+                image_type = 'backdrop_en'
+            elif best_bd and best_logo:
+                selected_bg = best_bd
+                selected_logo = best_logo
+                image_type = 'backdrop_with_logo'
+            elif best_poster:
+                selected_bg = best_poster
+                image_type = 'poster'
+            elif best_bd:
+                selected_bg = best_bd
+                image_type = 'backdrop_raw'
+
+            if not selected_bg:
+                unresolved.append({'name': item['name'], 'reason': 'no-usable-image'})
+                continue
+
             jpg = folder / (str(movie['id']) + '.jpg')
             if not jpg.exists():
-                config = json.loads(request('https://api.themoviedb.org/3/configuration', True))['images']
-                backdrop = bool(movie.get('backdrop_path'))
-                sizes = config['backdrop_sizes' if backdrop else 'poster_sizes']
-                preferred = 'w780' if backdrop else 'w342'
-                size = preferred if preferred in sizes else sizes[0]
-                raw = request(config['secure_base_url'] + size + (movie.get('backdrop_path') or movie['poster_path']))
-                with Image.open(io.BytesIO(raw)) as original:
-                    image = ImageOps.exif_transpose(original).convert('RGB')
-                    image.thumbnail((400,225), Image.Resampling.LANCZOS)
-                    canvas = Image.new('RGB',(400,225),(15,10,12))
-                    canvas.paste(image,((400-image.width)//2,(225-image.height)//2))
-                    canvas.save(jpg, quality=76, optimize=True)
+                bg_size = 'w780' if image_type != 'poster' else 'w342'
+                bg_raw = request('https://image.tmdb.org/t/p/' + bg_size + selected_bg)
+                with Image.open(io.BytesIO(bg_raw)) as orig_bg:
+                    bg = ImageOps.exif_transpose(orig_bg).convert('RGBA')
+                    bg.thumbnail((400, 225), Image.Resampling.LANCZOS)
+                    canvas = Image.new('RGBA', (400, 225), (15, 10, 12, 255))
+                    canvas.paste(bg, ((400 - bg.width) // 2, (225 - bg.height) // 2))
+
+                    if selected_logo:
+                        try:
+                            logo_raw = request('https://image.tmdb.org/t/p/w500' + selected_logo)
+                            with Image.open(io.BytesIO(logo_raw)) as orig_logo:
+                                logo = ImageOps.exif_transpose(orig_logo).convert('RGBA')
+                                max_w = int(canvas.width * 0.75)
+                                max_h = int(canvas.height * 0.45)
+                                logo.thumbnail((max_w, max_h), Image.Resampling.LANCZOS)
+                                x = (canvas.width - logo.width) // 2
+                                y = canvas.height - logo.height - 18
+                                canvas.paste(logo, (x, y), mask=logo)
+                        except Exception as e:
+                            pass
+
+                    final_rgb = canvas.convert('RGB')
+                    final_rgb.save(jpg, format='JPEG', quality=78, optimize=True)
+
             data = jpg.read_bytes()
             assets.append({'id':hashlib.sha256(data).hexdigest(),'keys':[key],'data':'data:image/jpeg;base64,'+base64.b64encode(data).decode()})
-            decisions.append({'name':item['name'],'tmdbId':movie['id'],'title':movie['title'],'year':year,'imageType':'backdrop' if movie.get('backdrop_path') else 'poster'})
+            decisions.append({'name':item['name'],'tmdbId':movie['id'],'title':movie['title'],'year':year,'imageType':image_type})
         except (OSError, ValueError) as exc:
             # Do not include exception URLs or credential headers in the report.
             unresolved.append({'name':item['name'],'reason':type(exc).__name__})

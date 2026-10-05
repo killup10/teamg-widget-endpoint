@@ -264,6 +264,21 @@ body.theme-classic .tile.focused { border-color: #ff8800 !important; box-shadow:
   z-index: 3;
 }
 
+.tile-4k-badge {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  font-size: 8.5px;
+  font-weight: 900;
+  color: #ffcc00;
+  background: rgba(10, 10, 15, 0.88);
+  border: 1px solid rgba(255, 204, 0, 0.75);
+  padding: 1px 4px;
+  border-radius: 2px;
+  letter-spacing: 0.5px;
+  z-index: 3;
+}
+
 .tile-title {
   font-size: 13.5px;
   font-weight: 500;
@@ -3728,8 +3743,7 @@ function buildGroups() {
       map[g] = true;
       groups.push(g);
     }
-  }
-  groups.sort();
+  // Conserva el orden exacto de categorías definido en la playlist
   state.groups = groups;
 }
 
@@ -4072,6 +4086,8 @@ function renderChannels() {
     
     var favHtml = state.favorites[c.id] ? '<div class="tile-fav-mark"><svg width="13" height="13" viewBox="0 0 24 24" fill="#ffcc00"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>' : '';
     var seriesBadge = c.isSeries ? '<div class="tile-series-badge">SERIE</div>' : '';
+    var is4k = !c.isSeries && (/\b(4k|uhd)\b/i.test(c.name) || (c.group && /\b(4k|uhd)\b/i.test(c.group)) || (CURRENT_PL && /\b(4k|uhd)\b/i.test(CURRENT_PL.name)));
+    var badge4k = is4k ? '<div class="tile-4k-badge">4K UHD</div>' : '';
     
     var logoSrc = resolveIconUrl(c.logo);
     var thumbContent = logoSrc
@@ -4080,7 +4096,7 @@ function renderChannels() {
 
     tile.innerHTML = '<div class="tile-thumb">' +
       '<div class="tile-num">' + (globalIdx + 1) + '</div>' +
-      favHtml + seriesBadge + thumbContent +
+      favHtml + seriesBadge + badge4k + thumbContent +
       '</div>' +
       '<div class="tile-title" title="' + escapeHtml(c.name) + '">' + escapeHtml(c.name) + '</div>';
       
