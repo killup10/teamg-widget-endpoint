@@ -375,6 +375,8 @@ body.theme-classic .tile.focused { border-color: #ff8800 !important; box-shadow:
 .home-preview-row::-webkit-scrollbar,
 #view-playlists::-webkit-scrollbar,
 #view-options::-webkit-scrollbar,
+#player-drawer-list::-webkit-scrollbar,
+#player-drawer::-webkit-scrollbar,
 #app::-webkit-scrollbar,
 body::-webkit-scrollbar {
   display: none !important;
@@ -1393,8 +1395,8 @@ video::cue {
   top: 0;
   left: 0;
   bottom: 0;
-  width: 350px;
-  max-width: 85%;
+  width: 440px;
+  max-width: 44vw;
   background: #14050d;
   background: rgba(20, 5, 13, 0.98);
   border-right: 3px solid #ffcc00;
@@ -1403,6 +1405,8 @@ video::cue {
   overflow: hidden;
   box-shadow: 6px 0 25px rgba(0, 0, 0, 0.85);
   -webkit-box-shadow: 6px 0 25px rgba(0, 0, 0, 0.85);
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
 }
 
 #player-container.drawer-open .player-top-left {
@@ -1412,10 +1416,10 @@ video::cue {
 #player-drawer.open { display: block; }
 
 .drawer-nav-indicators {
-  height: 52px;
-  line-height: 52px;
+  height: 54px;
+  line-height: 54px;
   padding: 0 16px;
-  font-size: 18px;
+  font-size: 20px;
   font-weight: bold;
   color: #ffcc00;
   background: #2a0b18;
@@ -1423,24 +1427,40 @@ video::cue {
   text-align: center;
   box-sizing: border-box;
   cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 #player-drawer-list {
   position: absolute;
-  top: 52px;
+  top: 54px;
   left: 0;
   right: 0;
   bottom: 0;
   overflow-y: auto;
   padding: 8px 10px 25px 10px;
   box-sizing: border-box;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+#player-drawer-list::-webkit-scrollbar,
+#player-drawer::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
 }
 
 .drawer-row {
-  height: 64px;
-  min-height: 64px;
-  padding: 6px 12px;
-  margin-bottom: 5px;
+  display: table !important;
+  width: 100% !important;
+  table-layout: fixed !important;
+  height: 72px !important;
+  min-height: 72px !important;
+  padding: 0 6px !important;
+  margin-bottom: 5px !important;
   cursor: pointer;
   color: #dddddd;
   background: rgba(255, 255, 255, 0.04);
@@ -1449,78 +1469,120 @@ video::cue {
   box-sizing: border-box;
   position: relative;
   overflow: hidden;
-  display: flex;
-  display: -webkit-flex;
-  align-items: center;
-  -webkit-align-items: center;
-  transition: background 0.08s ease;
-  -webkit-transition: background 0.08s ease;
+  vertical-align: middle;
 }
 
 .drawer-row.focused {
   background: #8a2542 !important;
-  color: #ffffff;
+  color: #ffffff !important;
   border-color: #ffcc00 !important;
-  outline: 2px solid #ffffff;
-}
-
-.drawer-row.focused .drawer-name {
-  color: #ffcc00;
+  outline: 3.5px solid #ffcc00 !important;
+  outline-offset: -1px !important;
+  box-shadow: 0 0 18px rgba(255, 204, 0, 0.85) !important;
+  -webkit-box-shadow: 0 0 18px rgba(255, 204, 0, 0.85) !important;
 }
 
 .drawer-num {
-  width: 34px;
-  font-size: 16px;
-  font-weight: bold;
+  display: table-cell !important;
+  vertical-align: middle !important;
+  width: 44px !important;
+  min-width: 44px !important;
+  max-width: 44px !important;
+  font-size: 22px !important;
+  font-weight: bold !important;
   color: #ffffff;
-  text-align: center;
-  margin-right: 8px;
-  flex-shrink: 0;
+  text-align: center !important;
+  padding-right: 4px !important;
+  box-sizing: border-box;
+}
+
+.drawer-row.focused .drawer-num {
+  color: #ffcc00 !important;
 }
 
 .drawer-logo-box {
-  width: 64px;
-  height: 48px;
-  background: #000000;
-  border-radius: 4px;
-  margin-right: 12px;
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
+  display: table-cell !important;
+  vertical-align: middle !important;
+  width: 92px !important;
+  min-width: 92px !important;
+  max-width: 92px !important;
+  text-align: center !important;
+  padding: 0 !important;
+  box-sizing: border-box;
 }
 
 .drawer-logo-box img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
+  width: 84px !important;
+  height: 52px !important;
+  max-width: 84px !important;
+  max-height: 52px !important;
+  background: #000000;
+  border-radius: 4px;
+  border: 1.5px solid rgba(255, 255, 255, 0.18);
+  display: inline-block !important;
+  vertical-align: middle !important;
+  object-fit: contain !important;
+  box-sizing: border-box;
+}
+
+.drawer-logo-placeholder {
+  width: 84px !important;
+  height: 52px !important;
+  line-height: 50px !important;
+  background: #200814;
+  border-radius: 4px;
+  border: 1.5px solid rgba(255, 255, 255, 0.18);
+  color: #ffcc00;
+  font-size: 15px;
+  font-weight: bold;
+  text-align: center;
+  display: inline-block;
+  vertical-align: middle;
+  box-sizing: border-box;
+}
+
+.drawer-row.focused .drawer-logo-box img,
+.drawer-row.focused .drawer-logo-placeholder {
+  border-color: #ffcc00 !important;
 }
 
 .drawer-info {
-  flex: 1;
-  -webkit-flex: 1;
-  overflow: hidden;
+  display: table-cell !important;
+  vertical-align: middle !important;
+  padding-left: 12px !important;
+  overflow: hidden !important;
+  text-align: left !important;
+  box-sizing: border-box;
 }
 
 .drawer-name {
-  font-size: 16px;
-  font-weight: bold;
-  color: #ffffff;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  line-height: 22px;
+  font-size: 21px !important;
+  font-weight: bold !important;
+  color: #ffffff !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  line-height: 26px !important;
+  display: block !important;
+}
+
+.drawer-row.focused .drawer-name {
+  color: #ffcc00 !important;
 }
 
 .drawer-epg {
-  font-size: 12px;
-  color: #ffcc00;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  margin-top: 2px;
+  font-size: 15px !important;
+  color: #d989a3 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  line-height: 20px !important;
+  margin-top: 3px !important;
+  display: block !important;
+}
+
+.drawer-row.focused .drawer-epg {
+  color: #ffffff !important;
 }
 
 /* Notificación Toast */
@@ -1628,6 +1690,9 @@ body.text-large .home-preview-card div { font-size: 2.9vh; }
 body.text-large .series-ep-name { font-size: 18px; }
 body.text-large #optDescText { font-size: 20px; }
 body.text-large .tab-skew { font-size: 3.8vh; }
+body.text-large .drawer-name { font-size: 25px !important; }
+body.text-large .drawer-epg { font-size: 17px !important; }
+body.text-large .drawer-num { font-size: 25px !important; }
 </style>
 </head>
 <body>
@@ -1727,7 +1792,7 @@ body.text-large .tab-skew { font-size: 3.8vh; }
         <h3>Información</h3>
         <p id="optDescText">Usa tu usuario y contraseña otorgados por el administrador para vincular este televisor y descargar tus listas.</p>
         <div style="margin-top:22px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.5.37 — Sombreado OTT de alto contraste, sin barra gris y navegación instantánea
+          VERSIÓN: v2.5.38 — Selector de canales con texto/logos nítidos y audio multi-pista real
         </div>
       </div>
     </div>
@@ -1911,7 +1976,7 @@ body.text-large .tab-skew { font-size: 3.8vh; }
 
 <!-- Script HLS Vendor -->
 <script src="vendor/hls.min.js"></script>
-<script src="native-player.js?v=2.5.37"></script>
+<script src="native-player.js?v=2.5.38"></script>
 <script>
 (function() {
 'use strict';
@@ -4983,6 +5048,13 @@ function cleanPlayerEngines() {
     v.oncanplay = null;
     v.onpause = null;
     try { v.pause(); } catch (e1) {}
+    if (v._splitter && v._merger) {
+      try {
+        v._splitter.disconnect();
+        v._splitter.connect(v._merger, 0, 0);
+        v._splitter.connect(v._merger, 1, 1);
+      } catch (eRec) {}
+    }
   }
 
   if (state.hlsInstance) {
@@ -5606,6 +5678,11 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c) {
     state.hlsInstance.on(Hls.Events.FRAG_BUFFERED, function() {
       hideTuning();
     });
+    state.hlsInstance.on(Hls.Events.AUDIO_TRACKS_UPDATED, function(evt, data) {
+      if (data && data.audioTracks && data.audioTracks.length > 1) {
+        console.log('Hls.js pistas de audio detectadas:', data.audioTracks.length);
+      }
+    });
     state.hlsInstance.on(Hls.Events.ERROR, function(evt, data) {
       if (data.fatal) {
         var ua = navigator.userAgent || '';
@@ -5969,12 +6046,14 @@ function renderDrawerWindow() {
     row.setAttribute('data-idx', i);
 
     var logoSrc = resolveIconUrl(c.logo || (state.currentSeries && state.currentSeries.logo));
-    var logoHtml = logoSrc ? '<img src="' + escapeHtml(logoSrc) + '" onerror="this.style.display=\'none\';" />' : '';
+    var logoHtml = logoSrc
+      ? '<img src="' + escapeHtml(logoSrc) + '" onerror="this.style.display=\'none\';var p=this.parentNode.querySelector(\'.drawer-logo-placeholder\');if(p)p.style.display=\'inline-block\';" /><div class="drawer-logo-placeholder" style="display:none;">TV</div>'
+      : '<div class="drawer-logo-placeholder">TV</div>';
     
     var rowTitle = isSeries ? (c.episodeTitle || c.name) : c.name;
     var rowSub = isSeries ? ('T' + (c.season || 1) + ' : E' + (c.episode || (i + 1))) : (c.group || 'EN VIVO');
 
-    row.innerHTML = '<span class="drawer-num">' + (i + 1) + '</span>' +
+    row.innerHTML = '<div class="drawer-num">' + (i + 1) + '</div>' +
       '<div class="drawer-logo-box">' + logoHtml + '</div>' +
       '<div class="drawer-info notranslate" translate="no">' +
         '<div class="drawer-name notranslate" translate="no">' + escapeHtml(rowTitle) + '</div>' +
@@ -6471,7 +6550,7 @@ $('btnPlayerAudio').onclick = function(e) {
       if (TeamGNative.select('AUDIO', audio[nextAudio].index)) {
         state.nativeAudioIndex = nextAudio;
         var lang = audio[nextAudio].language || audio[nextAudio].extra_info || ('Pista ' + (nextAudio + 1));
-        showToast('Audio TV: ' + lang);
+        showToast('Audio TV: ' + lang + ' (' + (nextAudio + 1) + '/' + audio.length + ')');
         return;
       }
     }
@@ -6495,10 +6574,12 @@ $('btnPlayerAudio').onclick = function(e) {
   // 3. HLS.js múltiples pistas de audio
   if (state.hlsInstance && state.hlsInstance.audioTracks && state.hlsInstance.audioTracks.length > 1) {
     var cur = state.hlsInstance.audioTrack;
-    var next = (cur + 1) % state.hlsInstance.audioTracks.length;
-    state.hlsInstance.audioTrack = next;
-    var aName = state.hlsInstance.audioTracks[next].name || state.hlsInstance.audioTracks[next].lang || ('Pista ' + (next + 1));
-    showToast('Audio: ' + aName);
+    var totalHls = state.hlsInstance.audioTracks.length;
+    var nextHls = (cur + 1) % totalHls;
+    state.hlsInstance.audioTrack = nextHls;
+    var hlsTrk = state.hlsInstance.audioTracks[nextHls];
+    var aName = (hlsTrk && (hlsTrk.name || hlsTrk.lang)) ? (hlsTrk.name || hlsTrk.lang) : ('Pista ' + (nextHls + 1));
+    showToast('Audio: ' + aName + ' (' + (nextHls + 1) + '/' + totalHls + ')');
     return;
   }
 
@@ -6513,34 +6594,31 @@ $('btnPlayerAudio').onclick = function(e) {
     for (var b = 0; b < v.audioTracks.length; b++) {
       v.audioTracks[b].enabled = (b === nextA);
     }
-    var aLabel = v.audioTracks[nextA].label || v.audioTracks[nextA].language || ('Pista ' + (nextA + 1));
-    showToast('Audio: ' + aLabel);
+    var trkHtml = v.audioTracks[nextA];
+    var aLabel = (trkHtml && (trkHtml.label || trkHtml.language)) ? (trkHtml.label || trkHtml.language) : ('Pista ' + (nextA + 1));
+    showToast('Audio: ' + aLabel + ' (' + (nextA + 1) + '/' + v.audioTracks.length + ')');
     return;
   }
 
-  // 5. Cambio de Audio Dual (SAP / Mono L / Mono R) para canales y películas de televisión
-  state.currentDualAudioMode = ((state.currentDualAudioMode || 0) + 1) % 3;
+  // 5. Cambio de Audio Dual (SAP / Mono L / Mono R) si Web Audio está disponible en el hardware
   if (v) {
-    var routed = applyDualAudioRoute(v, state.currentDualAudioMode);
+    var nextDual = ((state.currentDualAudioMode || 0) + 1) % 3;
+    var routed = applyDualAudioRoute(v, nextDual);
     if (routed) {
-      if (state.currentDualAudioMode === 1) {
+      state.currentDualAudioMode = nextDual;
+      if (nextDual === 1) {
         showToast('Audio Dual: Canal 1 (Izquierdo / Español)');
-      } else if (state.currentDualAudioMode === 2) {
+      } else if (nextDual === 2) {
         showToast('Audio Dual: Canal 2 (Derecho / Inglés - SAP)');
       } else {
-        showToast('Audio: Estéreo Original (L+R)');
+        showToast('Audio Dual: Estéreo Original (L+R)');
       }
       return;
     }
   }
 
-  if (state.currentDualAudioMode === 1) {
-    showToast('Audio Dual: Canal 1 (Español)');
-  } else if (state.currentDualAudioMode === 2) {
-    showToast('Audio Dual: Canal 2 (Inglés / SAP)');
-  } else {
-    showToast('Audio: Estéreo Principal');
-  }
+  // 6. Si el contenido solo tiene 1 pista y el hardware no permite división SAP
+  showToast('Audio: Estéreo (Única pista disponible)');
 };
 
 $('btnPlayerSubs').onclick = function(e) {
