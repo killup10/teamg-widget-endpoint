@@ -1592,6 +1592,12 @@ body.theme-wine #topbar { background: #1c0b0b; }
 .kb-spec-key, .kb-spec-key.space, .kb-spec-key.ok { width: 18%; padding: 0; margin: 0 0.5%; box-sizing: border-box; }
 .kb-key.focused, .kb-spec-key.focused, .kb-btn-back.focused { box-shadow: none; -webkit-box-shadow: none; transform: none; -webkit-transform: none; }
 .kb-input-box { white-space: nowrap; overflow: hidden; text-align: right; }
+body.text-large .opt-label, body.text-large .opt-value { font-size: 20px; }
+body.text-large .tile-title { font-size: 3.4vh; }
+body.text-large .home-preview-card div { font-size: 2.9vh; }
+body.text-large .series-ep-name { font-size: 18px; }
+body.text-large #optDescText { font-size: 20px; }
+body.text-large .tab-skew { font-size: 3.8vh; }
 </style>
 </head>
 <body>
@@ -1681,6 +1687,8 @@ body.theme-wine #topbar { background: #1c0b0b; }
           <span class="opt-label">Color theme</span>
           <span class="opt-value" id="valTheme">&lt; Wine Red &gt;</span>
         </div>
+        <div class="opt-row" data-action="textsize"><span class="opt-label">Tamaño de texto</span><span class="opt-value" id="valTextSize">Normal</span></div>
+        <div class="opt-row" data-action="resetprefs"><span class="opt-label">Restablecer preferencias</span><span class="opt-value">OK</span></div>
         <div class="opt-btn-action" id="btnDoSave">
           Iniciar sesión y vincular TV
         </div>
@@ -2187,6 +2195,7 @@ function updatePlayerEngineDisplay() {
 }
 
 function updateOptionsDisplay() {
+  if ($('valTextSize')) $('valTextSize').textContent = state.auth.textSize === 'large' ? '< Grande >' : '< Normal >';
   if ($('valLogin')) $('valLogin').textContent = state.auth.login || 'no_login';
   if ($('valPass')) $('valPass').textContent = state.auth.password ? '••••••••' : 'sin_pass';
   if ($('valDevice')) $('valDevice').textContent = '< ' + (state.auth.deviceName || 'LG NetCast TV') + ' >';
@@ -2204,6 +2213,12 @@ function updateOptionsDisplay() {
 }
 
 function cycleOption(idx, dir) {
+  if (idx === 8) {
+    state.auth.textSize = state.auth.textSize === 'large' ? 'normal' : 'large';
+    applyTextSize(); saveStorage(); updateOptionsDisplay(); return;
+  }
+  if (idx === 9) return;
+  if (idx === 10) { doSaveAndLogin(); return; }
   // La URL de origen se administra exclusivamente desde el panel.
   if (idx >= 3) idx++;
   var d = (dir === -1) ? -1 : 1;
@@ -2328,7 +2343,23 @@ function loadStorage() {
   }
 
   applyTheme(state.auth.theme);
+  applyTextSize();
   updateOptionsDisplay();
+}
+
+function applyTextSize() {
+  document.body.classList.remove('text-large');
+  if (state.auth.textSize === 'large') document.body.classList.add('text-large');
+}
+
+function resetPlaybackPreferences() {
+  state.auth.playerEngine = 'auto';
+  state.auth.iptvPlayer = 'Automático';
+  state.auth.hlsPlayer = 'Automático';
+  state.auth.theme = 'wine';
+  state.auth.textSize = 'normal';
+  applyTheme('wine'); applyTextSize(); saveStorage(); updateOptionsDisplay();
+  showToast('Preferencias restablecidas. Tu cuenta e historial se conservan.');
 }
 
 function saveStorage() {
@@ -2644,6 +2675,8 @@ var OPT_DESCRIPTIONS = [
   'Canales en vivo. Automático usa el motor de video seleccionado; HTML5 o nativo permiten cambiarlo para IPTV.',
   'HLS en HTML5. Automático prioriza HLS nativo; HLS.js se usa cuando es necesario y está disponible.',
   'Color theme. Paleta de colores de la interfaz.',
+  'Texto normal o grande para leer cómodamente desde el sofá.',
+  'Pulsa OK para restablecer pantalla y motores de reproducción. Conserva tu cuenta, listas e historial.',
   'Iniciar sesión y vincular TV. Conecta con el servidor para descargar tus listas.'
 ];
 
@@ -2670,6 +2703,7 @@ function updateOptionsFocus() {
 }
 
 function openOptions() {
+  state.optionsReturnNavigation = captureCatalogNavigation();
   state.screen = 'options';
   state.optIdx = 0;
   var topBtns = document.getElementsByClassName('round-icon-btn');
@@ -2680,6 +2714,8 @@ function openOptions() {
   layoutSettings();
   $('view-options').scrollTop = 0;
   $('screenTitle').textContent = 'Opciones';
+  updateTopBar();
+  $('groupBtnSearch').style.display = 'none';
   updateOptionsFocus();
 }
 
@@ -2688,6 +2724,10 @@ function closeOptions() {
   $('view-playlists').style.display = 'block';
   $('screenTitle').textContent = (state.currentPlaylist ? state.currentPlaylist.name : 'Playlists');
   state.screen = 'playlists';
+  restoreCatalogNavigation(state.optionsReturnNavigation);
+  state.optionsReturnNavigation = null;
+  updateTopBar();
+  updateSearchVisibility();
   updateMainFocus();
 }
 
@@ -2706,6 +2746,7 @@ function handleOptionsNav(kc, eObj) {
   } else if (kc === KEY.RIGHT) {
     cycleOption(state.optIdx, 1);
   } else if (kc === KEY.ENTER) {
+    if (state.optIdx === 9) { resetPlaybackPreferences(); return; }
     if (state.optIdx === totalItems - 1) {
       doSaveAndLogin();
     } else if (state.optIdx === 0) {
@@ -4111,7 +4152,7 @@ function renderPlaylistsView() {
 }
 
 function updateTopBar() {
-  var isInside = (state.currentPlaylist || (state.channels && state.channels.length > 0));
+  var isInside = state.screen === 'options' || (state.currentPlaylist || (state.channels && state.channels.length > 0));
   var homeBox = $('topIconsHome');
   var insideBox = $('topIconsInside');
   var clearBtn = $('btnTitleClear');
@@ -4119,7 +4160,7 @@ function updateTopBar() {
     if (isInside) {
       homeBox.style.display = 'none';
       insideBox.style.display = 'inline-block';
-      if (clearBtn) clearBtn.style.display = state.searchQuery ? 'inline-block' : 'none';
+      if (clearBtn) clearBtn.style.display = state.screen !== 'options' && state.searchQuery ? 'inline-block' : 'none';
     } else {
       homeBox.style.display = 'inline-block';
       insideBox.style.display = 'none';
@@ -4365,6 +4406,26 @@ function renderChannels() {
 /* ==========================================================================
    NAVEGACIÓN CON CONTROL REMOTO / D-PAD (LG NETCAST) - ULTRA FLUIDA O(1)
    ========================================================================== */
+function captureCatalogNavigation() {
+  return { playlistId: state.currentPlaylist ? state.currentPlaylist.id : null,
+    group: state.currentGroup, page: state.currentPage, tile: state.tileIdx,
+    tab: state.tabIdx, confirmed: state.categoryConfirmed, area: state.currentFocusArea,
+    recent: state.recentIdx, top: state.topIconIdx,
+    scrollTop: $('content-area').scrollTop, scrollLeft: $('bottom-tabs-bar').scrollLeft };
+}
+
+function restoreCatalogNavigation(saved) {
+  if (!saved || saved.playlistId !== (state.currentPlaylist ? state.currentPlaylist.id : null)) return;
+  var changed = state.currentGroup !== saved.group || state.currentPage !== saved.page;
+  state.currentGroup = saved.group; state.currentPage = saved.page;
+  state.tileIdx = saved.tile; state.tabIdx = saved.tab;
+  state.categoryConfirmed = saved.confirmed; state.currentFocusArea = saved.area;
+  state.recentIdx = saved.recent; state.topIconIdx = saved.top;
+  if (changed) { renderChannels(); renderTabs(); }
+  $('content-area').scrollTop = saved.scrollTop;
+  $('bottom-tabs-bar').scrollLeft = saved.scrollLeft;
+}
+
 function syncCategoryBar() {
   if (state.screen !== 'playlists') return;
   var inside = !!(state.currentPlaylist || (state.channels && state.channels.length));
@@ -5190,6 +5251,7 @@ function playItem(c, recovering) {
   if (nowTime - lastChannelChangeTime < 350) return;
   lastChannelChangeTime = nowTime;
   if (!c) return;
+  if (!recovering && state.screen === 'playlists') state.playerReturnNavigation = captureCatalogNavigation();
   if (!recovering) {
     if (state.recoveryTimer) clearTimeout(state.recoveryTimer);
     state.recoveryTimer = null;
@@ -5547,6 +5609,8 @@ function stopPlayer() {
     updateSeriesFocus();
   } else {
     state.screen = 'playlists';
+    restoreCatalogNavigation(state.playerReturnNavigation);
+    state.playerReturnNavigation = null;
     updateMainFocus(false);
   }
   updateSearchVisibility();
@@ -6584,6 +6648,7 @@ for (var or = 0; or < optRows.length; or++) {
       var ev = e || window.event;
       state.optIdx = idx;
       updateOptionsFocus();
+      if (idx === 9) { resetPlaybackPreferences(); return; }
       if (idx === 0) {
         openKeyboard('Login (e-mail/phone number)', state.auth.login, 'login');
       } else if (idx === 1) {
