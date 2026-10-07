@@ -23,6 +23,10 @@ button.danger{background:#fff;border:1px solid #e53935;color:#e53935;padding:7px
 button.plain{background:none;border:1px solid #ccc;padding:7px 12px;border-radius:4px;cursor:pointer}
 table{border-collapse:collapse;width:100%;font-size:14px}td,th{border-bottom:1px solid #eee;padding:10px 8px;text-align:left}
 .small{color:#888;font-size:12px}
+.dot{display:inline-block;width:12px;height:12px;border-radius:50%;vertical-align:middle;margin-right:6px;border:1px solid #ccc}
+.pill{display:inline-block;background:#ff6a00;color:#000;font-weight:700;font-size:11px;padding:2px 8px;border-radius:10px;margin-left:6px;vertical-align:middle}
+.pill.exp{background:#bbb;color:#fff}
+input[type=color]{padding:2px;width:44px;height:34px;vertical-align:middle;border:1px solid #ccc}
 .chk{display:inline-block;margin:3px 10px 3px 0;font-size:14px}
 .dev{border:1px solid #e4e4e4;border-radius:6px;padding:12px;margin:10px 0}
 .furow{box-shadow:0 1px 6px #0001;background:#fff;border-radius:6px;padding:16px 20px;margin:12px 0;cursor:pointer;font-size:19px}
@@ -337,20 +341,67 @@ function render() {
 
 /* ==================== VISTA: LISTA DE PLAYLISTS ==================== */
 function renderPlaylistsList(a) {
-  var h = "<div class='card'><h2>Playlists</h2><input id='pn' placeholder='Nombre' style='width:200px'/><input id='pu' placeholder='URL M3U' style='width:280px'/><input id='pe' placeholder='URL EPG (opcional)' style='width:280px'/><button class='act green' id='bp'>Agregar</button> <span class='small' id='pm'></span><br/><br/><table><tr><th>Nombre</th><th>URL</th><th>Acciones</th></tr>";
+  var h = "<div class='card'><h2>Playlists</h2><input id='pn' placeholder='Nombre' style='width:200px'/><input id='pu' placeholder='URL M3U' style='width:280px'/><input id='pe' placeholder='URL EPG (opcional)' style='width:280px'/><br/>" +
+    "<label class='small'>Color <input id='pc' type='color' value='#ff6a00' title='Color de marca'/></label> " +
+    "<input id='pb' placeholder='Badge (ej. HALLOWEEN)' style='width:160px' maxlength='18'/> " +
+    "<input id='px' type='date' title='Expira: se oculta sola en TV'/> " +
+    "<input id='pid' type='hidden'/> " +
+    "<button class='act green' id='bp'>Agregar</button> <button class='act' id='bh'>🎃 Halloween</button> <button class='act' id='bc' style='display:none'>Cancelar</button> <span class='small' id='pm'></span>" +
+    "<div class='small'>Naranja Halloween: <b style='color:#ff6a00'>#ff6a00</b> + badge HALLOWEEN + expira 02-nov (se oculta sola en la TV).</div><br/><table><tr><th>Nombre</th><th>URL</th><th>Marca</th><th>Acciones</th></tr>";
   DATA.playlists.forEach(function(p) {
-    h += "<tr><td><b>" + esc(p.name) + "</b></td><td class='small' style='max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'>" + esc(p.url) + "</td>" +
+    var dot = p.color ? "<span class='dot' style='background:" + esc(p.color) + "'></span>" : "";
+    var badge = p.badge ? "<span class='pill" + (p.expired ? " exp" : "") + "'>" + esc(p.badge) + "</span>" : "";
+    var exp = p.expiresAt ? "<div class='small'>⏳ " + esc(p.expiresAt) + (p.expired ? " · expirada" : "") + "</div>" : "";
+    h += "<tr><td><b>" + dot + esc(p.name) + "</b>" + badge + exp + "</td><td class='small' style='max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'>" + esc(p.url) + "</td>" +
+      "<td class='small'>" + esc(p.color || "-") + "</td>" +
       "<td><button class='act green' data-edit-pl='" + p.id + "'>✎ Editar Contenido</button> " +
+      "<button class='plain' data-mark-pl='" + p.id + "'>Marca</button> " +
       "<button class='danger' data-dp='" + p.id + "'>Borrar</button></td></tr>";
   });
   a.innerHTML = h + "</table></div>";
 
   document.getElementById("bp").onclick = function() {
-    api("/api/ott/admin/playlist", "POST", {
+    var id = document.getElementById("pid").value.trim();
+    var payload = {
       name: document.getElementById("pn").value.trim(),
       url: document.getElementById("pu").value.trim(),
-      epgUrl: document.getElementById("pe").value.trim()
-    }).then(refresh).catch(function(e) { document.getElementById("pm").textContent = e.message; });
+      epgUrl: document.getElementById("pe").value.trim(),
+      color: document.getElementById("pc").value,
+      badge: document.getElementById("pb").value.trim(),
+      expiresAt: document.getElementById("px").value
+    };
+    if (id) payload.id = id;
+    api("/api/ott/admin/playlist", "POST", payload).then(function() {
+      document.getElementById("pid").value = "";
+      document.getElementById("bp").textContent = "Agregar";
+      document.getElementById("bc").style.display = "none";
+      refresh();
+    }).catch(function(e) { document.getElementById("pm").textContent = e.message; });
+  };
+
+  document.getElementById("bc").onclick = function() {
+    document.getElementById("pid").value = "";
+    document.getElementById("pn").value = "";
+    document.getElementById("pu").value = "";
+    document.getElementById("pe").value = "";
+    document.getElementById("pc").value = "#ff6a00";
+    document.getElementById("pb").value = "";
+    document.getElementById("px").value = "";
+    document.getElementById("bp").textContent = "Agregar";
+    document.getElementById("bc").style.display = "none";
+  };
+
+  document.getElementById("bh").onclick = function() {
+    var y = new Date().getFullYear();
+    document.getElementById("pid").value = "";
+    document.getElementById("pn").value = "🎃 Halloween";
+    document.getElementById("pc").value = "#ff6a00";
+    document.getElementById("pb").value = "HALLOWEEN";
+    document.getElementById("px").value = y + "-11-02";
+    document.getElementById("bp").textContent = "Agregar";
+    document.getElementById("bc").style.display = "";
+    document.getElementById("pm").textContent = "Preset Halloween listo: pega la URL M3U y pulsa Agregar.";
+    document.getElementById("pu").focus();
   };
 
   bindDel("dp", "playlist");
@@ -362,6 +413,26 @@ function renderPlaylistsList(a) {
       var pObj = null;
       for (var k = 0; k < DATA.playlists.length; k++) if (DATA.playlists[k].id === pid) pObj = DATA.playlists[k];
       loadPlaylistChannels(pObj);
+    };
+  }
+
+  var mb = document.querySelectorAll("[data-mark-pl]");
+  for (var m = 0; m < mb.length; m++) {
+    mb[m].onclick = function() {
+      var pid = this.getAttribute("data-mark-pl");
+      var pl = null;
+      for (var k = 0; k < DATA.playlists.length; k++) if (DATA.playlists[k].id === pid) pl = DATA.playlists[k];
+      if (!pl) return;
+      document.getElementById("pid").value = pl.id;
+      document.getElementById("pn").value = pl.name || "";
+      document.getElementById("pu").value = pl.url || "";
+      document.getElementById("pe").value = pl.epgUrl || "";
+      document.getElementById("pc").value = /^#[0-9a-fA-F]{6}$/.test(pl.color || "") ? pl.color : "#ff6a00";
+      document.getElementById("pb").value = pl.badge || "";
+      document.getElementById("px").value = pl.expiresAt || "";
+      document.getElementById("bp").textContent = "Guardar";
+      document.getElementById("bc").style.display = "";
+      window.scrollTo(0, 0);
     };
   }
 }

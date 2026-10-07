@@ -208,13 +208,50 @@ function serializeChannelsToM3u(channels) {
 }
 
 
+const HALLOWEEN_ORANGE = '#ff6a00';
+
+function normalizeColor(v) {
+  const s = String(v || '').trim();
+  if (!s) return '';
+  if (/^#[0-9a-fA-F]{6}$/.test(s)) return s.toLowerCase();
+  if (/^#[0-9a-fA-F]{3}$/.test(s)) {
+    return ('#' + s[1] + s[1] + s[2] + s[2] + s[3] + s[3]).toLowerCase();
+  }
+  return '';
+}
+
+function normalizeBadge(v) {
+  return String(v || '').trim().slice(0, 18);
+}
+
+function normalizeExpires(v) {
+  const s = String(v || '').trim().slice(0, 10);
+  if (!s) return '';
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return '';
+  const t = Date.parse(s + 'T23:59:59Z');
+  if (isNaN(t)) return '';
+  return s;
+}
+
+function playlistExpired(p, nowMs) {
+  if (!p || !p.expiresAt) return false;
+  const t = Date.parse(String(p.expiresAt).slice(0, 10) + 'T23:59:59Z');
+  if (isNaN(t)) return false;
+  return t < (nowMs || Date.now());
+}
+
 const pub = (p) => {
   const seriesCovers = [];
   const seen = new Set();
   if (p.customM3u) for (const c of parseM3uText(p.customM3u).channels) {
     if (c.seriesLogo && !seen.has(c.group)) { seriesCovers.push({ group: c.group, logo: c.seriesLogo }); seen.add(c.group); }
   }
-  return { id: p._id, name: p.name, epg: p.epgUrl || '', seriesCovers };
+  return {
+    id: p._id, name: p.name, epg: p.epgUrl || '',
+    color: normalizeColor(p.color), badge: normalizeBadge(p.badge),
+    expiresAt: normalizeExpires(p.expiresAt), expired: playlistExpired(p),
+    seriesCovers,
+  };
 };
 
 async function authedDevice(body, query) {
@@ -300,7 +337,7 @@ async function handle(req, res, pathname, query, body) {
     else await cols.devices.insertOne({ _id: devId, userId: uid, name, platform, playlists: [], created: store.nowIso(), lastSeen: store.nowIso() });
     const dev = await cols.devices.findOne({ _id: devId });
     const pls = await cols.playlists.find({});
-    const mine = pls.filter((p) => (dev.playlists || []).indexOf(p._id) > -1).map(pub);
+    const mine = pls.filter((p) => (dev.playlists || []).indexOf(p._id) > -1 && !playlistExpired(p)).map(pub);
     return json(res, 200, { ok: true, device: { id: dev._id, name: dev.name }, playlists: mine });
   }
 
@@ -310,7 +347,7 @@ async function handle(req, res, pathname, query, body) {
     if (a.err) return json(res, 401, { ok: false, error: a.err });
     await a.cols.devices.updateOne({ _id: a.dev._id }, { $set: { lastSeen: store.nowIso() } });
     const pls = await a.cols.playlists.find({});
-    return json(res, 200, { ok: true, playlists: pls.filter((p) => (a.dev.playlists || []).indexOf(p._id) > -1).map(pub) });
+    return json(res, 200, { ok: true, playlists: pls.filter((p) => (a.dev.playlists || []).indexOf(p._id) > -1 && !playlistExpired(p)).map(pub) });
   }
 
   // ---- TV: descargar M3U / EPG asignados (proxy, evita CORS) ----
@@ -319,6 +356,7 @@ async function handle(req, res, pathname, query, body) {
     if (a.err) return json(res, 401, { ok: false, error: a.err });
     const pl = await a.cols.playlists.findOne({ _id: String(query.pid || '') });
     if (!pl || (a.dev.playlists || []).indexOf(pl._id) < 0) return json(res, 403, { ok: false, error: 'No asignada' });
+    if (playlistExpired(pl)) return json(res, 410, { ok: false, error: 'Lista expirada' });
     if (pathname === '/api/ott/m3u' && pl.customM3u) {
       res.writeHead(200, {
         'Content-Type': 'text/plain; charset=utf-8',
@@ -482,7 +520,7 @@ function fetchWithRedirects(targetUrl, options, maxRedirects, callback) {
         ok: true, mode: cols.mode,
         users: users.filter((u) => u.role !== 'admin').map((u) => ({ id: u._id, login: u.login, active: u.active !== false, expires: u.expires || '', created: u.created })),
         devices: devices.map((d) => ({ id: d._id, userId: d.userId, name: d.name, note: d.note || '', platform: d.platform, playlists: d.playlists || [], lastSeen: d.lastSeen })),
-        playlists: playlists.map((p) => ({ id: p._id, name: p.name, url: p.url, epgUrl: p.epgUrl || '' })),
+        playlists: playlists.map((p) => ({ id: p._id, name: p.name, url: p.url, epgUrl: p.epgUrl || '', color: normalizeColor(p.color), badge: normalizeBadge(p.badge), expiresAt: normalizeExpires(p.expiresAt), expired: playlistExpired(p) })),
       });
     }
     if (sub === 'user' && req.method === 'POST') {
@@ -513,8 +551,41 @@ function fetchWithRedirects(targetUrl, options, maxRedirects, callback) {
       return json(res, 200, { ok: true });
     }
     if (sub === 'playlist' && req.method === 'POST') {
+      // crear (sin id) o actualizar (con id): nombre + color/badge/expires para especiales como Halloween
+      const color = normalizeColor(body.color);
+      const badge = normalizeBadge(body.badge);
+      const expiresAt = normalizeExpires(body.expiresAt || body.expires);
+      if (body.id) {
+        const prev = await cols.playlists.findOne({ _id: String(body.id) });
+        if (!prev) return json(res, 404, { ok: false });
+        const upd = { updatedAt: store.nowIso() };
+        if (typeof body.name === 'string' && body.name.trim()) upd.name = String(body.name).trim().slice(0, 80);
+        if (typeof body.url === 'string' && body.url.trim()) upd.url = String(body.url).trim();
+        if (typeof body.epgUrl === 'string') upd.epgUrl = String(body.epgUrl || '');
+        if (body.color !== undefined) upd.color = color;
+        if (body.badge !== undefined) upd.badge = badge;
+        if (body.expiresAt !== undefined || body.expires !== undefined) upd.expiresAt = expiresAt;
+        await cols.playlists.updateOne({ _id: String(body.id) }, { $set: upd });
+        return json(res, 200, { ok: true, id: String(body.id) });
+      }
       if (!body.name || !body.url) return json(res, 400, { ok: false, error: 'name+url' });
-      const p = { _id: store.uid(), name: String(body.name), url: String(body.url), epgUrl: String(body.epgUrl || ''), created: store.nowIso() };
+      const p = { _id: store.uid(), name: String(body.name).trim().slice(0, 80), url: String(body.url), epgUrl: String(body.epgUrl || ''), color, badge, expiresAt, created: store.nowIso() };
+      await cols.playlists.insertOne(p);
+      return json(res, 200, { ok: true, id: p._id });
+    }
+    if (sub === 'playlist/halloween' && req.method === 'POST') {
+      // Atajo: crea o actualiza la playlist especial Halloween en naranja #ff6a00 con caducidad 02-nov.
+      const year = new Date().getFullYear();
+      const expiresAt = normalizeExpires(body.expiresAt) || (year + '-11-02');
+      const url = String(body.url || '').trim();
+      if (!url) return json(res, 400, { ok: false, error: 'url' });
+      const name = String(body.name || '🎃 Halloween').trim().slice(0, 80) || '🎃 Halloween';
+      const prev = (await cols.playlists.find({})).filter((x) => /halloween/i.test(x.name || '') || normalizeBadge(x.badge) === 'HALLOWEEN')[0] || null;
+      if (prev) {
+        await cols.playlists.updateOne({ _id: prev._id }, { $set: { name, url, color: HALLOWEEN_ORANGE, badge: 'HALLOWEEN', expiresAt, updatedAt: store.nowIso() } });
+        return json(res, 200, { ok: true, id: prev._id, reused: true });
+      }
+      const p = { _id: store.uid(), name, url, epgUrl: String(body.epgUrl || ''), color: HALLOWEEN_ORANGE, badge: 'HALLOWEEN', expiresAt, created: store.nowIso() };
       await cols.playlists.insertOne(p);
       return json(res, 200, { ok: true, id: p._id });
     }
@@ -855,4 +926,4 @@ function handleStream(req, res, query) {
   }
 }
 
-module.exports = { handle, handleStream };
+module.exports = { handle, handleStream, normalizeColor, normalizeBadge, normalizeExpires, playlistExpired, HALLOWEEN_ORANGE };

@@ -335,6 +335,12 @@ body.theme-classic .tile.focused { border-color: #ff8800 !important; box-shadow:
 .folder-icon { font-size: 44px; margin-bottom: 8px; }
 .folder-name { font-size: 18px; font-weight: bold; color: #ffffff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .folder-sub { font-size: 12px; color: #a5929c; margin-top: 4px; }
+/* Especial temporal (ej. Halloween naranja #ff6a00): borde + badge, compatible NetCast */
+.folder-tile.is-special { border-color: #ff6a00; box-shadow: 0 0 10px rgba(255,106,0,0.55); -webkit-box-shadow: 0 0 10px rgba(255,106,0,0.55); }
+.tab-skew.is-special { border-right: 4px solid #ff6a00; }
+.tab-skew.is-special.active { background: #7a2b0e !important; }
+.tab-badge { display: inline-block; vertical-align: middle; font-size: 11px; font-weight: bold; letter-spacing: 1px; background: #ff6a00; color: #000000; border-radius: 3px; padding: 1px 6px; margin-left: 8px; }
+.pl-special-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #ff6a00; margin-right: 8px; vertical-align: middle; }
 
 /* Barra inferior de pestañas trapezoidales (Fotos 1 y 2) */
 #bottom-tabs-bar {
@@ -3696,6 +3702,7 @@ function loadDirectM3u(url) {
 }
 
 function loadPlaylistContent(pl, forceFresh) {
+  try { if (typeof isPlExpired === 'function' ? isPlExpired(pl) : (pl && pl.expired === true)) { showToast('Esta lista especial ya terminó.'); renderPlaylistsView(); return; } } catch (eExp) {}
   state.feedLoadId = (state.feedLoadId || 0) + 1;
   var loadId = (state.playlistLoadId || 0) + 1;
   state.playlistLoadId = loadId;
@@ -4012,8 +4019,24 @@ function renderHomeOverview(area) {
       (src ? '<div style="position:relative;height:108px;padding:0;"><img src="' + escapeHtml(src) + '" onload="fitTvImage(this)" onerror="this.style.display=\'none\';" /></div>' : '<div class="home-preview-placeholder">TV</div>') +
       '<div>' + escapeHtml(label) + '</div></div>';
   }
+  var specialHtml = '';
+  try {
+    var vpls = visiblePlaylists();
+    for (var s = 0; s < vpls.length; s++) {
+      var sColor = getPlColor(vpls[s]);
+      var sBadge = getPlBadge(vpls[s]);
+      if (sColor || sBadge) {
+        specialHtml += '<div style="margin:12px 0;padding:10px 14px;border:2px solid ' + escapeHtml(sColor || '#ff6a00') + ';border-radius:6px;background:#241116;">' +
+          '<span class="pl-special-dot" style="background:' + escapeHtml(sColor || '#ff6a00') + ';"></span>' +
+          '<b>' + escapeHtml(vpls[s].name) + '</b>' +
+          (sBadge ? ' <span class="tab-badge" style="background:' + escapeHtml(sColor || '#ff6a00') + ';">' + escapeHtml(sBadge) + '</span>' : '') +
+          '</div>';
+        break;
+      }
+    }
+  } catch (eSp) {}
   area.innerHTML = '<div class="home-overview"><div class="home-eyebrow">TEAMG PLAY</div>' +
-    '<h1>Tu próximo contenido empieza aquí</h1><p>Elige un playlist abajo o vuelve a tu último contenido.</p>' +
+    '<h1>Tu próximo contenido empieza aquí</h1><p>Elige un playlist abajo o vuelve a tu último contenido.</p>' + specialHtml +
     (cards ? '<h2>Último contenido abierto</h2><div class="home-preview-row">' + cards + '</div>' :
     '<div class="home-welcome">Cine · Series · TV en vivo</div>') + '</div>';
   for (var j = 0; j < items.length && j < 6; j++) {
@@ -4073,12 +4096,38 @@ function updateTopBar() {
   }
 }
 
+function isPlExpired(pl) {
+  if (!pl) return false;
+  if (pl.expired === true) return true;
+  var s = String(pl.expiresAt || '');
+  if (!s) return false;
+  s = s.slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+  var t = Date.parse(s + 'T23:59:59Z');
+  if (isNaN(t)) return false;
+  return t < new Date().getTime();
+}
+function getPlColor(pl) {
+  var c = String((pl && pl.color) || '').trim();
+  if (/^#[0-9a-fA-F]{6}$/.test(c)) return c.toLowerCase();
+  return '';
+}
+function getPlBadge(pl) {
+  return String((pl && pl.badge) || '').trim().slice(0, 18);
+}
+function visiblePlaylists() {
+  var out = [];
+  if (!state.playlists) return out;
+  for (var i = 0; i < state.playlists.length; i++) {
+    if (!isPlExpired(state.playlists[i])) out.push(state.playlists[i]);
+  }
+  return out;
+}
 function getHomeTabsList() {
   var homeTabs = [{ id: '__fav', name: 'Favorites' }];
-  if (state.playlists) {
-    for (var p = 0; p < state.playlists.length; p++) {
-      homeTabs.push({ id: state.playlists[p].id, name: state.playlists[p].name, pl: state.playlists[p] });
-    }
+  var pls = visiblePlaylists();
+  for (var p = 0; p < pls.length; p++) {
+    homeTabs.push({ id: pls[p].id, name: pls[p].name, pl: pls[p] });
   }
   return homeTabs;
 }
@@ -4119,8 +4168,19 @@ function renderTabs() {
       var hTab = homeTabs[ht];
       var hBtn = document.createElement('button');
       var isAct = (state.tabIdx === ht);
-      hBtn.className = 'tab-skew' + (isAct ? ' active' : '');
-      hBtn.innerHTML = '<span>' + escapeHtml(hTab.name) + '</span>';
+      var hColor = hTab.pl ? getPlColor(hTab.pl) : '';
+      var hBadge = hTab.pl ? getPlBadge(hTab.pl) : '';
+      hBtn.className = 'tab-skew' + (isAct ? ' active' : '') + (hColor ? ' is-special' : '');
+      var hLabel = '<span>' + escapeHtml(hTab.name);
+      if (hBadge) hLabel += '<span class="tab-badge" style="background:' + escapeHtml(hColor || '#ff6a00') + ';">' + escapeHtml(hBadge) + '</span>';
+      hLabel += '</span>';
+      hBtn.innerHTML = hLabel;
+      if (hColor && !isAct) {
+        try { hBtn.style.borderRight = '4px solid ' + hColor; } catch (e) {}
+      }
+      if (hColor && isAct) {
+        try { hBtn.style.background = '#7a2b0e'; hBtn.style.borderRight = '4px solid ' + hColor; } catch (e2) {}
+      }
       hBtn.onclick = (function(tabObj, idx) {
         return function() {
           state.tabIdx = idx;
@@ -4174,7 +4234,16 @@ function renderChannels() {
   if (state.currentGroup && state.currentGroup !== '__all' && state.currentGroup !== '__fav') {
     title = state.currentGroup;
   }
-  $('screenTitle').textContent = title;
+  try {
+    var tEl = $('screenTitle');
+    var pColor = state.currentPlaylist ? getPlColor(state.currentPlaylist) : '';
+    var pBadge = state.currentPlaylist ? getPlBadge(state.currentPlaylist) : '';
+    if ((pColor || pBadge) && (!state.currentGroup || state.currentGroup === '__all' || state.currentGroup === '__fav')) {
+      tEl.innerHTML = (pColor ? '<span class="pl-special-dot" style="background:' + escapeHtml(pColor) + ';"></span>' : '') + escapeHtml(title) + (pBadge ? ' <span class="tab-badge" style="background:' + escapeHtml(pColor || '#ff6a00') + ';font-size:13px;">' + escapeHtml(pBadge) + '</span>' : '');
+    } else {
+      tEl.textContent = title;
+    }
+  } catch (eTitle) { $('screenTitle').textContent = title; }
   
   if (list.length === 0) {
     area.innerHTML = '<div style="text-align: center; margin-top: 100px; font-size: 18px; color: #a5929c;">No hay canales en este grupo.</div>';

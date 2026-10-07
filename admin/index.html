@@ -13,6 +13,10 @@ button{background:#22c55e;border:0;color:#04120a;font-weight:700;padding:9px 14p
 button.red{background:#e53935;color:#fff} button.ghost{background:transparent;border:1px solid #555;color:#fff}
 table{border-collapse:collapse;width:100%;font-size:14px} td,th{border-bottom:1px solid #2a3340;padding:7px 6px;text-align:left}
 .small{color:#9aa4b5;font-size:12px}
+.dot{display:inline-block;width:12px;height:12px;border-radius:50%;vertical-align:middle;margin-right:6px;border:1px solid #555}
+.pill{display:inline-block;background:#ff6a00;color:#000;font-weight:700;font-size:11px;padding:2px 8px;border-radius:10px;margin-left:6px;vertical-align:middle}
+.pill.exp{background:#555;color:#fff}
+input[type=color]{padding:2px;width:44px;height:34px;vertical-align:middle}
 .chk{display:inline-block;margin:2px 8px 2px 0}.chk input{margin-right:4px}
 #login{background:#141926;border:1px solid #2a3340;border-radius:8px;padding:20px;max-width:380px;margin:60px auto}
 </style>
@@ -36,8 +40,16 @@ table{border-collapse:collapse;width:100%;font-size:14px} td,th{border-bottom:1p
   <div class="card"><h2>Playlists M3U del sistema</h2>
     <input id="pn" placeholder="Nombre (ej. Plan Gplay)" style="width:200px" />
     <input id="pu" placeholder="URL M3U" style="width:300px" />
-    <input id="pe" placeholder="URL EPG XMLTV (opcional)" style="width:300px" />
-    <button id="btnP">Agregar</button><span class="small" id="pmsg"></span>
+    <input id="pe" placeholder="URL EPG XMLTV (opcional)" style="width:300px" /><br/>
+    <label class="small">Color <input id="pc" type="color" value="#ff6a00" title="Color de marca" /></label>
+    <input id="pb" placeholder="Badge (ej. HALLOWEEN)" style="width:160px" maxlength="18" />
+    <input id="px" type="date" title="Expira (se oculta sola en TV)" />
+    <input id="pid" type="hidden" />
+    <button id="btnP">Agregar</button>
+    <button id="btnHalloween" class="ghost" title="Rellena especial Halloween naranja">🎃 Halloween</button>
+    <button id="btnPCancel" class="ghost" style="display:none">Cancelar edición</button>
+    <span class="small" id="pmsg"></span>
+    <p class="small">Naranja Halloween: <b style="color:#ff6a00">#ff6a00</b> + badge HALLOWEEN + expira 02-nov (se oculta sola en la TV).</p>
     <table id="tP"></table>
   </div>
   <div class="card"><h2>Dispositivos y asignación</h2>
@@ -75,8 +87,13 @@ function render(o){
   var tU="<tr><th>Usuario</th><th>Creado</th><th></th></tr>";
   o.users.forEach(function(u){tU+="<tr><td>"+esc(u.login)+"</td><td class='small'>"+esc(u.created||"")+"</td><td><button class='red' data-du='"+u.id+"'>Borrar</button></td></tr>";});
   document.getElementById("tU").innerHTML=tU;
-  var tP="<tr><th>Lista</th><th>URL</th><th></th></tr>";
-  o.playlists.forEach(function(p){tP+="<tr><td>"+esc(p.name)+"</td><td class='small'>"+esc(p.url)+"</td><td><button class='red' data-dp='"+p.id+"'>Borrar</button></td></tr>";});
+  var tP="<tr><th>Lista</th><th>URL</th><th>Marca</th><th></th></tr>";
+  o.playlists.forEach(function(p){
+    var dot=p.color?"<span class='dot' style='background:"+esc(p.color)+"'></span>":"";
+    var badge=p.badge?"<span class='pill"+(p.expired?" exp":"")+"'>"+esc(p.badge)+"</span>":"";
+    var exp=p.expiresAt?"<div class='small'>⏳ "+esc(p.expiresAt)+(p.expired?" · expirada":"")+"</div>":"";
+    tP+="<tr><td>"+dot+esc(p.name)+badge+exp+"</td><td class='small'>"+esc(p.url)+"</td><td class='small'>"+esc(p.color||"-")+"</td><td><button data-ep='"+p.id+"'>Editar</button> <button class='red' data-dp='"+p.id+"'>Borrar</button></td></tr>";
+  });
   document.getElementById("tP").innerHTML=tP;
   var un={};o.users.forEach(function(u){un[u.id]=u.login;});
   var h="";
@@ -93,24 +110,67 @@ function render(o){
   document.getElementById("devs").innerHTML=h||"<p class='small'>Aún no hay dispositivos. Aparecen cuando el cliente se loguea y registra su TV.</p>";
   bind(o);
 }
-function bind(){
+function bind(o){
   var b;
   b=document.querySelectorAll("[data-du]");for(var i=0;i<b.length;i++)b[i].onclick=function(){if(confirm("¿Borrar usuario?"))api("/api/ott/admin/user?id="+this.getAttribute("data-du"),"DELETE").then(refresh);};
   b=document.querySelectorAll("[data-dp]");for(var i=0;i<b.length;i++)b[i].onclick=function(){if(confirm("¿Borrar lista?"))api("/api/ott/admin/playlist?id="+this.getAttribute("data-dp"),"DELETE").then(refresh);};
   b=document.querySelectorAll("[data-dd]");for(var i=0;i<b.length;i++)b[i].onclick=function(){if(confirm("¿Borrar dispositivo?"))api("/api/ott/admin/device?id="+this.getAttribute("data-dd"),"DELETE").then(refresh);};
+  b=document.querySelectorAll("[data-ep]");for(var i=0;i<b.length;i++)b[i].onclick=function(){
+    var id=this.getAttribute("data-ep"),pl=null;
+    (o.playlists||[]).forEach(function(x){if(x.id===id)pl=x;});
+    if(!pl)return;
+    document.getElementById("pid").value=pl.id;
+    document.getElementById("pn").value=pl.name||"";
+    document.getElementById("pu").value=pl.url||"";
+    document.getElementById("pe").value=pl.epgUrl||"";
+    document.getElementById("pc").value=/^#[0-9a-fA-F]{6}$/.test(pl.color||"")?pl.color:"#ff6a00";
+    document.getElementById("pb").value=pl.badge||"";
+    document.getElementById("px").value=pl.expiresAt||"";
+    document.getElementById("btnP").textContent="Guardar";
+    document.getElementById("btnPCancel").style.display="";
+    window.scrollTo(0,0);
+  };
   b=document.querySelectorAll("[data-save]");for(var i=0;i<b.length;i++)b[i].onclick=function(){
     var dev=this.getAttribute("data-save"),ids=[],c=document.querySelectorAll("input[data-dev='"+dev+"']");
     for(var j=0;j<c.length;j++)if(c[j].checked)ids.push(c[j].value);
     api("/api/ott/admin/assign","POST",{deviceId:dev,playlistIds:ids}).then(function(){alert("Guardado. Dile al cliente que pulse el botón rojo.");}).then(refresh);
   };
 }
+function resetPlaylistForm(){
+  document.getElementById("pid").value="";
+  document.getElementById("pn").value="";
+  document.getElementById("pu").value="";
+  document.getElementById("pe").value="";
+  document.getElementById("pc").value="#ff6a00";
+  document.getElementById("pb").value="";
+  document.getElementById("px").value="";
+  document.getElementById("btnP").textContent="Agregar";
+  document.getElementById("btnPCancel").style.display="none";
+}
+document.getElementById("btnPCancel").onclick=resetPlaylistForm;
+document.getElementById("btnHalloween").onclick=function(){
+  var y=new Date().getFullYear();
+  document.getElementById("pid").value="";
+  document.getElementById("pn").value="🎃 Halloween";
+  document.getElementById("pc").value="#ff6a00";
+  document.getElementById("pb").value="HALLOWEEN";
+  document.getElementById("px").value=y+"-11-02";
+  document.getElementById("btnP").textContent="Agregar";
+  document.getElementById("btnPCancel").style.display="";
+  document.getElementById("pmsg").textContent="Preset Halloween listo: pega la URL M3U y pulsa Agregar.";
+  document.getElementById("pu").focus();
+};
 document.getElementById("btnU").onclick=function(){
   var l=document.getElementById("nu").value.trim(),p=document.getElementById("np").value;
   api("/api/ott/admin/user","POST",{login:l,password:p}).then(function(){document.getElementById("umsg").textContent="Creado: "+l;refresh();}).catch(function(e){document.getElementById("umsg").textContent=e.message;});
 };
 document.getElementById("btnP").onclick=function(){
+  var id=document.getElementById("pid").value.trim();
   var n=document.getElementById("pn").value.trim(),u=document.getElementById("pu").value.trim(),e=document.getElementById("pe").value.trim();
-  api("/api/ott/admin/playlist","POST",{name:n,url:u,epgUrl:e}).then(function(){document.getElementById("pmsg").textContent="Agregada.";refresh();}).catch(function(e2){document.getElementById("pmsg").textContent=e2.message;});
+  var c=document.getElementById("pc").value,bb=document.getElementById("pb").value.trim(),x=document.getElementById("px").value;
+  var payload={name:n,url:u,epgUrl:e,color:c,badge:bb,expiresAt:x};
+  if(id)payload.id=id;
+  api("/api/ott/admin/playlist","POST",payload).then(function(){document.getElementById("pmsg").textContent=id?"Guardada.":"Agregada.";resetPlaylistForm();refresh();}).catch(function(e2){document.getElementById("pmsg").textContent=e2.message;});
 };
 </script>
 </body>
