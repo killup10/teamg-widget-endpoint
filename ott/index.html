@@ -157,19 +157,19 @@ body.theme-dark { background-color: #0c0c0e !important; }
 body.theme-dark #topbar { background: #141418 !important; }
 body.theme-dark #app { background-color: #0c0c0e !important; }
 body.theme-dark .opt-row.focused { background: #262632 !important; border-left: 6px solid #ffcc00 !important; }
-body.theme-dark .tile.focused { border-color: #ffcc00 !important; box-shadow: 0 0 16px rgba(255, 204, 0, 0.7) !important; }
+body.theme-dark .tile.focused { border-color: #ffcc00 !important; box-shadow: none !important; -webkit-box-shadow: none !important; }
 
 body.theme-blue { background-color: #060d1a !important; }
 body.theme-blue #topbar { background: #0a162c !important; }
 body.theme-blue #app { background-color: #060d1a !important; }
 body.theme-blue .opt-row.focused { background: #15325c !important; border-left: 6px solid #00c0ff !important; }
-body.theme-blue .tile.focused { border-color: #00c0ff !important; box-shadow: 0 0 16px rgba(0, 192, 255, 0.7) !important; }
+body.theme-blue .tile.focused { border-color: #00c0ff !important; box-shadow: none !important; -webkit-box-shadow: none !important; }
 
 body.theme-classic { background-color: #111622 !important; }
 body.theme-classic #topbar { background: #182030 !important; }
 body.theme-classic #app { background-color: #111622 !important; }
 body.theme-classic .opt-row.focused { background: #26334a !important; border-left: 6px solid #ff8800 !important; }
-body.theme-classic .tile.focused { border-color: #ff8800 !important; box-shadow: 0 0 16px rgba(255, 136, 0, 0.7) !important; }
+body.theme-classic .tile.focused { border-color: #ff8800 !important; box-shadow: none !important; -webkit-box-shadow: none !important; }
 
 /* ==================== VISTA: PLAYLISTS / CANALES (Foto 1 y 4) ==================== */
 #view-playlists {
@@ -225,9 +225,9 @@ body.theme-classic .tile.focused { border-color: #ff8800 !important; box-shadow:
 .tile-thumb img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   display: block;
-  border-radius: 2px;
+  border-radius: 0;
 }
 
 .tile-num {
@@ -299,17 +299,17 @@ body.theme-classic .tile.focused { border-color: #ff8800 !important; box-shadow:
 /* Foco estilo OTTPlayer: sombreado en vino y marco dorado de alto contraste, visible para todos */
 .tile-item.focused {
   background: #8a2542 !important;
-  border-color: #ffcc00 !important;
-  outline: 3.5px solid #ffcc00 !important;
-  outline-offset: -1px !important;
-  box-shadow: 0 0 20px rgba(255, 204, 0, 0.9), inset 0 0 10px rgba(255, 204, 0, 0.2) !important;
-  -webkit-box-shadow: 0 0 20px rgba(255, 204, 0, 0.9), inset 0 0 10px rgba(255, 204, 0, 0.2) !important;
+  border: 3.5px solid #ffcc00 !important;
+  outline: 2px solid #ffffff !important;
+  outline-offset: -2px !important;
+  box-shadow: none !important;
+  -webkit-box-shadow: none !important;
   z-index: 10;
 }
 
 .tile-item.focused .tile-thumb {
-  border: 2.5px solid #ffcc00 !important;
-  outline: 1.5px solid #ffffff !important;
+  border: 2px solid #ffcc00 !important;
+  outline: none !important;
 }
 
 .tile-item.focused .tile-title {
@@ -337,9 +337,12 @@ body.theme-classic .tile.focused { border-color: #ff8800 !important; box-shadow:
 }
 
 .folder-tile.focused {
-  background: #9c284e;
-  border-color: #ffcc00;
-  outline: 2px solid #ffcc00;
+  background: #9c284e !important;
+  border: 3.5px solid #ffcc00 !important;
+  outline: 2px solid #ffffff !important;
+  outline-offset: -2px !important;
+  box-shadow: none !important;
+  -webkit-box-shadow: none !important;
 }
 
 .folder-icon { font-size: 44px; margin-bottom: 8px; }
@@ -417,10 +420,12 @@ body::-webkit-scrollbar {
 }
 
 .tab-skew.focused {
-  outline: 2px solid #ffffff !important;
-  outline-offset: -2px;
+  outline: 3.5px solid #ffcc00 !important;
+  outline-offset: -3.5px !important;
   background: #9b225c !important;
   color: #ffffff !important;
+  box-shadow: none !important;
+  -webkit-box-shadow: none !important;
 }
 
 /* ==================== VISTA: OPTIONS / AJUSTES (Fotos 2 y 5) ==================== */
@@ -1475,11 +1480,11 @@ video::cue {
 .drawer-row.focused {
   background: #8a2542 !important;
   color: #ffffff !important;
-  border-color: #ffcc00 !important;
-  outline: 3.5px solid #ffcc00 !important;
-  outline-offset: -1px !important;
-  box-shadow: 0 0 18px rgba(255, 204, 0, 0.85) !important;
-  -webkit-box-shadow: 0 0 18px rgba(255, 204, 0, 0.85) !important;
+  border: 3.5px solid #ffcc00 !important;
+  outline: 2px solid #ffffff !important;
+  outline-offset: -2px !important;
+  box-shadow: none !important;
+  -webkit-box-shadow: none !important;
 }
 
 .drawer-num {
@@ -1619,8 +1624,8 @@ video::cue {
 .tile-thumb { height: 16.2vh; border-radius: 0; }
 .tile-thumb img { border-radius: 0; }
 .tile-num { font-size: 2.2vh; font-weight: normal; color: white; }
-.tile-item.focused { background: #8a2542 !important; outline: 3.5px solid #ffcc00 !important; outline-offset: -1px !important; box-shadow: 0 0 20px rgba(255, 204, 0, 0.9) !important; -webkit-box-shadow: 0 0 20px rgba(255, 204, 0, 0.9) !important; z-index: 10; }
-.tile-item.focused .tile-thumb { border: 2.5px solid #ffcc00 !important; }
+.tile-item.focused { background: #8a2542 !important; border: 3.5px solid #ffcc00 !important; outline: 2px solid #ffffff !important; outline-offset: -2px !important; box-shadow: none !important; -webkit-box-shadow: none !important; z-index: 10; }
+.tile-item.focused .tile-thumb { border: 2px solid #ffcc00 !important; outline: none !important; }
 .tile-item.focused .tile-title { color: #ffcc00 !important; font-weight: bold !important; background: rgba(20, 5, 13, 0.85) !important; }
 #bottom-tabs-bar { height: 9vh; padding-left: 0; border-top: 0; background: #1c0b0b; scrollbar-width: none !important; -ms-overflow-style: none !important; }
 .tab-skew { min-width: 19vw; max-width: 24vw; height: 9vh; line-height: 6.4vh; padding: 0 2vw; font-size: 3.4vh; font-weight: normal; color: white; border-right: 4px solid black; overflow: hidden; text-overflow: ellipsis; background: #241116; }
@@ -1653,7 +1658,7 @@ body.theme-wine #topbar { background: #1c0b0b; }
 .home-preview-card img, .home-preview-placeholder { display: block; width: 100%; height: 15vh; object-fit: cover; }
 .home-preview-placeholder { text-align: center; line-height: 15vh; color: #d989a3; }
 .home-preview-card div { padding: 1vh 0.4vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 2.4vh; }
-.home-preview-card.focused { outline: 3.5px solid #ffcc00 !important; outline-offset: -1px !important; background: #8a2542 !important; box-shadow: 0 0 20px rgba(255, 204, 0, 0.9) !important; -webkit-box-shadow: 0 0 20px rgba(255, 204, 0, 0.9) !important; }
+.home-preview-card.focused { outline: 3.5px solid #ffcc00 !important; outline-offset: -1px !important; background: #8a2542 !important; border: 2px solid #ffffff !important; box-shadow: none !important; -webkit-box-shadow: none !important; }
 .home-preview-card.focused div { color: #ffcc00 !important; font-weight: bold !important; }
 /* NetCast: reservar ancho y evitar que WebKit divida los controles en filas. */
 .topbar-right { width: 40%; white-space: nowrap; }
@@ -1792,7 +1797,7 @@ body.text-large .drawer-num { font-size: 25px !important; }
         <h3>Información</h3>
         <p id="optDescText">Usa tu usuario y contraseña otorgados por el administrador para vincular este televisor y descargar tus listas.</p>
         <div style="margin-top:22px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.5.39 — Navegación fluida en selector de canales y apertura directa sin tabs redundantes
+          VERSIÓN: v2.5.40 — Navegación instantánea a 60 FPS sin lag en tarjetas y barra de tareas
         </div>
       </div>
     </div>
@@ -1976,7 +1981,7 @@ body.text-large .drawer-num { font-size: 25px !important; }
 
 <!-- Script HLS Vendor -->
 <script src="vendor/hls.min.js"></script>
-<script src="native-player.js?v=2.5.39"></script>
+<script src="native-player.js?v=2.5.40"></script>
 <script>
 (function() {
 'use strict';
@@ -4199,7 +4204,7 @@ function renderHomeOverview(area) {
     var src = resolveIconUrl(items[i].logo);
     var label = items[i].title + (items[i].seriesId ? ' · ' + items[i].season + '×' + items[i].episode : '');
     cards += '<div class="home-preview-card" id="recentContent' + i + '">' +
-      (src ? '<div style="position:relative;height:108px;padding:0;"><img src="' + escapeHtml(src) + '" onload="fitTvImage(this)" onerror="this.style.display=\'none\';" /></div>' : '<div class="home-preview-placeholder">TV</div>') +
+      (src ? '<div style="position:relative;height:108px;padding:0;"><img src="' + escapeHtml(src) + '" onerror="this.style.display=\'none\';" /></div>' : '<div class="home-preview-placeholder">TV</div>') +
       '<div>' + escapeHtml(label) + '</div></div>';
   }
   var specialHtml = '';
@@ -4407,6 +4412,10 @@ function renderTabs() {
     t.innerHTML = '<span>' + escapeHtml(allTabs[j].name) + '</span>';
     t.onclick = (function(gid, idx) {
       return function() {
+        if (state._catDebounceTimer) {
+          clearTimeout(state._catDebounceTimer);
+          state._catDebounceTimer = null;
+        }
         state.categoryConfirmed = true;
         state.currentGroup = gid;
         state.tabIdx = idx;
@@ -4473,7 +4482,7 @@ function renderChannels() {
     
     var logoSrc = resolveIconUrl(c.logo);
     var thumbContent = logoSrc
-      ? '<img src="' + escapeHtml(logoSrc) + '" onload="fitTvImage(this)" onerror="this.style.display=\'none\';" />'
+      ? '<img src="' + escapeHtml(logoSrc) + '" onerror="this.style.display=\'none\';" />'
       : fallbackSvg;
 
     tile.innerHTML = '<div class="tile-thumb">' +
@@ -4622,6 +4631,10 @@ function goBackAction() {
     return;
   }
   if (state.screen === 'playlists') {
+    if (state._catDebounceTimer) {
+      clearTimeout(state._catDebounceTimer);
+      state._catDebounceTimer = null;
+    }
     if (state.searchQuery) {
       state.searchQuery = '';
       state.currentPage = 0;
@@ -4837,6 +4850,11 @@ function handleMainNav(kc, eObj) {
       switchCategoryTab(1);
       updateMainFocus(true);
     } else if (kc === KEY.UP) {
+      if (state._catDebounceTimer) {
+        clearTimeout(state._catDebounceTimer);
+        state._catDebounceTimer = null;
+        renderChannels();
+      }
       // Regla OTTPlayer estricta: UP desde tabs NUNCA entra a los títulos directamente.
       // Sube a la barra superior (botón ↩ Volver o botones Home)
       state.currentFocusArea = (!isInside && (state.recentContent || []).length) ? 'recent' : 'top';
@@ -4846,6 +4864,10 @@ function handleMainNav(kc, eObj) {
       // DOWN en tabs no hace nada, se mantiene en las pestañas
     } else if (kc === KEY.ENTER) {
       // ENTER CONFIRMA LA CATEGORÍA Y PROFUNDIZA A LA CUADRÍCULA DE TÍTULOS
+      if (state._catDebounceTimer) {
+        clearTimeout(state._catDebounceTimer);
+        state._catDebounceTimer = null;
+      }
       if (!isInside) {
         var allHomeTabs = getHomeTabsList();
         if (allHomeTabs[state.tabIdx] && allHomeTabs[state.tabIdx].pl) {
@@ -4918,7 +4940,14 @@ function switchCategoryTab(dir) {
     state.currentPage = 0;
     state.tileIdx = 0;
     renderTabs();
-    renderChannels();
+    if (state._catDebounceTimer) {
+      clearTimeout(state._catDebounceTimer);
+    }
+    state._catDebounceTimer = setTimeout(function() {
+      state._catDebounceTimer = null;
+      renderChannels();
+      updateMainFocus(false);
+    }, 120);
   }
 }
 
