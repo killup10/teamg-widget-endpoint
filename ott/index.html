@@ -1582,6 +1582,16 @@ body.theme-wine #topbar { background: #1c0b0b; }
 .tile-item { width: 16.2%; }
 .home-preview-card { position: relative; }
 .home-preview-card img { object-fit: contain; }
+/* Ajustes y teclado: dimensiones calculadas también para WebKit sin vh. */
+#view-options { box-sizing: border-box; }
+.opt-btn-action { box-sizing: border-box; }
+.opt-label { max-width: 58%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.opt-value { max-width: 40%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+#view-keyboard { box-sizing: border-box; overflow-y: auto; }
+.kb-key { width: 6.6%; margin: 0 0.25%; box-sizing: border-box; }
+.kb-spec-key, .kb-spec-key.space, .kb-spec-key.ok { width: 18%; padding: 0; margin: 0 0.5%; box-sizing: border-box; }
+.kb-key.focused, .kb-spec-key.focused, .kb-btn-back.focused { box-shadow: none; -webkit-box-shadow: none; transform: none; -webkit-transform: none; }
+.kb-input-box { white-space: nowrap; overflow: hidden; text-align: right; }
 </style>
 </head>
 <body>
@@ -1683,7 +1693,7 @@ body.theme-wine #topbar { background: #1c0b0b; }
         <h3>Información</h3>
         <p id="optDescText">Usa tu usuario y contraseña otorgados por el administrador para vincular este televisor y descargar tus listas.</p>
         <div style="margin-top:22px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.5.31 — TV estable, carátulas y subtítulos
+          VERSIÓN: v2.5.32 — Opciones y teclado para TV
         </div>
       </div>
     </div>
@@ -1701,7 +1711,7 @@ body.theme-wine #topbar { background: #1c0b0b; }
     <div class="kb-grid" id="kbGrid"></div>
     <div class="kb-bottom-row">
       <div class="kb-spec-key caps" id="kbKeyCaps">Caps (Rojo)</div>
-      <div class="kb-spec-key lang" id="kbKeyLang">ABC (Verde)</div>
+      <div class="kb-spec-key lang" id="kbKeyLang">Símbolos (Verde)</div>
       <div class="kb-spec-key space" id="kbKeySpace">Space (Amarillo)</div>
       <div class="kb-spec-key back" id="kbKeyBack">⌫ Borrar</div>
       <div class="kb-spec-key ok" id="kbKeyOk">OK (Azul)</div>
@@ -1867,7 +1877,7 @@ body.theme-wine #topbar { background: #1c0b0b; }
 
 <!-- Script HLS Vendor -->
 <script src="vendor/hls.min.js"></script>
-<script src="native-player.js?v=2.5.31"></script>
+<script src="native-player.js?v=2.5.32"></script>
 <script>
 (function() {
 'use strict';
@@ -2393,6 +2403,19 @@ var KB_ROWS = [
   ['{','}','z','x','c','v','b','n','m',',','.','/','\\']
 ];
 var kbInputText = '';
+var KB_LETTERS = KB_ROWS;
+var KB_SYMBOLS = [
+  ['1','2','3','4','5','6','7','8','9','0','+','-','='],
+  ['@','.','/','\\',':',';','_','?','!','#','$','%','&'],
+  ['ñ','á','é','í','ó','ú','ü','(',')','[',']','{','}'],
+  ['<','>','*','"',"'",'`','~','^','|',',','€','£','°']
+];
+function toggleKeyboardLayout() {
+  KB_ROWS = KB_ROWS === KB_LETTERS ? KB_SYMBOLS : KB_LETTERS;
+  $('kbKeyLang').textContent = KB_ROWS === KB_LETTERS ? 'Símbolos (Verde)' : 'ABC (Verde)';
+  renderKeyboard();
+  layoutSettings();
+}
 
 function renderKeyboard() {
   var container = $('kbGrid');
@@ -2416,6 +2439,7 @@ function renderKeyboard() {
     container.appendChild(rowDiv);
   }
   updateKeyboardFocus();
+  layoutSettings();
 }
 
 function openKeyboard(fieldTitle, currentVal, targetField) {
@@ -2428,6 +2452,22 @@ function openKeyboard(fieldTitle, currentVal, targetField) {
   state.kbRow = 1;
   state.kbCol = 0;
   renderKeyboard();
+  layoutSettings();
+}
+
+function layoutSettings() {
+  var height = document.documentElement.clientHeight || window.innerHeight || 720;
+  var hudHeight = $('topbar').offsetHeight || 84;
+  $('view-options').style.top = hudHeight + 'px';
+  $('view-options').style.padding = Math.round(height * 0.025) + 'px 3%';
+  var keyHeight = Math.max(32, Math.round(height * 0.095));
+  var keys = document.querySelectorAll('.kb-key, .kb-spec-key');
+  for (var i = 0; i < keys.length; i++) {
+    keys[i].style.height = keyHeight + 'px';
+    keys[i].style.lineHeight = (keyHeight - 4) + 'px';
+    keys[i].style.fontSize = Math.max(16, Math.round(height * 0.034)) + 'px';
+  }
+  $('view-keyboard').style.padding = Math.round(height * 0.035) + 'px 4%';
 }
 
 function focusRecentContent() {
@@ -2497,15 +2537,16 @@ function closeKeyboard(commit) {
     } else if (state.kbTargetField === 'm3u') {
       state.auth.directM3u = kbInputText;
       $('valM3uUrl').textContent = state.auth.directM3u ? (state.auth.directM3u.slice(0, 22) + '...') : '< Ninguna >';
-      if (state.auth.directM3u) {
-        loadDirectM3u(state.auth.directM3u);
-      }
     }
     saveStorage();
   }
   $('view-keyboard').style.display = 'none';
   state.screen = 'options';
   updateOptionsFocus();
+  if (commit && state.kbTargetField === 'm3u' && state.auth.directM3u) {
+    closeOptions();
+    loadDirectM3u(state.auth.directM3u);
+  }
 }
 
 function updateKeyboardDisplay() {
@@ -2584,7 +2625,7 @@ function handleKeyboardNav(kc, eObj) {
       if (activeKey) handleKeyClick(activeKey.textContent);
     } else if (state.kbRow === 4) {
       if (state.kbCol === 0) { state.kbCaps = !state.kbCaps; renderKeyboard(); }
-      else if (state.kbCol === 1) {}
+      else if (state.kbCol === 1) { toggleKeyboardLayout(); }
       else if (state.kbCol === 2) { handleKeyClick(' '); }
       else if (state.kbCol === 3) { kbInputText = kbInputText.slice(0, -1); updateKeyboardDisplay(); }
       else if (state.kbCol === 4) { closeKeyboard(true); }
@@ -2593,6 +2634,9 @@ function handleKeyboardNav(kc, eObj) {
     closeKeyboard(false);
   } else if (isRedKey(kc, eObj)) {
     state.kbCaps = !state.kbCaps; renderKeyboard();
+    layoutSettings();
+  } else if (isGreenKey(kc, eObj)) {
+    toggleKeyboardLayout();
   } else if (isYellowKey(kc, eObj)) {
     handleKeyClick(' ');
   } else if (isBlueKey(kc, eObj)) {
@@ -2628,6 +2672,14 @@ function updateOptionsFocus() {
     $('btnDoSave').classList.add('focused');
     $('optDescText').textContent = OPT_DESCRIPTIONS[OPT_DESCRIPTIONS.length - 1];
   }
+  var selected = state.optIdx < rows.length ? rows[state.optIdx] : $('btnDoSave');
+  var panel = $('view-options');
+  if (selected && panel.clientHeight) {
+    var itemRect = selected.getBoundingClientRect();
+    var panelRect = panel.getBoundingClientRect();
+    if (itemRect.top < panelRect.top + 8) panel.scrollTop -= panelRect.top + 8 - itemRect.top;
+    else if (itemRect.bottom > panelRect.bottom - 8) panel.scrollTop += itemRect.bottom - panelRect.bottom + 8;
+  }
 }
 
 function openOptions() {
@@ -2638,7 +2690,9 @@ function openOptions() {
   updateOptionsDisplay();
   $('view-playlists').style.display = 'none';
   $('view-options').style.display = 'block';
-  $('screenTitle').textContent = 'Options';
+  layoutSettings();
+  $('view-options').scrollTop = 0;
+  $('screenTitle').textContent = 'Opciones';
   updateOptionsFocus();
 }
 
@@ -2699,13 +2753,16 @@ function closeDeviceSelection() {
    AUTENTICACIÓN Y CARGA DE PLAYLISTS
    ========================================================================== */
 function doSaveAndLogin() {
+  if (state.loginBusy) return;
   if (!state.auth.login || !state.auth.password) {
     showToast('Ingresa usuario y contraseña.');
     return;
   }
   showToast('Iniciando sesión...');
+  state.loginBusy = true;
   apiCall('POST', '/api/ott/login', { login: state.auth.login, password: state.auth.password }, function(st, res) {
     if (st !== 200 || !res || !res.ok) {
+      state.loginBusy = false;
       showToast((res && res.error) || 'Credenciales inválidas.');
       return;
     }
@@ -2718,6 +2775,11 @@ function doSaveAndLogin() {
       name: state.auth.deviceName || 'LG NetCast TV',
       platform: detectedPlatform()
     }, function(st2, res2) {
+      state.loginBusy = false;
+      if (st2 !== 200 || !res2 || res2.ok === false) {
+        showToast((res2 && res2.error) || 'No se pudo vincular la TV. Intenta nuevamente.');
+        return;
+      }
       if (res2 && res2.playlists && res2.playlists.length > 0) {
         state.playlists = res2.playlists;
         closeOptions();
@@ -6081,7 +6143,9 @@ if (bClearSearch) {
   };
 }
 $('kbBtnBack').onclick = function() { closeKeyboard(false); };
-$('kbKeyCaps').onclick = function() { state.kbCaps = !state.kbCaps; renderKeyboard(); };
+$('kbKeyCaps').onclick = function() { state.kbCaps = !state.kbCaps; renderKeyboard(); layoutSettings(); };
+$('kbKeyLang').onclick = toggleKeyboardLayout;
+window.addEventListener('resize', layoutSettings, false);
 $('kbKeySpace').onclick = function() { handleKeyClick(' '); };
 $('kbKeyBack').onclick = function() { kbInputText = kbInputText.slice(0, -1); updateKeyboardDisplay(); };
 $('kbKeyOk').onclick = function() { closeKeyboard(true); };
