@@ -3725,7 +3725,7 @@ function loadDirectM3u(url) {
   }
 }
 
-function loadPlaylistContent(pl, forceFresh) {
+function loadPlaylistContent(pl, forceFresh, onReady) {
   try { if (typeof isPlExpired === 'function' ? isPlExpired(pl) : (pl && pl.expired === true)) { showToast('Esta lista especial ya terminó.'); renderPlaylistsView(); return; } } catch (eExp) {}
   state.feedLoadId = (state.feedLoadId || 0) + 1;
   var loadId = (state.playlistLoadId || 0) + 1;
@@ -3761,7 +3761,7 @@ function loadPlaylistContent(pl, forceFresh) {
   var nowTime = (new Date()).getTime();
   if (!forceFresh && state._playlistCache[pl.id]) {
     var cached = state._playlistCache[pl.id];
-    if (cached.time && (nowTime - cached.time < 45000)) {
+    if (cached.time && (nowTime - cached.time < 5000)) {
       state.channels = cached.channels;
       state.groups = cached.groups;
       state.currentGroup = '__all';
@@ -3774,6 +3774,7 @@ function loadPlaylistContent(pl, forceFresh) {
       showToast(state.channels.length + ' títulos disponibles.');
       updateSearchVisibility();
       resolveRecentContent();
+      if (typeof onReady === 'function') { try { onReady(); } catch(eCb0) {} }
       return;
     }
   }
@@ -3815,6 +3816,7 @@ function loadPlaylistContent(pl, forceFresh) {
         updateSearchVisibility();
         resolveRecentContent();
         state._playlistCache[pl.id] = { channels: state.channels, groups: state.groups, time: (new Date()).getTime() };
+        if (typeof onReady === 'function') { try { onReady(); } catch(eCb1) {} }
       } catch (parseError) {
         showLoadError('Error al mostrar títulos: ' + (parseError.message || 'lista incompatible'));
       }
@@ -4678,7 +4680,8 @@ function handleMainNav(kc, eObj) {
   // Teclas directas de colores (Franja Foto 1)
   if (isRedKey(kc, eObj)) {
     if (state.currentPlaylist) {
-      showToast('🔄 Actualizando lista y carátulas desde el servidor...');
+      delete state._playlistCache[state.currentPlaylist.id];
+      showToast('🔄 Actualizando lista y canales desde el servidor...');
       loadPlaylistContent(state.currentPlaylist, true);
     } else {
       showToast('🔄 Actualizando playlists desde el servidor...');
@@ -5639,7 +5642,16 @@ function handlePlayerNav(kc, eObj) {
       return;
     }
     if (isRedKey(kc, eObj)) {
-      playChannelAt(state.currentChannelIdx);
+      if (state.currentPlaylist) {
+        showToast('🔄 Actualizando enlace desde el servidor...');
+        var curIdx = state.currentChannelIdx;
+        delete state._playlistCache[state.currentPlaylist.id];
+        loadPlaylistContent(state.currentPlaylist, true, function() {
+          playChannelAt(curIdx);
+        });
+      } else {
+        playChannelAt(state.currentChannelIdx);
+      }
       return;
     }
     if (isGreenKey(kc, eObj)) {

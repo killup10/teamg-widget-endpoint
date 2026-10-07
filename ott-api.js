@@ -874,7 +874,9 @@ function handleStream(req, res, query) {
           try {
             const absChunk = new URL(l, targetUrl).href;
             const ext = (absChunk.indexOf('.m3u8') !== -1 || absChunk.indexOf('chunks') !== -1 || absChunk.indexOf('playlist') !== -1) ? '.m3u8' : '.ts';
-            return '/api/ott/stream' + ext + '?url=' + encodeURIComponent(absChunk);
+            const hostHeader = (req && req.headers && req.headers.host) ? req.headers.host : 'ott.teamg.store';
+            const proto = (req && req.headers && req.headers['x-forwarded-proto']) ? req.headers['x-forwarded-proto'].split(',')[0].trim() : 'https';
+            return proto + '://' + hostHeader + '/api/ott/stream' + ext + '?url=' + encodeURIComponent(absChunk);
           } catch (e) {
             return l;
           }
@@ -949,6 +951,7 @@ function handleStream(req, res, query) {
       try { clientReq.destroy(); } catch (e) {}
     });
   }
+  clientReq.end();
 }
 
 module.exports = { handle, handleStream, normalizeColor, normalizeBadge, normalizeExpires, playlistExpired, HALLOWEEN_ORANGE };
