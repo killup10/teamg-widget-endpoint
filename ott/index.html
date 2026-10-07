@@ -1792,7 +1792,7 @@ body.text-large .drawer-num { font-size: 25px !important; }
         <h3>Información</h3>
         <p id="optDescText">Usa tu usuario y contraseña otorgados por el administrador para vincular este televisor y descargar tus listas.</p>
         <div style="margin-top:22px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.5.38 — Selector de canales con texto/logos nítidos y audio multi-pista real
+          VERSIÓN: v2.5.39 — Navegación fluida en selector de canales y apertura directa sin tabs redundantes
         </div>
       </div>
     </div>
@@ -1976,7 +1976,7 @@ body.text-large .drawer-num { font-size: 25px !important; }
 
 <!-- Script HLS Vendor -->
 <script src="vendor/hls.min.js"></script>
-<script src="native-player.js?v=2.5.38"></script>
+<script src="native-player.js?v=2.5.39"></script>
 <script>
 (function() {
 'use strict';
@@ -3907,9 +3907,17 @@ function loadPlaylistContent(pl, forceFresh, onReady) {
       state.channels = cached.channels;
       state.groups = cached.groups;
       state.currentGroup = '__all';
-      state.categoryConfirmed = false;
-      state.currentFocusArea = 'tabs';
-      state.tabIdx = 0;
+      state.currentPage = 0;
+      var hasMultiCat = (state.groups && state.groups.length > 1);
+      if (!hasMultiCat) {
+        state.categoryConfirmed = true;
+        state.currentFocusArea = 'content';
+        state.tileIdx = 0;
+      } else {
+        state.categoryConfirmed = false;
+        state.currentFocusArea = 'tabs';
+        state.tabIdx = 0;
+      }
       renderChannels();
       renderTabs();
       updateMainFocus(true);
@@ -3947,10 +3955,17 @@ function loadPlaylistContent(pl, forceFresh, onReady) {
         state.channels = aggregateSeriesList(parseM3U(text));
         buildGroups();
         state.currentGroup = '__all';
-        state.categoryConfirmed = false;
         state.currentPage = 0;
-        state.currentFocusArea = 'tabs';
-        state.tabIdx = 0;
+        var hasMultiCatNet = (state.groups && state.groups.length > 1);
+        if (!hasMultiCatNet) {
+          state.categoryConfirmed = true;
+          state.currentFocusArea = 'content';
+          state.tileIdx = 0;
+        } else {
+          state.categoryConfirmed = false;
+          state.currentFocusArea = 'tabs';
+          state.tabIdx = 0;
+        }
         renderChannels();
         renderTabs();
         updateMainFocus(true);
@@ -4301,9 +4316,7 @@ function getHomeTabsList() {
 }
 
 function getTabsList() {
-  var allTabs = [
-    { id: '__all', name: 'All' }
-  ];
+  var allTabs = [];
   var hasFavs = false;
   if (state.favorites) {
     for (var i = 0; i < state.channels.length; i++) {
@@ -4313,10 +4326,15 @@ function getTabsList() {
   if (hasFavs) {
     allTabs.push({ id: '__fav', name: 'Favoritos' });
   }
-  if (state.groups) {
+  if (state.groups && state.groups.length > 1) {
+    allTabs.push({ id: '__all', name: 'Todos' });
     for (var j = 0; j < state.groups.length; j++) {
       allTabs.push({ id: state.groups[j], name: state.groups[j] });
     }
+  } else if (state.groups && state.groups.length === 1) {
+    allTabs.push({ id: '__all', name: state.groups[0] });
+  } else {
+    allTabs.push({ id: '__all', name: 'Todos' });
   }
   return allTabs;
 }
@@ -4618,9 +4636,10 @@ function goBackAction() {
       var backTime = (new Date()).getTime();
       if (state.lastPlaylistBackTime && backTime - state.lastPlaylistBackTime < 350) return;
       state.lastPlaylistBackTime = backTime;
-      // Si estamos en la cuadrícula de películas/canales ('content') o en la barra superior ('top'),
-      // BACK regresa a la barra de categorías ('tabs') SIN salir de la carpeta o lista
-      if (state.categoryConfirmed || state.currentFocusArea === 'content') {
+      // Solo si existen múltiples categorías para elegir, BACK regresa a las pestañas de categorías ('tabs').
+      // Si la carpeta solo tiene 1 opción (ej. TeamG Play), BACK sale directamente a Playlists (Home).
+      var hasMultiCatBack = (!state.groups || state.groups.length > 1);
+      if (hasMultiCatBack && (state.categoryConfirmed || state.currentFocusArea === 'content')) {
         state.categoryConfirmed = false;
         state.currentFocusArea = 'tabs';
         updateMainFocus(true);
@@ -5771,12 +5790,12 @@ function handlePlayerNav(kc, eObj) {
       closeChannelDrawer();
       return;
     }
-    if (kc === KEY.UP || isChDown) {
+    if (kc === KEY.UP || isChUp) {
       state.drawerIdx = Math.max(0, state.drawerIdx - 1);
       updateDrawerFocus();
       return;
     }
-    if (kc === KEY.DOWN || isChUp) {
+    if (kc === KEY.DOWN || isChDown) {
       state.drawerIdx = Math.min(list.length - 1, state.drawerIdx + 1);
       updateDrawerFocus();
       return;
@@ -6001,10 +6020,8 @@ function handlePlayerNav(kc, eObj) {
   }
 }
 
-/* Drawer Lateral Virtualizado (Foto 3) - Apertura instantánea <1ms */
-var DRAWER_WINDOW = 12;
-
-function renderDrawerWindow() {
+/* Drawer Lateral de Canales (Foto 3 / OTTPlayer) - Apertura fluida y navegación O(1) */
+function renderDrawerList() {
   var isSeries = (state.activeSeriesEpisodes && state.activeSeriesEpisodes.length > 0);
   var list = isSeries ? state.activeSeriesEpisodes : getFilteredChannels();
   var container = $('player-drawer-list');
@@ -6021,14 +6038,6 @@ function renderDrawerWindow() {
   if (cur >= list.length) cur = list.length - 1;
   state.drawerIdx = cur;
 
-  var half = Math.floor(DRAWER_WINDOW / 2);
-  var start = Math.max(0, cur - half);
-  var end = Math.min(list.length, start + DRAWER_WINDOW);
-  if (end - start < DRAWER_WINDOW) {
-    start = Math.max(0, end - DRAWER_WINDOW);
-  }
-  state.drawerWindowStart = start;
-
   if (isSeries) {
     var sTitle = state.currentSeries ? state.currentSeries.name : 'Episodios';
     $('drawerGroupName').innerHTML = '&lt; \u00A0 ' + escapeHtml(sTitle) + ' (' + (cur + 1) + '/' + list.length + ') \u00A0 &gt;';
@@ -6039,7 +6048,7 @@ function renderDrawerWindow() {
   }
 
   var frag = document.createDocumentFragment();
-  for (var i = start; i < end; i++) {
+  for (var i = 0; i < list.length; i++) {
     var c = list[i];
     var row = document.createElement('div');
     row.className = 'drawer-row' + (i === cur ? ' focused' : '');
@@ -6079,6 +6088,7 @@ function renderDrawerWindow() {
   container.appendChild(frag);
 
   var focusedRow = container.querySelector('.drawer-row.focused');
+  state.currentDrawerFocusedEl = focusedRow;
   if (focusedRow) safeScrollIntoView(focusedRow);
 }
 
@@ -6097,7 +6107,7 @@ function openChannelDrawer() {
     d.style.display = 'block';
   }
   showPlayerOverlay();
-  renderDrawerWindow();
+  renderDrawerList();
 }
 
 function closeChannelDrawer() {
@@ -6109,6 +6119,7 @@ function closeChannelDrawer() {
     d.style.display = 'none';
   }
   state.drawerOpen = false;
+  state.currentDrawerFocusedEl = null;
   state.playerArea = 'bottom';
   state.playerBotIdx = 2; // Foco seguro en Play/Pausa (no en el trigger del drawer)
   updatePlayerFocus();
@@ -6122,24 +6133,23 @@ function updateDrawerFocus() {
   if (state.drawerIdx < 0) state.drawerIdx = 0;
   if (state.drawerIdx >= list.length) state.drawerIdx = list.length - 1;
 
-  var start = state.drawerWindowStart || 0;
-  var end = start + DRAWER_WINDOW;
+  var container = $('player-drawer-list');
+  if (!container) return;
 
-  if (state.drawerIdx < start + 2 || state.drawerIdx >= end - 2 || state.drawerIdx <= 0 || state.drawerIdx >= list.length - 1) {
-    renderDrawerWindow();
+  if (state.currentDrawerFocusedEl) {
+    state.currentDrawerFocusedEl.classList.remove('focused');
+    state.currentDrawerFocusedEl = null;
+  }
+
+  var targetRow = container.querySelector('.drawer-row[data-idx="' + state.drawerIdx + '"]');
+  if (!targetRow) {
+    renderDrawerList();
     return;
   }
 
-  var rows = document.getElementsByClassName('drawer-row');
-  for (var i = 0; i < rows.length; i++) {
-    var rowIdx = parseInt(rows[i].getAttribute('data-idx'), 10);
-    if (rowIdx === state.drawerIdx) {
-      rows[i].classList.add('focused');
-      safeScrollIntoView(rows[i]);
-    } else {
-      rows[i].classList.remove('focused');
-    }
-  }
+  targetRow.classList.add('focused');
+  state.currentDrawerFocusedEl = targetRow;
+  safeScrollIntoView(targetRow);
 
   if (isSeries) {
     var sTitle = state.currentSeries ? state.currentSeries.name : 'Episodios';
@@ -6160,8 +6170,9 @@ function switchDrawerGroup(dir) {
   if (curIdx < 0) curIdx = 0;
   var nextIdx = (curIdx + dir + allGroups.length) % allGroups.length;
   state.currentGroup = allGroups[nextIdx];
+  state.drawerIdx = 0;
   renderTabs();
-  renderDrawerWindow();
+  renderDrawerList();
 }
 
 /* ==========================================================================
