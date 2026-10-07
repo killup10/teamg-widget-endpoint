@@ -45,19 +45,19 @@ async function prepareImage(body) {
   imageBusy=true;
   try {
     let bytes;
-    if(body.url) bytes=await publicBuffer(String(body.url).replace(/&amp;/g,'&'),4*1024*1024);
+    if(body.url) bytes=await publicBuffer(String(body.url).replace(/&amp;/g,'&'),12*1024*1024);
     else {
       const data=String(body.data || '');
-      if(data.length>6*1024*1024 || !/^data:image\/(png|jpeg|webp|avif);base64,[A-Za-z0-9+/]+=*$/.test(data))throw new Error('Imagen inválida o demasiado grande.');
+      if(data.length>16*1024*1024 || !/^data:image\/(png|jpeg|jpg|webp|avif);base64,[A-Za-z0-9+/]+=*$/i.test(data))throw new Error('Imagen inválida o demasiado grande.');
       bytes=Buffer.from(data.split(',')[1],'base64');
-      if(bytes.length>4*1024*1024)throw new Error('Imagen demasiado grande.');
+      if(bytes.length>12*1024*1024)throw new Error('Imagen demasiado grande.');
     }
     const sharp=require('sharp');
     sharp.cache(false);sharp.concurrency(1);
     const vertical=body.shape==='vertical';
-    return await sharp(bytes,{limitInputPixels:16000000}).rotate()
+    return await sharp(bytes,{limitInputPixels:35000000}).rotate()
       .resize(vertical?300:400,vertical?450:225,{fit:'contain',background:'#160e18'})
-      .flatten({background:'#160e18'}).jpeg({quality:80,progressive:false}).toBuffer();
+      .flatten({background:'#160e18'}).jpeg({quality:80,progressive:true}).toBuffer();
   } finally {imageBusy=false;}
 }
 module.exports={publicAddress,publicBuffer,prepareImage};

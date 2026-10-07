@@ -1182,37 +1182,43 @@ document.getElementById("mChIconFileInput").onchange = function() {
     var file = this.files[0];
     var saveBtn = document.getElementById("btnSaveChModal");
     saveBtn.disabled = true;
-    saveBtn.textContent = "⏳ SUBIENDO IMAGEN...";
+    saveBtn.textContent = "⏳ OPTIMIZANDO IMAGEN...";
     saveBtn.style.opacity = "0.6";
 
-    resizeImageForUpload(file, 400, 300, function(err, base64) {
-      if (err || !base64) {
-        alert("No se pudo procesar la imagen seleccionada.");
-        saveBtn.disabled = false;
-        saveBtn.textContent = "SAVE";
-        saveBtn.style.opacity = "1";
-        return;
-      }
-      // Mostrar vista previa inmediata
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      var base64 = e.target.result;
       updateIconPreview(base64);
-      // Pre-asignar valor por si el usuario guarda
-      document.getElementById("mChIconUrl").value = base64;
 
-      // Subir al backend para obtener URL permanente /api/ott/icon/<id>
-      api("/api/ott/admin/upload-image", "POST", { data: base64 }).then(function(res) {
-        if (res && (res.relUrl || res.url)) {
-          var targetVal = res.relUrl || res.url;
-          document.getElementById("mChIconUrl").value = targetVal;
-          updateIconPreview(res.url || res.relUrl);
+      // Usar prepare-image para generar JPEG 16:9 400x225 optimizado con sharp en el backend
+      api("/api/ott/admin/prepare-image", "POST", { data: base64, shape: 'horizontal' }).then(function(res) {
+        if (res && res.url) {
+          document.getElementById("mChIconUrl").value = res.url;
+          updateIconPreview(res.url);
         }
-      }).catch(function(uploadErr) {
-        console.warn("Fallo subida a /upload-image, manteniendo base64:", uploadErr);
+      }).catch(function(err) {
+        console.warn("prepare-image fallo, probando upload-image:", err);
+        api("/api/ott/admin/upload-image", "POST", { data: base64 }).then(function(upRes) {
+          var targetVal = upRes.url || upRes.relUrl;
+          if (targetVal.indexOf('/') === 0) targetVal = window.location.origin + targetVal;
+          document.getElementById("mChIconUrl").value = targetVal;
+          updateIconPreview(targetVal);
+        }).catch(function(upErr) {
+          alert("No se pudo subir la imagen: " + upErr.message);
+        });
       }).finally(function() {
         saveBtn.disabled = false;
         saveBtn.textContent = "SAVE";
         saveBtn.style.opacity = "1";
       });
-    });
+    };
+    reader.onerror = function() {
+      alert("Error al leer la imagen seleccionada.");
+      saveBtn.disabled = false;
+      saveBtn.textContent = "SAVE";
+      saveBtn.style.opacity = "1";
+    };
+    reader.readAsDataURL(file);
   }
 };
 
@@ -1227,16 +1233,40 @@ document.getElementById("btnCancelChModal").onclick = function() {
   document.getElementById("modalChannelSetting").className = "modal";
 };
 
-document.getElementById("btnSaveChModal").onclick = function() {
+document.getElementById("btnSaveChModal").onclick = async function() {
   var name = document.getElementById("mChName").value.trim();
   var url = document.getElementById("mChUrl").value.trim();
   var group = document.getElementById("mChGroupSelect").value;
   var logo = document.getElementById("mChIconUrl").value.trim();
   var subs = document.getElementById("mChSubs").value.trim();
   var adult = document.getElementById("btnAdultYes").classList.contains("sel");
+  var saveBtn = document.getElementById("btnSaveChModal");
 
   if (!name) { alert("Ingresa el nombre del canal o película."); return; }
   if (!url) { alert("Ingresa la URL del video o stream."); return; }
+
+  // Auto-optimizar URLs externas (YouTube maxresdefault, IMDb, web externa) a 400x225 16:9
+  if (logo && (logo.indexOf('http://') === 0 || logo.indexOf('https://') === 0) && logo.indexOf('/api/ott/icon/') === -1) {
+    saveBtn.disabled = true;
+    saveBtn.textContent = "⏳ OPTIMIZANDO CARÁTULA...";
+    saveBtn.style.opacity = "0.6";
+    try {
+      var prepRes = await api("/api/ott/admin/prepare-image", "POST", { url: logo, shape: 'horizontal' });
+      if (prepRes && prepRes.url) {
+        logo = prepRes.url;
+        document.getElementById("mChIconUrl").value = logo;
+      }
+    } catch (prepErr) {
+      console.warn("No se pudo auto-optimizar la imagen externa:", prepErr.message);
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.textContent = "SAVE";
+      saveBtn.style.opacity = "1";
+    }
+  } else if (logo && logo.indexOf('/api/ott/icon/') === 0) {
+    logo = window.location.origin + logo;
+    document.getElementById("mChIconUrl").value = logo;
+  }
 
   if (EDITING_CH_IDX === -1) {
     CURRENT_PL.channels.push({
@@ -1253,7 +1283,10 @@ document.getElementById("btnSaveChModal").onclick = function() {
   } else {
     CURRENT_PL.channels[EDITING_CH_IDX].name = name;
     CURRENT_PL.channels[EDITING_CH_IDX].url = url;
-    if (CURRENT_PL.channels[EDITING_CH_IDX].group !== group) { CURRENT_PL.channels[EDITING_CH_IDX].seriesLogo = getGroupSeriesCover(group); CURRENT_PL.channels[EDITING_CH_IDX].seriesPoster = getGroupSeriesPoster(group); }
+    if (CURRENT_PL.channels[EDITING_CH_IDX].group !== group) {
+      CURRENT_PL.channels[EDITING_CH_IDX].seriesLogo = getGroupSeriesCover(group);
+      CURRENT_PL.channels[EDITING_CH_IDX].seriesPoster = getGroupSeriesPoster(group);
+    }
     CURRENT_PL.channels[EDITING_CH_IDX].group = group;
     CURRENT_PL.channels[EDITING_CH_IDX].logo = logo;
     CURRENT_PL.channels[EDITING_CH_IDX].subs = subs;

@@ -719,6 +719,27 @@ function fetchWithRedirects(targetUrl, options, maxRedirects, callback) {
       if (!body.id || !Array.isArray(body.channels)) return json(res, 400, { ok: false, error: 'id+channels' });
       const prevPl = await cols.playlists.findOne({ _id: String(body.id) });
       if (prevPl && prevPl.url) m3uCache.delete(prevPl.url);
+      const host = req.headers.host || 'ott.teamg.store';
+      for (const ch of body.channels) {
+        if (ch.logo) {
+          if (ch.logo.startsWith('/api/ott/icon/')) ch.logo = 'https://' + host + ch.logo;
+          if (ch.logo.includes('teamg-widget-endpoint.onrender.com/api/ott/icon/')) {
+            ch.logo = ch.logo.replace('https://teamg-widget-endpoint.onrender.com', 'https://' + host);
+          }
+        }
+        if (ch.seriesLogo) {
+          if (ch.seriesLogo.startsWith('/api/ott/icon/')) ch.seriesLogo = 'https://' + host + ch.seriesLogo;
+          if (ch.seriesLogo.includes('teamg-widget-endpoint.onrender.com/api/ott/icon/')) {
+            ch.seriesLogo = ch.seriesLogo.replace('https://teamg-widget-endpoint.onrender.com', 'https://' + host);
+          }
+        }
+        if (ch.seriesPoster) {
+          if (ch.seriesPoster.startsWith('/api/ott/icon/')) ch.seriesPoster = 'https://' + host + ch.seriesPoster;
+          if (ch.seriesPoster.includes('teamg-widget-endpoint.onrender.com/api/ott/icon/')) {
+            ch.seriesPoster = ch.seriesPoster.replace('https://teamg-widget-endpoint.onrender.com', 'https://' + host);
+          }
+        }
+      }
       const m3uText = serializeChannelsToM3u(body.channels);
       await cols.playlists.updateOne({ _id: String(body.id) }, { $set: { customM3u: m3uText, count: body.channels.length, updatedAt: store.nowIso() } });
       return json(res, 200, { ok: true, count: body.channels.length });
@@ -751,13 +772,17 @@ function fetchWithRedirects(targetUrl, options, maxRedirects, callback) {
 
     if (sub === 'upload-image' && req.method === 'POST') {
       if (!body.data) return json(res, 400, { ok: false, error: 'Falta data' });
+      let dataToSave = body.data;
+      try {
+        const bytes = await require('./media-import').prepareImage({ data: body.data, shape: 'horizontal' });
+        dataToSave = 'data:image/jpeg;base64,' + bytes.toString('base64');
+      } catch (err) {}
       const iconId = store.uid();
-      await cols.icons.insertOne({ _id: iconId, data: body.data, created: store.nowIso() });
+      await cols.icons.insertOne({ _id: iconId, data: dataToSave, created: store.nowIso() });
       const hostHeader = (req && req.headers && req.headers['host']) ? req.headers['host'] : 'ott.teamg.store';
       const proto = (req.headers['x-forwarded-proto'] || 'https').split(',')[0].trim();
-      const relUrl = '/api/ott/icon/' + iconId;
-      const fullUrl = proto + '://' + hostHeader + relUrl;
-      return json(res, 200, { ok: true, url: fullUrl, relUrl: relUrl, id: iconId });
+      const fullUrl = proto + '://' + hostHeader + '/api/ott/icon/' + iconId;
+      return json(res, 200, { ok: true, url: fullUrl, relUrl: fullUrl, id: iconId });
     }
 
     return json(res, 404, { ok: false });
