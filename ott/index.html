@@ -1362,13 +1362,13 @@ video::cue {
   display: block;
 }
 
-/* Drawer Lateral de Canales durante reproducción (Foto 3) - Máximo 5 canales por vista */
+/* Drawer Lateral de Canales durante reproducción (Foto 3 / OTTPlayer) */
 #player-drawer {
   position: absolute;
   top: 0;
   left: 0;
   bottom: 0;
-  width: 480px;
+  width: 350px;
   max-width: 85%;
   background: #14050d;
   background: rgba(20, 5, 13, 0.98);
@@ -1378,6 +1378,10 @@ video::cue {
   overflow: hidden;
   box-shadow: 6px 0 25px rgba(0, 0, 0, 0.85);
   -webkit-box-shadow: 6px 0 25px rgba(0, 0, 0, 0.85);
+}
+
+#player-container.drawer-open .player-top-left {
+  display: none !important;
 }
 
 #player-drawer.open { display: block; }
@@ -1697,7 +1701,7 @@ body.text-large .tab-skew { font-size: 3.8vh; }
         <h3>Información</h3>
         <p id="optDescText">Usa tu usuario y contraseña otorgados por el administrador para vincular este televisor y descargar tus listas.</p>
         <div style="margin-top:22px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.5.35 — Navegación y lectura para TV
+          VERSIÓN: v2.5.36 — Botones OTT, barra de canales y audio dual
         </div>
       </div>
     </div>
@@ -1821,7 +1825,7 @@ body.text-large .tab-skew { font-size: 3.8vh; }
         <div class="player-actions-container">
           <div class="ott-action-col">
             <div class="round-icon-btn" id="btnPlayerRatio" title="Aspect Ratio"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2" ry="2"/><polyline points="7 9 7 7 9 7"/><polyline points="17 9 17 7 15 7"/><polyline points="7 15 7 17 9 17"/><polyline points="17 15 17 17 15 17"/></svg></div>
-            <div class="action-underline cs-white"></div>
+            <div class="action-underline cs-yellow"></div>
           </div>
           <div class="ott-action-col">
             <div class="round-icon-btn" id="btnPlayerEpg" title="Temporizador de apagado (Sleep)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg></div>
@@ -1833,11 +1837,11 @@ body.text-large .tab-skew { font-size: 3.8vh; }
           </div>
           <div class="ott-action-col">
             <div class="round-icon-btn" id="btnPlayerSubs" title="Subtítulos"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2" ry="2"/><path d="M10 9.5a2.5 2.5 0 0 0-2.5 2.5v0a2.5 2.5 0 0 0 2.5 2.5"/><path d="M16.5 9.5a2.5 2.5 0 0 0-2.5 2.5v0a2.5 2.5 0 0 0 2.5 2.5"/></svg></div>
-            <div class="action-underline cs-yellow"></div>
+            <div class="action-underline cs-blue"></div>
           </div>
           <div class="ott-action-col">
             <div class="round-icon-btn" id="btnPlayerClose" title="Cerrar"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg></div>
-            <div class="action-underline cs-blue"></div>
+            <div class="action-underline cs-white"></div>
           </div>
         </div>
         <div class="top-clock-divider"></div>
@@ -1881,7 +1885,7 @@ body.text-large .tab-skew { font-size: 3.8vh; }
 
 <!-- Script HLS Vendor -->
 <script src="vendor/hls.min.js"></script>
-<script src="native-player.js?v=2.5.35"></script>
+<script src="native-player.js?v=2.5.36"></script>
 <script>
 (function() {
 'use strict';
@@ -3808,7 +3812,7 @@ function loadPlaylistContent(pl, forceFresh, onReady) {
   var nowTime = (new Date()).getTime();
   if (!forceFresh && state._playlistCache[pl.id]) {
     var cached = state._playlistCache[pl.id];
-    if (cached.time && (nowTime - cached.time < 5000)) {
+    if (cached.time && (nowTime - cached.time < 1800000)) {
       state.channels = cached.channels;
       state.groups = cached.groups;
       state.currentGroup = '__all';
@@ -4923,6 +4927,7 @@ function cleanPlayerEngines() {
   state.nativeSubtitleText = '';
   state.nativeTextIndex = -1;
   state.nativeAudioIndex = -1;
+  state.currentDualAudioMode = 0;
   clearTimeout(state.subtitleRequestTimer);
   if (state.subtitleRequest) { try { state.subtitleRequest.abort(); } catch (subtitleAbort) {} state.subtitleRequest = null; }
   hideTuning();
@@ -5233,6 +5238,25 @@ function probeSubtitles(rawUrl, channelSubs) {
   // Embedded tracks are read by the native player, never by downloading the movie on Render.
 }
 
+function startPlayerHeartbeat() {
+  stopPlayerHeartbeat();
+  state.playerHeartbeat = setInterval(function() {
+    try {
+      if (state.screen !== 'player') { stopPlayerHeartbeat(); return; }
+      var xhr = new XMLHttpRequest();
+      xhr.open('GET', (API_BASE || '') + '/api/ott/feed?token=' + encodeURIComponent((state.auth && state.auth.token) || '') + '&deviceId=' + encodeURIComponent((state.auth && state.auth.deviceId) || '') + '&_hb=' + (new Date()).getTime(), true);
+      xhr.send();
+    } catch (eHb) {}
+  }, 120000);
+}
+
+function stopPlayerHeartbeat() {
+  if (state.playerHeartbeat) {
+    clearInterval(state.playerHeartbeat);
+    state.playerHeartbeat = null;
+  }
+}
+
 function playChannelAt(idx) {
   var list = (state.activeSeriesEpisodes && state.activeSeriesEpisodes.length > 0) ? state.activeSeriesEpisodes : getFilteredChannels();
   if (!list[idx]) return;
@@ -5268,6 +5292,7 @@ function playItem(c, recovering) {
   
   // Limpiar completamente cualquier motor previo antes de iniciar nuevo canal
   cleanPlayerEngines();
+  startPlayerHeartbeat();
 
   state.activeDuration = 0;
   state.activeSubTracks = [];
@@ -5587,13 +5612,17 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c) {
 }
 
 function stopPlayer() {
-  state._playlistCache = {};
+  stopPlayerHeartbeat();
   if (state.recoveryTimer) clearTimeout(state.recoveryTimer);
   state.recoveryTimer = null;
   state.recoveryItem = null;
   state.recoverySeek = 0;
   cleanPlayerEngines();
-  $('player-container').classList.remove('open');
+  var pc = $('player-container');
+  if (pc) {
+    pc.classList.remove('open');
+    pc.classList.remove('drawer-open');
+  }
   var _pd = $('player-drawer');
   if (_pd) { _pd.classList.remove('open'); _pd.style.display = 'none'; }
   state.drawerOpen = false;
@@ -5663,13 +5692,6 @@ function handlePlayerNav(kc, eObj) {
     return;
   }
 
-  if (kc === KEY.UP) {
-    state.playerArea = 'top';
-    state.playerTopIdx = 0;
-    showPlayerOverlay();
-    return;
-  }
-
   // 2. Cambio directo de canal con botones físicos del control remoto (CH+ / CH-): SIEMPRE ACTIVO
   // CH+ (subir): avanza al siguiente canal (ej. de 1 Latina a 2 CTV)
   // CH- (bajar): retrocede al canal anterior
@@ -5720,35 +5742,42 @@ function handlePlayerNav(kc, eObj) {
       stopPlayer();
       return;
     }
-    if (isBlueKey(kc, eObj)) {
+    // Tecla Azul o ENTER: En TV en vivo, abre el selector de canales directamente (como OTTPlayer)
+    if (isBlueKey(kc, eObj) || kc === KEY.ENTER) {
       openChannelDrawer();
       return;
     }
-    if (isRedKey(kc, eObj)) {
-      if (state.currentPlaylist) {
-        showToast('🔄 Actualizando enlace desde el servidor...');
-        var curIdx = state.currentChannelIdx;
-        delete state._playlistCache[state.currentPlaylist.id];
-        loadPlaylistContent(state.currentPlaylist, true, function() {
-          playChannelAt(curIdx);
-        });
-      } else {
-        playChannelAt(state.currentChannelIdx);
-      }
-      return;
-    }
-    if (isGreenKey(kc, eObj)) {
+    // Tecla Amarilla: Pantalla (Aspect Ratio)
+    if (isYellowKey(kc, eObj)) {
       $('btnPlayerRatio').click();
       return;
     }
-    if (isYellowKey(kc, eObj)) {
-      $('btnPlayerSubs').click();
+    // Tecla Verde: Audio (Dual Audio / Pistas)
+    if (isGreenKey(kc, eObj)) {
+      $('btnPlayerAudio').click();
+      return;
+    }
+    // Tecla Roja: Temporizador de apagado (Sleep)
+    if (isRedKey(kc, eObj)) {
+      $('btnPlayerEpg').click();
       return;
     }
     // Si presiona LEFT / RIGHT, adelantar / retroceder inmediatamente con indicador OSD:
     if (kc === KEY.LEFT || kc === KEY.RIGHT) {
       state.playerArea = 'bottom';
       state.playerBotIdx = kc === KEY.RIGHT ? 3 : 1;
+      showPlayerOverlay();
+      return;
+    }
+    if (kc === KEY.UP) {
+      state.playerArea = 'top';
+      state.playerTopIdx = 0;
+      showPlayerOverlay();
+      return;
+    }
+    if (kc === KEY.DOWN) {
+      state.playerArea = 'bottom';
+      state.playerBotIdx = 0;
       showPlayerOverlay();
       return;
     }
@@ -5773,22 +5802,27 @@ function handlePlayerNav(kc, eObj) {
     stopPlayer();
     return;
   }
-  if (isGreenKey(kc, eObj)) {
+  // Tecla Amarilla: Pantalla (Aspect Ratio)
+  if (isYellowKey(kc, eObj)) {
     $('btnPlayerRatio').click();
     showPlayerOverlay();
     return;
   }
-  if (isYellowKey(kc, eObj)) {
-    $('btnPlayerSubs').click();
+  // Tecla Verde: Audio (Dual Audio / Pistas)
+  if (isGreenKey(kc, eObj)) {
+    $('btnPlayerAudio').click();
     showPlayerOverlay();
     return;
   }
-  if (isBlueKey(kc, eObj)) {
-    openChannelDrawer();
+  // Tecla Roja: Temporizador de apagado (Sleep)
+  if (isRedKey(kc, eObj)) {
+    $('btnPlayerEpg').click();
+    showPlayerOverlay();
     return;
   }
-  if (isRedKey(kc, eObj)) {
-    playChannelAt(state.currentChannelIdx);
+  // Tecla Azul: Selector de canales
+  if (isBlueKey(kc, eObj)) {
+    openChannelDrawer();
     return;
   }
 
@@ -5886,7 +5920,7 @@ function renderDrawerWindow() {
     var sTitle = state.currentSeries ? state.currentSeries.name : 'Episodios';
     $('drawerGroupName').innerHTML = '&lt; \u00A0 ' + escapeHtml(sTitle) + ' (' + (cur + 1) + '/' + list.length + ') \u00A0 &gt;';
   } else {
-    var groupLabel = (state.currentGroup === '__all' ? 'Todos' : (state.currentGroup === '__fav' ? 'Favoritos' : state.currentGroup));
+    var groupLabel = (state.currentGroup === '__all' ? 'EN VIVO' : (state.currentGroup === '__fav' ? 'Favoritos' : state.currentGroup));
     var countLabel = ' (' + (cur + 1) + '/' + list.length + ')';
     $('drawerGroupName').innerHTML = '&lt; \u00A0 ' + escapeHtml(groupLabel) + countLabel + ' \u00A0 &gt;';
   }
@@ -5940,15 +5974,20 @@ function openChannelDrawer() {
     state.drawerIdx = state.currentChannelIdx;
   }
   state.drawerOpen = true;
+  var pc = $('player-container');
+  if (pc) pc.classList.add('drawer-open');
   var d = $('player-drawer');
   if (d) {
     d.classList.add('open');
     d.style.display = 'block';
   }
+  showPlayerOverlay();
   renderDrawerWindow();
 }
 
 function closeChannelDrawer() {
+  var pc = $('player-container');
+  if (pc) pc.classList.remove('drawer-open');
   var d = $('player-drawer');
   if (d) {
     d.classList.remove('open');
@@ -5991,7 +6030,7 @@ function updateDrawerFocus() {
     var sTitle = state.currentSeries ? state.currentSeries.name : 'Episodios';
     $('drawerGroupName').innerHTML = '&lt; \u00A0 ' + escapeHtml(sTitle) + ' (' + (state.drawerIdx + 1) + '/' + list.length + ') \u00A0 &gt;';
   } else {
-    var groupLabel = (state.currentGroup === '__all' ? 'Todos' : (state.currentGroup === '__fav' ? 'Favoritos' : state.currentGroup));
+    var groupLabel = (state.currentGroup === '__all' ? 'EN VIVO' : (state.currentGroup === '__fav' ? 'Favoritos' : state.currentGroup));
     var countLabel = ' (' + (state.drawerIdx + 1) + '/' + list.length + ')';
     $('drawerGroupName').innerHTML = '&lt; \u00A0 ' + escapeHtml(groupLabel) + countLabel + ' \u00A0 &gt;';
   }
@@ -6348,29 +6387,87 @@ $('btnPlayerRatio').onclick = function(e) {
   showToast('Aspecto: ' + mode.name);
 };
 
+function applyDualAudioRoute(v, mode) {
+  try {
+    var AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return false;
+    if (!v._audioCtx) {
+      v._audioCtx = new AudioCtx();
+      v._source = v._audioCtx.createMediaElementSource(v);
+      v._splitter = v._audioCtx.createChannelSplitter(2);
+      v._merger = v._audioCtx.createChannelMerger(2);
+      v._source.connect(v._splitter);
+      v._merger.connect(v._audioCtx.destination);
+    }
+    try { v._splitter.disconnect(); } catch (eDisc) {}
+    if (mode === 1) {
+      // Canal Izquierdo (L) a ambos altavoces (Español típico)
+      v._splitter.connect(v._merger, 0, 0);
+      v._splitter.connect(v._merger, 0, 1);
+    } else if (mode === 2) {
+      // Canal Derecho (R) a ambos altavoces (Inglés / SAP típico)
+      v._splitter.connect(v._merger, 1, 0);
+      v._splitter.connect(v._merger, 1, 1);
+    } else {
+      // Estéreo normal (L->L, R->R)
+      v._splitter.connect(v._merger, 0, 0);
+      v._splitter.connect(v._merger, 1, 1);
+    }
+    if (v._audioCtx.state === 'suspended') {
+      v._audioCtx.resume();
+    }
+    return true;
+  } catch (errDual) {
+    return false;
+  }
+}
+
 $('btnPlayerAudio').onclick = function(e) {
   var ev = e || window.event;
   if (ev && ev.stopPropagation) ev.stopPropagation();
   showPlayerOverlay();
+
+  // 1. Samsung AVPlay nativo
   if (window.TeamGNative && TeamGNative.active()) {
     var audio = TeamGNative.tracks('AUDIO');
-    if (!audio.length) { showToast('No hay pistas de audio disponibles.'); return; }
-    var nextAudio = ((state.nativeAudioIndex == null ? -1 : state.nativeAudioIndex) + 1) % audio.length;
-    if (TeamGNative.select('AUDIO', audio[nextAudio].index)) {
-      state.nativeAudioIndex = nextAudio;
-      showToast('Audio: pista ' + (nextAudio + 1));
-    } else showToast('La TV no permite cambiar esta pista.');
-    return;
+    if (audio && audio.length > 1) {
+      var nextAudio = ((state.nativeAudioIndex == null ? -1 : state.nativeAudioIndex) + 1) % audio.length;
+      if (TeamGNative.select('AUDIO', audio[nextAudio].index)) {
+        state.nativeAudioIndex = nextAudio;
+        var lang = audio[nextAudio].language || audio[nextAudio].extra_info || ('Pista ' + (nextAudio + 1));
+        showToast('Audio TV: ' + lang);
+        return;
+      }
+    }
   }
-  var v = $('video-el');
+
+  // 2. LG NetCast nativo
+  var netcastObj = $('netcast-player');
+  if (netcastObj && netcastObj.style.display !== 'none') {
+    try {
+      var totA = netcastObj.totalAudioTrack || netcastObj.audioTrackCount || 1;
+      if (totA > 1) {
+        var curTrk = netcastObj.audioTrack || 0;
+        var nextTrk = (curTrk + 1) % totA;
+        netcastObj.audioTrack = nextTrk;
+        showToast('Audio TV: Pista ' + (nextTrk + 1) + '/' + totA);
+        return;
+      }
+    } catch (eNcA) {}
+  }
+
+  // 3. HLS.js múltiples pistas de audio
   if (state.hlsInstance && state.hlsInstance.audioTracks && state.hlsInstance.audioTracks.length > 1) {
     var cur = state.hlsInstance.audioTrack;
     var next = (cur + 1) % state.hlsInstance.audioTracks.length;
     state.hlsInstance.audioTrack = next;
-    var aName = state.hlsInstance.audioTracks[next].name || ('Pista ' + (next + 1));
+    var aName = state.hlsInstance.audioTracks[next].name || state.hlsInstance.audioTracks[next].lang || ('Pista ' + (next + 1));
     showToast('Audio: ' + aName);
     return;
   }
+
+  // 4. HTML5 video.audioTracks (Safari / Tizen HTML5 / WebOS HTML5)
+  var v = $('video-el');
   if (v && v.audioTracks && v.audioTracks.length > 1) {
     var curA = 0;
     for (var a = 0; a < v.audioTracks.length; a++) {
@@ -6384,7 +6481,30 @@ $('btnPlayerAudio').onclick = function(e) {
     showToast('Audio: ' + aLabel);
     return;
   }
-  showToast('Audio: Estéreo principal');
+
+  // 5. Cambio de Audio Dual (SAP / Mono L / Mono R) para canales y películas de televisión
+  state.currentDualAudioMode = ((state.currentDualAudioMode || 0) + 1) % 3;
+  if (v) {
+    var routed = applyDualAudioRoute(v, state.currentDualAudioMode);
+    if (routed) {
+      if (state.currentDualAudioMode === 1) {
+        showToast('Audio Dual: Canal 1 (Izquierdo / Español)');
+      } else if (state.currentDualAudioMode === 2) {
+        showToast('Audio Dual: Canal 2 (Derecho / Inglés - SAP)');
+      } else {
+        showToast('Audio: Estéreo Original (L+R)');
+      }
+      return;
+    }
+  }
+
+  if (state.currentDualAudioMode === 1) {
+    showToast('Audio Dual: Canal 1 (Español)');
+  } else if (state.currentDualAudioMode === 2) {
+    showToast('Audio Dual: Canal 2 (Inglés / SAP)');
+  } else {
+    showToast('Audio: Estéreo Principal');
+  }
 };
 
 $('btnPlayerSubs').onclick = function(e) {
