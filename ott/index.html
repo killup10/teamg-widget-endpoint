@@ -1661,10 +1661,6 @@ body.theme-wine #topbar { background: #1c0b0b; }
           <span class="opt-label">Device registration/selection</span>
           <span class="opt-value" id="valDevice">&lt; LG NetCast TV &gt;</span>
         </div>
-        <div class="opt-row" data-action="m3uurl">
-          <span class="opt-label">Direct M3U URL (opcional)</span>
-          <span class="opt-value" id="valM3uUrl">&lt; Ninguna &gt;</span>
-        </div>
         <div class="opt-row" data-action="language">
           <span class="opt-label">App. language</span>
           <span class="opt-value" id="valLanguage">&lt; Español &gt;</span>
@@ -1693,7 +1689,7 @@ body.theme-wine #topbar { background: #1c0b0b; }
         <h3>Información</h3>
         <p id="optDescText">Usa tu usuario y contraseña otorgados por el administrador para vincular este televisor y descargar tus listas.</p>
         <div style="margin-top:22px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.5.32 — Opciones y teclado para TV
+          VERSIÓN: v2.5.33 — Reproductor exclusivo para clientes
         </div>
       </div>
     </div>
@@ -1877,7 +1873,7 @@ body.theme-wine #topbar { background: #1c0b0b; }
 
 <!-- Script HLS Vendor -->
 <script src="vendor/hls.min.js"></script>
-<script src="native-player.js?v=2.5.32"></script>
+<script src="native-player.js?v=2.5.33"></script>
 <script>
 (function() {
 'use strict';
@@ -2112,7 +2108,6 @@ var state = {
     token: '',
     deviceName: 'LG NetCast TV',
     deviceId: '',
-    directM3u: '',
     playerEngine: 'auto'
   },
   currentFocusedEl: null,
@@ -2195,7 +2190,6 @@ function updateOptionsDisplay() {
   if ($('valLogin')) $('valLogin').textContent = state.auth.login || 'no_login';
   if ($('valPass')) $('valPass').textContent = state.auth.password ? '••••••••' : 'sin_pass';
   if ($('valDevice')) $('valDevice').textContent = '< ' + (state.auth.deviceName || 'LG NetCast TV') + ' >';
-  if ($('valM3uUrl')) $('valM3uUrl').textContent = state.auth.directM3u ? (state.auth.directM3u.slice(0, 22) + '...') : '< Ninguna >';
   if ($('valLanguage')) $('valLanguage').textContent = '< ' + (state.auth.lang || 'Español') + ' >';
   if ($('valIptvPlayer')) $('valIptvPlayer').textContent = '< ' + (state.auth.iptvPlayer || 'HTML5 player') + ' >';
   if ($('valHlsPlayer')) $('valHlsPlayer').textContent = '< ' + (state.auth.hlsPlayer || 'JS player') + ' >';
@@ -2210,6 +2204,8 @@ function updateOptionsDisplay() {
 }
 
 function cycleOption(idx, dir) {
+  // La URL de origen se administra exclusivamente desde el panel.
+  if (idx >= 3) idx++;
   var d = (dir === -1) ? -1 : 1;
   if (idx === 0) {
     openKeyboard('Login (e-mail/phone number)', state.auth.login, 'login');
@@ -2223,8 +2219,6 @@ function cycleOption(idx, dir) {
     saveStorage();
     updateOptionsDisplay();
     showToast('Dispositivo: ' + state.auth.deviceName);
-  } else if (idx === 3) {
-    openKeyboard('Direct M3U URL', state.auth.directM3u, 'm3u');
   } else if (idx === 4) {
     var curLangIdx = OPT_LANGUAGES.indexOf(state.auth.lang || 'Español');
     if (curLangIdx < 0) curLangIdx = 0;
@@ -2309,6 +2303,7 @@ function loadStorage() {
   try {
     var rawAuth = localStorage.getItem('ott_auth');
     if (rawAuth) state.auth = JSON.parse(rawAuth);
+    delete state.auth.directM3u;
     var rawRecent = localStorage.getItem('ott_recent_' + (state.auth.login || state.auth.deviceId || 'tv'));
     state.recentContent = rawRecent ? JSON.parse(rawRecent).slice(0, 6) : [];
     var rawFav = localStorage.getItem('ott_favs');
@@ -2534,19 +2529,12 @@ function closeKeyboard(commit) {
     } else if (state.kbTargetField === 'password') {
       state.auth.password = kbInputText;
       $('valPass').textContent = state.auth.password ? '••••••••' : 'sin_pass';
-    } else if (state.kbTargetField === 'm3u') {
-      state.auth.directM3u = kbInputText;
-      $('valM3uUrl').textContent = state.auth.directM3u ? (state.auth.directM3u.slice(0, 22) + '...') : '< Ninguna >';
     }
     saveStorage();
   }
   $('view-keyboard').style.display = 'none';
   state.screen = 'options';
   updateOptionsFocus();
-  if (commit && state.kbTargetField === 'm3u' && state.auth.directM3u) {
-    closeOptions();
-    loadDirectM3u(state.auth.directM3u);
-  }
 }
 
 function updateKeyboardDisplay() {
@@ -2651,7 +2639,6 @@ var OPT_DESCRIPTIONS = [
   'Login. Ingresa el usuario o correo otorgado por tu administrador.',
   'Password. Ingresa tu contraseña asignada (sensible a mayúsculas y minúsculas).',
   'Device registration/selection. Identificador de este TV LG en tu cuenta.',
-  'Direct M3U URL. Si tienes una lista directa M3U externa, puedes ingresarla aquí.',
   'App. language. Idioma de la interfaz de la aplicación.',
   'Motor de video. Automático detecta funciones reales del equipo; puedes elegir otra alternativa disponible.',
   'Canales en vivo. Automático usa el motor de video seleccionado; HTML5 o nativo permiten cambiarlo para IPTV.',
@@ -2725,8 +2712,6 @@ function handleOptionsNav(kc, eObj) {
       openKeyboard('Login (e-mail/phone number)', state.auth.login, 'login');
     } else if (state.optIdx === 1) {
       openKeyboard('Password', state.auth.password, 'password');
-    } else if (state.optIdx === 3) {
-      openKeyboard('Direct M3U URL', state.auth.directM3u, 'm3u');
     } else {
       cycleOption(state.optIdx, 1);
     }
@@ -3744,47 +3729,6 @@ function parseM3U(text) {
     }
   }
   return list;
-}
-
-function loadDirectM3u(url) {
-  showToast('Cargando lista externa…');
-  var xhr = new XMLHttpRequest();
-  var called = false;
-  function handleResult(status, text) {
-    if (called) return;
-    called = true;
-    if (status === 200 && text) {
-      state.channels = aggregateSeriesList(parseM3U(text));
-      buildGroups();
-      closeOptions();
-      state.currentPlaylist = { name: 'M3U Directo' };
-      state.currentGroup = '__all';
-      state.categoryConfirmed = false;
-      state.currentFocusArea = 'tabs';
-      state.tabIdx = 0;
-      renderChannels();
-      renderTabs();
-      updateMainFocus(true);
-      showToast(state.channels.length + ' títulos disponibles.');
-      updateSearchVisibility();
-    } else {
-      showToast('Error al descargar M3U directo (' + status + ')');
-    }
-  }
-  xhr.open('GET', url, true);
-  xhr.onreadystatechange = function() {
-    if (xhr.readyState === 4) {
-      handleResult(xhr.status, xhr.responseText);
-    }
-  };
-  xhr.onerror = function() {
-    handleResult(0, null);
-  };
-  try {
-    xhr.send();
-  } catch (e) {
-    handleResult(0, null);
-  }
 }
 
 function loadPlaylistContent(pl, forceFresh, onReady) {
@@ -6068,8 +6012,6 @@ if (state.auth.token) {
   fetchFeed();
 } else if (state.auth.login && state.auth.password) {
   doSaveAndLogin();
-} else if (state.auth.directM3u) {
-  loadDirectM3u(state.auth.directM3u);
 } else {
   renderPlaylistsView();
 }
@@ -6638,8 +6580,6 @@ for (var or = 0; or < optRows.length; or++) {
         openKeyboard('Login (e-mail/phone number)', state.auth.login, 'login');
       } else if (idx === 1) {
         openKeyboard('Password', state.auth.password, 'password');
-      } else if (idx === 3) {
-        openKeyboard('Direct M3U URL', state.auth.directM3u, 'm3u');
       } else {
         var rect = optRows[idx].getBoundingClientRect();
         var clickX = (ev && typeof ev.clientX === 'number') ? (ev.clientX - rect.left) : (rect.width * 0.6);

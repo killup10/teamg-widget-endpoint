@@ -2,7 +2,9 @@ const fs = require('node:fs'), vm = require('node:vm'), assert = require('node:a
 const html = fs.readFileSync('ott/index.html', 'utf8');
 const elements = {};
 function element(id) { return elements[id] || (elements[id] = {style: {}, classList: {add() {}, remove() {}}, scrollTop: 0, clientHeight: 600, getBoundingClientRect() { return {top: 175, bottom: 775}; }}); }
-const rows = Array.from({length: 9}, (_, i) => element('row' + i));
+assert.ok(!html.includes('data-action="m3uurl"'));
+assert.ok(!html.includes('function loadDirectM3u('), 'Client cannot load a custom M3U');
+const rows = Array.from({length: 8}, (_, i) => element('row' + i));
 const keys = [element('key')];
 const ctx = {state: {auth: {}, optIdx: 0}, $: element, document: {documentElement: {clientHeight: 1080}, querySelectorAll: () => keys, getElementsByClassName: () => rows}, window: {}, showToast() {}, saveStorage() {}, detectedPlatform: () => 'NetCast', fetchFeed() {}, renderPlaylistsView() {}, closeOptions() {}, loadPlaylistContent() {}};
 vm.createContext(ctx);
@@ -16,7 +18,7 @@ assert.equal(element('view-options').style.top, '117px'); assert.equal(keys[0].s
 ctx.OPT_DESCRIPTIONS = []; load('updateOptionsFocus');
 rows[0].getBoundingClientRect = () => ({top: 160, bottom: 206}); ctx.updateOptionsFocus();
 assert.equal(element('view-options').scrollTop, -23, 'Focused login is scrolled below the HUD');
-ctx.state.optIdx = 9; element('btnDoSave').getBoundingClientRect = () => ({top: 760, bottom: 820}); ctx.updateOptionsFocus();
+ctx.state.optIdx = 8; element('btnDoSave').getBoundingClientRect = () => ({top: 760, bottom: 820}); ctx.updateOptionsFocus();
 assert.equal(element('view-options').scrollTop, 30, 'Bottom save button is kept visible');
 load('doSaveAndLogin'); ctx.state.auth = {login: 'test', password: 'test'};
 const pending = []; ctx.apiCall = (...args) => pending.push(args[3]);
