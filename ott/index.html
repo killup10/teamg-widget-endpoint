@@ -296,16 +296,26 @@ body.theme-classic .tile.focused { border-color: #ff8800 !important; box-shadow:
   word-break: break-word;
 }
 
-/* Foco estilo OTTPlayer: borde azul nítido alrededor del thumbnail, sin pintar la tarjeta de fucsia */
+/* Foco estilo OTTPlayer: sombreado en vino y marco dorado de alto contraste, visible para todos */
+.tile-item.focused {
+  background: #8a2542 !important;
+  border-color: #ffcc00 !important;
+  outline: 3.5px solid #ffcc00 !important;
+  outline-offset: -1px !important;
+  box-shadow: 0 0 20px rgba(255, 204, 0, 0.9), inset 0 0 10px rgba(255, 204, 0, 0.2) !important;
+  -webkit-box-shadow: 0 0 20px rgba(255, 204, 0, 0.9), inset 0 0 10px rgba(255, 204, 0, 0.2) !important;
+  z-index: 10;
+}
+
 .tile-item.focused .tile-thumb {
-  border: 3px solid #3d7aff !important;
-  outline: 1px solid #ffffff !important;
-  box-shadow: none !important;
-  -webkit-box-shadow: none !important;
+  border: 2.5px solid #ffcc00 !important;
+  outline: 1.5px solid #ffffff !important;
 }
 
 .tile-item.focused .tile-title {
-  color: #ffffff;
+  color: #ffcc00 !important;
+  font-weight: bold !important;
+  background: rgba(20, 5, 13, 0.85) !important;
 }
 
 /* Carpetas de Playlists */
@@ -356,6 +366,21 @@ body.theme-classic .tile.focused { border-color: #ff8800 !important; box-shadow:
   padding-left: 8px;
   border-top: 1px solid rgba(255, 255, 255, 0.14);
   z-index: 15;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+#bottom-tabs-bar::-webkit-scrollbar,
+#content-area::-webkit-scrollbar,
+.home-preview-row::-webkit-scrollbar,
+#view-playlists::-webkit-scrollbar,
+#view-options::-webkit-scrollbar,
+#app::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
 }
 
 .tab-skew {
@@ -1532,9 +1557,10 @@ video::cue {
 .tile-thumb { height: 16.2vh; border-radius: 0; }
 .tile-thumb img { border-radius: 0; }
 .tile-num { font-size: 2.2vh; font-weight: normal; color: white; }
-.tile-title { font-size: 2.9vh; font-weight: normal; margin-top: 1vh; height: 3.8vh; line-height: 1.25; white-space: nowrap; display: block; word-break: normal; text-overflow: ellipsis; }
-.tile-item.focused .tile-thumb { box-shadow: none !important; -webkit-box-shadow: none !important; outline: none !important; }
-#bottom-tabs-bar { height: 9vh; padding-left: 0; border-top: 0; background: #1c0b0b; }
+.tile-item.focused { background: #8a2542 !important; outline: 3.5px solid #ffcc00 !important; outline-offset: -1px !important; box-shadow: 0 0 20px rgba(255, 204, 0, 0.9) !important; -webkit-box-shadow: 0 0 20px rgba(255, 204, 0, 0.9) !important; z-index: 10; }
+.tile-item.focused .tile-thumb { border: 2.5px solid #ffcc00 !important; }
+.tile-item.focused .tile-title { color: #ffcc00 !important; font-weight: bold !important; background: rgba(20, 5, 13, 0.85) !important; }
+#bottom-tabs-bar { height: 9vh; padding-left: 0; border-top: 0; background: #1c0b0b; scrollbar-width: none !important; -ms-overflow-style: none !important; }
 .tab-skew { min-width: 19vw; max-width: 24vw; height: 9vh; line-height: 6.4vh; padding: 0 2vw; font-size: 3.4vh; font-weight: normal; color: white; border-right: 4px solid black; overflow: hidden; text-overflow: ellipsis; background: #241116; }
 .tab-skew span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; vertical-align: top; }
 .tab-skew.active { font-weight: normal; }
@@ -1565,8 +1591,8 @@ body.theme-wine #topbar { background: #1c0b0b; }
 .home-preview-card img, .home-preview-placeholder { display: block; width: 100%; height: 15vh; object-fit: cover; }
 .home-preview-placeholder { text-align: center; line-height: 15vh; color: #d989a3; }
 .home-preview-card div { padding: 1vh 0.4vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 2.4vh; }
-.home-preview-card { cursor: pointer; }
-.home-preview-card.focused { outline: 2px solid white; background: #61213b; }
+.home-preview-card.focused { outline: 3.5px solid #ffcc00 !important; outline-offset: -1px !important; background: #8a2542 !important; box-shadow: 0 0 20px rgba(255, 204, 0, 0.9) !important; -webkit-box-shadow: 0 0 20px rgba(255, 204, 0, 0.9) !important; }
+.home-preview-card.focused div { color: #ffcc00 !important; font-weight: bold !important; }
 /* NetCast: reservar ancho y evitar que WebKit divida los controles en filas. */
 .topbar-right { width: 40%; white-space: nowrap; }
 .top-icons-row { width: 100%; white-space: nowrap; text-align: right; }
@@ -1701,7 +1727,7 @@ body.text-large .tab-skew { font-size: 3.8vh; }
         <h3>Información</h3>
         <p id="optDescText">Usa tu usuario y contraseña otorgados por el administrador para vincular este televisor y descargar tus listas.</p>
         <div style="margin-top:22px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.5.36 — Botones OTT, barra de canales y audio dual
+          VERSIÓN: v2.5.37 — Sombreado OTT de alto contraste, sin barra gris y navegación instantánea
         </div>
       </div>
     </div>
@@ -1885,7 +1911,7 @@ body.text-large .tab-skew { font-size: 3.8vh; }
 
 <!-- Script HLS Vendor -->
 <script src="vendor/hls.min.js"></script>
-<script src="native-player.js?v=2.5.36"></script>
+<script src="native-player.js?v=2.5.37"></script>
 <script>
 (function() {
 'use strict';
@@ -4445,7 +4471,9 @@ function syncCategoryBar() {
 }
 
 function updateMainFocus(shouldScroll) {
-  syncCategoryBar();
+  if (shouldScroll === true || state.currentFocusArea === 'tabs') {
+    syncCategoryBar();
+  }
   if (state.currentFocusedEl) {
     state.currentFocusedEl.classList.remove('focused');
     state.currentFocusedEl = null;
@@ -4479,7 +4507,7 @@ function updateMainFocus(shouldScroll) {
   if (targetEl) {
     targetEl.classList.add('focused');
     state.currentFocusedEl = targetEl;
-    if (shouldScroll !== false) {
+    if (shouldScroll === true) {
       safeScrollIntoView(targetEl);
     }
   }
@@ -4634,58 +4662,66 @@ function handleMainNav(kc, eObj) {
       }
     }
   } else if (state.currentFocusArea === 'content') {
-    var list = getFilteredChannels();
-    var totalPages = Math.ceil(list.length / PAGE_SIZE) || 1;
-
     if (kc === KEY.UP) {
-      if (state.tileIdx - cols < 0) {
-        if (state.currentPage > 0) {
-          state.currentPage--;
-          renderChannels();
-          state.tileIdx = Math.min(totalTiles - 1, state.tileIdx + (cols * 2));
-          updateMainFocus(true);
-        } else {
-          state.currentFocusArea = 'top';
-          state.topIconIdx = isInside ? 0 : 2;
-          updateMainFocus(true);
-        }
-      } else {
-        state.tileIdx = Math.max(0, state.tileIdx - cols);
+      if (state.tileIdx >= cols) {
+        state.tileIdx -= cols;
         updateMainFocus(false);
+        return;
       }
+      if (state.currentPage > 0) {
+        state.currentPage--;
+        renderChannels();
+        state.tileIdx = Math.min(totalTiles - 1, state.tileIdx + (cols * 2));
+        updateMainFocus(false);
+        return;
+      }
+      state.currentFocusArea = 'top';
+      state.topIconIdx = isInside ? 0 : 2;
+      updateMainFocus(true);
+      return;
     } else if (kc === KEY.DOWN) {
-      if (state.tileIdx + cols >= totalTiles) {
-        if (state.currentPage < totalPages - 1) {
-          state.currentPage++;
-          renderChannels();
-          state.tileIdx = Math.min(totalTiles - 1, state.tileIdx % cols);
-          updateMainFocus(true);
-        }
-        // En la última fila, DOWN NO baja a tabs para evitar perder la posición accidentalmente
-      } else {
-        state.tileIdx = Math.min(totalTiles - 1, state.tileIdx + cols);
+      if (state.tileIdx + cols < totalTiles) {
+        state.tileIdx += cols;
+        updateMainFocus(false);
+        return;
+      }
+      var listD = getFilteredChannels();
+      var totalPagesD = Math.ceil(listD.length / PAGE_SIZE) || 1;
+      if (state.currentPage < totalPagesD - 1) {
+        state.currentPage++;
+        renderChannels();
+        state.tileIdx = Math.min(totalTiles - 1, state.tileIdx % cols);
         updateMainFocus(false);
       }
+      return;
     } else if (kc === KEY.LEFT) {
       if (state.tileIdx > 0) {
         state.tileIdx--;
         updateMainFocus(false);
-      } else if (state.currentPage > 0) {
+        return;
+      }
+      if (state.currentPage > 0) {
         state.currentPage--;
         renderChannels();
         state.tileIdx = PAGE_SIZE - 1;
         updateMainFocus(false);
       }
+      return;
     } else if (kc === KEY.RIGHT) {
       if (state.tileIdx < totalTiles - 1) {
         state.tileIdx++;
         updateMainFocus(false);
-      } else if (state.currentPage < totalPages - 1) {
+        return;
+      }
+      var listR = getFilteredChannels();
+      var totalPagesR = Math.ceil(listR.length / PAGE_SIZE) || 1;
+      if (state.currentPage < totalPagesR - 1) {
         state.currentPage++;
         renderChannels();
         state.tileIdx = 0;
         updateMainFocus(false);
       }
+      return;
     } else if (kc === KEY.CH_UP || kc === KEY.CH_UP_LG || kc === KEY.CH_UP_SAMSUNG) {
       if (state.currentPage > 0) {
         state.currentPage--;
