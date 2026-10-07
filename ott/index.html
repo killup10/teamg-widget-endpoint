@@ -1689,7 +1689,7 @@ body.theme-wine #topbar { background: #1c0b0b; }
         <h3>Información</h3>
         <p id="optDescText">Usa tu usuario y contraseña otorgados por el administrador para vincular este televisor y descargar tus listas.</p>
         <div style="margin-top:22px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.5.33 — Reproductor exclusivo para clientes
+          VERSIÓN: v2.5.34 — Reproductor exclusivo para clientes
         </div>
       </div>
     </div>
@@ -1873,7 +1873,7 @@ body.theme-wine #topbar { background: #1c0b0b; }
 
 <!-- Script HLS Vendor -->
 <script src="vendor/hls.min.js"></script>
-<script src="native-player.js?v=2.5.33"></script>
+<script src="native-player.js?v=2.5.34"></script>
 <script>
 (function() {
 'use strict';
@@ -5252,25 +5252,35 @@ function playItem(c, recovering) {
   var isHls = (streamUrl.indexOf('.m3u8') !== -1 || streamUrl.indexOf('/chunks') !== -1 || streamUrl.indexOf('/playlist') !== -1);
   var isPageHttps = (window.location && window.location.protocol === 'https:');
   var playUrl = streamUrl;
-  
-  // REGLA CRÍTICA: cablered / iptvperu.tv tiene geobloqueo o bloqueo de datacenters extranjeros (devuelve 403 Forbidden a Render).
-  // Como cablered ya incluye encabezados CORS ('Access-Control-Allow-Origin: *'), debe reproducirse DIRECTAMENTE desde la conexión del usuario.
+
+  var ua = (typeof navigator !== 'undefined' && navigator.userAgent) || '';
+  var isLegacyNetcast = (ua.indexOf('NetCast') !== -1 && ua.indexOf('Web0S') === -1 && ua.indexOf('webOS') === -1);
+
+  // REGLA CRÍTICA: Flujos locales / CDN directos con CORS propio (Bitel, TV360, Cablered, IPTVPeru).
+  // Tienen CDN local en Perú y encabezados CORS abiertos ('Access-Control-Allow-Origin: *').
+  // NUNCA deben pasar por proxy de Render (causa buffering infinito, 502/504 o bloqueo por datacenter).
+  // Se reproducen 100% DIRECTOS exactamente igual que en OTTPlayer oficial.
+  var isBitel = (streamUrl.indexOf('bitel.com.pe') !== -1 || streamUrl.indexOf('tv360') !== -1);
   var isCablered = (streamUrl.indexOf('cablered') !== -1 || streamUrl.indexOf('iptvperu.tv') !== -1);
-  
-  // Cualquier flujo HTTP en una página HTTPS DEBE ser proxied para evitar Mixed Content
+  var isDirectCdn = (isBitel || isCablered);
+
+  if (isBitel && (!isPageHttps || isLegacyNetcast)) {
+    // Bitel / TV360 soporta HTTP nativo en puerto 80 sin TLS; para NetCast antiguo y páginas HTTP
+    // usamos http:// directamente para compatibilidad 100% nativa sin intermediarios.
+    if (playUrl.indexOf('https://') === 0) {
+      playUrl = 'http://' + streamUrl.substring(8);
+    }
+  }
+
+  // Proxy solo cuando es estrictamente indispensable:
+  // 1. Flujo HTTP dentro de página HTTPS (Mixed Content bloqueado por el navegador)
+  // 2. NetCast legacy (2011-2013) con HTTPS de servidor moderno que requiere TLS 1.3 (y no es canal directo)
   var needsProxy = false;
-  if (!isCablered) {
-    if (streamUrl.indexOf('bitel.com.pe') !== -1 || streamUrl.indexOf('tv360') !== -1) {
+  if (!isDirectCdn) {
+    if (isPageHttps && streamUrl.indexOf('http://') === 0) {
       needsProxy = true;
-    } else if (isPageHttps && streamUrl.indexOf('http://') === 0) {
+    } else if (!isPageHttps && isHttps && isLegacyNetcast) {
       needsProxy = true;
-    } else if (!isPageHttps && isHttps) {
-      // NetCast antiguo solo habla TLS 1.0 y los servidores modernos lo rechazan:
-      // todo HTTPS en página HTTP pasa por el proxy que lo sirve en HTTP.
-      var uaPx = (typeof navigator !== 'undefined' && navigator.userAgent) || '';
-      if (uaPx.indexOf('NetCast') !== -1 || uaPx.indexOf('SmartTV') !== -1 || uaPx.indexOf(' AppleWebKit/534') !== -1) {
-        needsProxy = true;
-      }
     }
   }
 
@@ -5306,9 +5316,6 @@ function playItem(c, recovering) {
   if (!state.recoveryVod && state.auth.iptvPlayer === 'HTML5 player') { engine = 'html5'; useNative = false; }
   if (!state.recoveryVod && state.auth.iptvPlayer === 'Native TV player' && window.TeamGNative && TeamGNative.available()) useNative = true;
   var preferNetcast = false;
-  
-  var ua = navigator.userAgent || '';
-  var isLegacyNetcast = (ua.indexOf('NetCast') !== -1 && ua.indexOf('Web0S') === -1 && ua.indexOf('webOS') === -1);
   
   if (engine === 'mediaplayer') {
     preferNetcast = true;
@@ -5463,7 +5470,8 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c) {
   var nativeHls = !!(v.canPlayType && v.canPlayType('application/vnd.apple.mpegurl'));
   var wantsJs = state.auth.hlsPlayer === 'JS player (hls.js)' ||
     (state.auth.hlsPlayer !== 'Native HLS player' && !nativeHls);
-  if (wantsJs && window.Hls && Hls.isSupported() && (playUrl.indexOf('.m3u8') !== -1 || streamUrl.indexOf('.m3u8') !== -1)) {
+  var isHlsStream = (playUrl.indexOf('.m3u8') !== -1 || streamUrl.indexOf('.m3u8') !== -1 || playUrl.indexOf('/chunks') !== -1 || streamUrl.indexOf('/chunks') !== -1);
+  if (wantsJs && window.Hls && Hls.isSupported() && isHlsStream) {
     state.hlsInstance = new Hls({ maxBufferLength: 15, enableWorker: false });
     state.hlsInstance.loadSource(playUrl);
     state.hlsInstance.attachMedia(v);
