@@ -5318,30 +5318,28 @@ function playItem(c, recovering) {
   var ua = (typeof navigator !== 'undefined' && navigator.userAgent) || '';
   var isLegacyNetcast = (ua.indexOf('NetCast') !== -1 && ua.indexOf('Web0S') === -1 && ua.indexOf('webOS') === -1);
 
-  // REGLA CRÍTICA: Flujos locales / CDN directos con CORS propio (Bitel, TV360, Cablered, IPTVPeru).
-  // Tienen CDN local en Perú y encabezados CORS abiertos ('Access-Control-Allow-Origin: *').
-  // NUNCA deben pasar por proxy de Render (causa buffering infinito, 502/504 o bloqueo por datacenter).
+  // REGLA CRÍTICA: Flujos locales / CDN directos con CORS propio (Bitel, TV360, Cablered, IPTVPeru, CloudFront).
+  // Tienen CDN local / global y encabezados CORS abiertos ('Access-Control-Allow-Origin: *').
+  // NUNCA deben pasar por proxy de Render (causa buffering infinito, 502/504 o caída de conexión).
   // Se reproducen 100% DIRECTOS exactamente igual que en OTTPlayer oficial.
   var isBitel = (streamUrl.indexOf('bitel.com.pe') !== -1 || streamUrl.indexOf('tv360') !== -1);
   var isCablered = (streamUrl.indexOf('cablered') !== -1 || streamUrl.indexOf('iptvperu.tv') !== -1);
-  var isDirectCdn = (isBitel || isCablered);
+  var isCloudfront = (streamUrl.indexOf('cloudfront.net') !== -1);
+  var isDirectCdn = (isBitel || isCablered || isCloudfront);
 
-  if (isBitel && (!isPageHttps || isLegacyNetcast)) {
-    // Bitel / TV360 soporta HTTP nativo en puerto 80 sin TLS; para NetCast antiguo y páginas HTTP
-    // usamos http:// directamente para compatibilidad 100% nativa sin intermediarios.
+  if ((isBitel || isCloudfront) && (!isPageHttps || isLegacyNetcast)) {
+    // Bitel y CloudFront soportan HTTP nativo en puerto 80 sin TLS; para NetCast antiguo y páginas HTTP
+    // usamos http:// directamente para compatibilidad 100% nativa evitando fallos de TLS 1.0 (Alert 70).
     if (playUrl.indexOf('https://') === 0) {
       playUrl = 'http://' + streamUrl.substring(8);
     }
   }
 
   // Proxy solo cuando es estrictamente indispensable:
-  // 1. Flujo HTTP dentro de página HTTPS (Mixed Content bloqueado por el navegador)
-  // 2. NetCast legacy (2011-2013) con HTTPS de servidor moderno que requiere TLS 1.3 (y no es canal directo)
+  // Flujo HTTP dentro de página HTTPS (Mixed Content bloqueado por el navegador)
   var needsProxy = false;
   if (!isDirectCdn) {
     if (isPageHttps && streamUrl.indexOf('http://') === 0) {
-      needsProxy = true;
-    } else if (!isPageHttps && isHttps && isLegacyNetcast) {
       needsProxy = true;
     }
   }
