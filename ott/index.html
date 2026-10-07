@@ -5258,6 +5258,13 @@ function playItem(c, recovering) {
       needsProxy = true;
     } else if (isPageHttps && streamUrl.indexOf('http://') === 0) {
       needsProxy = true;
+    } else if (!isPageHttps && isHttps) {
+      // NetCast antiguo solo habla TLS 1.0 y los servidores modernos lo rechazan:
+      // todo HTTPS en página HTTP pasa por el proxy que lo sirve en HTTP.
+      var uaPx = (typeof navigator !== 'undefined' && navigator.userAgent) || '';
+      if (uaPx.indexOf('NetCast') !== -1 || uaPx.indexOf('SmartTV') !== -1 || uaPx.indexOf(' AppleWebKit/534') !== -1) {
+        needsProxy = true;
+      }
     }
   }
 
