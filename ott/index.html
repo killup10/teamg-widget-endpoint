@@ -119,8 +119,8 @@ html, body {
   color: #ffffff !important;
   transform: scale(1.06);
   -webkit-transform: scale(1.06);
-  box-shadow: 0 0 12px rgba(125, 27, 74, 0.9) !important;
-  -webkit-box-shadow: 0 0 12px rgba(125, 27, 74, 0.9) !important;
+  box-shadow: none !important;
+  -webkit-box-shadow: none !important;
 }
 
 .round-icon-btn.focused svg, .round-icon-btn:hover svg {
@@ -298,10 +298,10 @@ body.theme-classic .tile.focused { border-color: #ff8800 !important; box-shadow:
 
 /* Foco estilo OTTPlayer: borde azul nítido alrededor del thumbnail, sin pintar la tarjeta de fucsia */
 .tile-item.focused .tile-thumb {
-  border: 2px solid #2b5cff !important;
-  outline: 1px solid #3d7aff !important;
-  box-shadow: 0 0 12px rgba(43, 92, 255, 0.75) !important;
-  -webkit-box-shadow: 0 0 12px rgba(43, 92, 255, 0.75) !important;
+  border: 3px solid #3d7aff !important;
+  outline: 1px solid #ffffff !important;
+  box-shadow: none !important;
+  -webkit-box-shadow: none !important;
 }
 
 .tile-item.focused .tile-title {
@@ -336,7 +336,7 @@ body.theme-classic .tile.focused { border-color: #ff8800 !important; box-shadow:
 .folder-name { font-size: 18px; font-weight: bold; color: #ffffff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .folder-sub { font-size: 12px; color: #a5929c; margin-top: 4px; }
 /* Especial temporal (ej. Halloween naranja #ff6a00): borde + badge, compatible NetCast */
-.folder-tile.is-special { border-color: #ff6a00; box-shadow: 0 0 10px rgba(255,106,0,0.55); -webkit-box-shadow: 0 0 10px rgba(255,106,0,0.55); }
+.folder-tile.is-special { border-color: #ff6a00; box-shadow: none !important; -webkit-box-shadow: none !important; }
 .tab-skew.is-special { border-right: 4px solid #ff6a00; }
 .tab-skew.is-special.active { background: #7a2b0e !important; }
 .tab-badge { display: inline-block; vertical-align: middle; font-size: 11px; font-weight: bold; letter-spacing: 1px; background: #ff6a00; color: #000000; border-radius: 3px; padding: 1px 6px; margin-left: 8px; }
@@ -1907,9 +1907,18 @@ function resolveIconUrl(url) {
 
 function fitTvImage(img) {
   if (!img || !img.parentNode) return;
+  var iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
+  // Optimización Smart TV: si la imagen ya es 16:9 (como todo el artwork oficial), llena el thumbnail al 100% sin reflow de layout
+  if (iw && ih && Math.abs((iw / ih) - (16 / 9)) < 0.08) {
+    img.style.position = 'absolute';
+    img.style.width = '100%';
+    img.style.height = '100%';
+    img.style.left = '0px';
+    img.style.top = '0px';
+    return;
+  }
   var box = img.parentNode;
   var w = box.clientWidth, h = box.clientHeight;
-  var iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
   if (!w || !h || !iw || !ih) return;
   var ratio = Math.min(w / iw, h / ih);
   img.style.position = 'absolute';
@@ -1935,6 +1944,8 @@ function safeScrollIntoView(el) {
   if (!el) return;
   var c = $('content-area');
   if (c && c.contains(el)) {
+    // Si la cuadrícula paginada no tiene desbordamiento vertical, omitir cálculos síncronos
+    if (c.scrollHeight <= c.clientHeight && c.scrollTop === 0) return;
     var cTop = c.scrollTop;
     var cHeight = c.clientHeight;
     var elTop = el.offsetTop;
@@ -1943,6 +1954,19 @@ function safeScrollIntoView(el) {
       c.scrollTop = elTop;
     } else if (elTop + elHeight > cTop + cHeight) {
       c.scrollTop = elTop + elHeight - cHeight;
+    }
+    return;
+  }
+  var bar = $('bottom-tabs-bar');
+  if (bar && bar.contains(el)) {
+    var bLeft = bar.scrollLeft;
+    var bWidth = bar.clientWidth;
+    var elLeft = el.offsetLeft;
+    var elWidth = el.offsetWidth;
+    if (elLeft < bLeft) {
+      bar.scrollLeft = elLeft;
+    } else if (elLeft + elWidth > bLeft + bWidth) {
+      bar.scrollLeft = elLeft + elWidth - bWidth;
     }
     return;
   }
@@ -4158,12 +4182,21 @@ function renderTabs() {
   var bar = $('bottom-tabs-bar');
   if (!bar) return;
   syncCategoryBar();
-  bar.innerHTML = '';
 
   var isInside = (state.currentPlaylist || (state.channels && state.channels.length > 0));
   if (!isInside) {
     var homeTabs = getHomeTabsList();
     if (state.tabIdx >= homeTabs.length) state.tabIdx = 0;
+    // Turbo: reusar elementos existentes si la cantidad no cambió
+    if (bar.children && bar.children.length === homeTabs.length) {
+      for (var k = 0; k < bar.children.length; k++) {
+        var isKAct = (state.tabIdx === k);
+        if (isKAct) bar.children[k].classList.add('active');
+        else bar.children[k].classList.remove('active');
+      }
+      return;
+    }
+    bar.innerHTML = '';
     for (var ht = 0; ht < homeTabs.length; ht++) {
       var hTab = homeTabs[ht];
       var hBtn = document.createElement('button');
@@ -4195,6 +4228,16 @@ function renderTabs() {
   }
 
   var allTabs = getTabsList();
+  // Turbo: reusar botones de categorías existentes en vez de destruir el DOM
+  if (bar.children && bar.children.length === allTabs.length) {
+    for (var j = 0; j < allTabs.length; j++) {
+      var isSel = (allTabs[j].id === state.currentGroup);
+      if (isSel) bar.children[j].classList.add('active');
+      else bar.children[j].classList.remove('active');
+    }
+    return;
+  }
+  bar.innerHTML = '';
   for (var j = 0; j < allTabs.length; j++) {
     var t = document.createElement('button');
     var isSel = (allTabs[j].id === state.currentGroup);
@@ -4221,7 +4264,6 @@ function renderTabs() {
 var PAGE_SIZE = 18;
 
 function renderChannels() {
-  refreshRecentArtwork();
   var area = $('content-area');
   area.innerHTML = '';
   var list = getFilteredChannels();
@@ -4536,7 +4578,7 @@ function handleMainNav(kc, eObj) {
         }
       } else {
         state.tileIdx = Math.max(0, state.tileIdx - cols);
-        updateMainFocus(true);
+        updateMainFocus(false);
       }
     } else if (kc === KEY.DOWN) {
       if (state.tileIdx + cols >= totalTiles) {
@@ -4549,7 +4591,7 @@ function handleMainNav(kc, eObj) {
         // En la última fila, DOWN NO baja a tabs para evitar perder la posición accidentalmente
       } else {
         state.tileIdx = Math.min(totalTiles - 1, state.tileIdx + cols);
-        updateMainFocus(true);
+        updateMainFocus(false);
       }
     } else if (kc === KEY.LEFT) {
       if (state.tileIdx > 0) {
@@ -5888,8 +5930,8 @@ function onGlobalKeyDown(e) {
     return false;
   }
 
-  // Antirrebote estricto: ignorar repeticiones accidentales o duplicación de eventos de la TV dentro de 120ms
-  if (kc === lastKeyCode && (now - lastKeyTime) < 120) {
+  // Antirrebote ultra-fluido: solo ignorar rebotes mecánicos (< 40ms) para respuesta inmediata
+  if (kc === lastKeyCode && (now - lastKeyTime) < 40) {
     if (eObj && eObj.preventDefault) try { eObj.preventDefault(); } catch (pErr) {}
     return false;
   }
