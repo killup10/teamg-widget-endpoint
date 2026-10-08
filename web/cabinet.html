@@ -57,7 +57,8 @@ h4{font-weight:400;color:#555;margin:18px 0 6px}
 .btn-new-group{border:1px solid #ccc;background:#fff;padding:10px 14px;border-radius:4px;cursor:pointer;font-size:14px;font-weight:bold;margin-bottom:14px;text-align:center;color:#333;width:100%}
 .btn-new-group:hover{border-color:#22c55e;color:#22c55e}
 .groups-list{flex:1;overflow-y:auto;border-top:1px solid #eee;padding-top:8px}
-.group-item{display:flex;align-items:center;padding:10px 8px;cursor:pointer;border-bottom:1px solid #f2f2f2;border-radius:4px;font-size:14px;color:#555}
+.group-item{display:flex;align-items:center;padding:10px 8px;cursor:grab;border-bottom:1px solid #f2f2f2;border-radius:4px;font-size:14px;color:#555;user-select:none}
+.group-item:active{cursor:grabbing}
 .group-item:hover{background:#f0fdf4}
 .group-item.active{background:#e8f5e9;color:#15803d;font-weight:bold;border-left:4px solid #22c55e}
 .group-item-name{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -89,8 +90,9 @@ h4{font-weight:400;color:#555;margin:18px 0 6px}
 .channel-actions{display:flex;gap:6px}
 .channel-btn{background:rgba(255,255,255,0.25);border:0;color:#fff;width:32px;height:32px;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px}
 .channel-btn:hover{background:#fff;color:#22c55e}
-.channel-btn.del:hover{background:#fff;color:#e53935}
 .group-item.drag-over{background:#dcfce7 !important;border:2px dashed #22c55e !important}
+.group-item.drag-over-top{border-top:3px solid #22c55e !important;background:#dcfce7 !important}
+.group-item.drag-over-bottom{border-bottom:3px solid #22c55e !important;background:#dcfce7 !important}
 
 /* Modo Cuadrícula */
 .channels-container.grid-view{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;padding:14px}
@@ -715,9 +717,14 @@ function renderPlaylistEditor(a) {
   };
 
   })();
+  var draggedGroup = null;
+  var draggedGIdx = -1;
+  var dragJustEnded = false;
+
   var gItems = document.querySelectorAll("[data-group-select]");
   for (var i = 0; i < gItems.length; i++) {
     gItems[i].onclick = function() {
+      if (dragJustEnded) return;
       CURRENT_GROUP = this.getAttribute("data-group-select");
       render();
     };
@@ -757,42 +764,100 @@ function renderPlaylistEditor(a) {
     };
   }
 
-  var draggedGroup = null;
   var dragGroupItems = document.querySelectorAll("[data-group-drag]");
   for (var i = 0; i < dragGroupItems.length; i++) {
     dragGroupItems[i].ondragstart = function(e) {
       draggedGroup = this.getAttribute("data-group-drag");
-      e.dataTransfer.setData("text/plain", draggedGroup);
+      draggedGIdx = -1;
       e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("application/x-group", draggedGroup);
+      e.dataTransfer.setData("text/plain", draggedGroup);
       this.style.opacity = "0.4";
     };
     dragGroupItems[i].ondragend = function() {
       this.style.opacity = "1";
+      draggedGroup = null;
+      dragJustEnded = true;
+      setTimeout(function() { dragJustEnded = false; }, 120);
       document.querySelectorAll("[data-group-drag]").forEach(function(el) {
-        el.classList.remove("drag-over");
+        el.classList.remove("drag-over", "drag-over-top", "drag-over-bottom");
       });
     };
     dragGroupItems[i].ondragover = function(e) {
       e.preventDefault();
       e.dataTransfer.dropEffect = "move";
-      this.classList.add("drag-over");
+
+      var container = document.querySelector(".groups-list");
+      if (container) {
+        var cRect = container.getBoundingClientRect();
+        if (e.clientY < cRect.top + 36) {
+          container.scrollTop -= 12;
+        } else if (e.clientY > cRect.bottom - 36) {
+          container.scrollTop += 12;
+        }
+      }
+
+      if (draggedGroup) {
+        var rect = this.getBoundingClientRect();
+        var relY = e.clientY - rect.top;
+        if (relY < rect.height / 2) {
+          this.classList.add("drag-over-top");
+          this.classList.remove("drag-over-bottom");
+        } else {
+          this.classList.add("drag-over-bottom");
+          this.classList.remove("drag-over-top");
+        }
+        this.classList.remove("drag-over");
+      } else {
+        this.classList.add("drag-over");
+        this.classList.remove("drag-over-top", "drag-over-bottom");
+      }
     };
     dragGroupItems[i].ondragleave = function() {
-      this.classList.remove("drag-over");
+      this.classList.remove("drag-over", "drag-over-top", "drag-over-bottom");
     };
     dragGroupItems[i].ondrop = function(e) {
       e.preventDefault();
-      this.classList.remove("drag-over");
-      var targetG = this.getAttribute("data-group-drag");
-      if (draggedGroup && targetG && draggedGroup !== targetG) {
-        var fromIdx = CURRENT_PL.groups.indexOf(draggedGroup);
+      var wasOverTop = this.classList.contains("drag-over-top");
+      this.classList.remove("drag-over", "drag-over-top", "drag-over-bottom");
+
+      var targetG = this.getAttribute("data-group-drag") || this.getAttribute("data-group-select");
+      var srcGroup = draggedGroup || e.dataTransfer.getData("application/x-group");
+
+      if (!srcGroup && draggedGIdx < 0) {
+        var plainData = e.dataTransfer.getData("text/plain");
+        if (plainData && CURRENT_PL.groups.indexOf(plainData) > -1) {
+          srcGroup = plainData;
+        }
+      }
+
+      if (srcGroup && targetG && srcGroup !== targetG) {
+        var fromIdx = CURRENT_PL.groups.indexOf(srcGroup);
         var toIdx = CURRENT_PL.groups.indexOf(targetG);
         if (fromIdx > -1 && toIdx > -1) {
           CURRENT_PL.groups.splice(fromIdx, 1);
-          CURRENT_PL.groups.splice(toIdx, 0, draggedGroup);
+          var newToIdx = CURRENT_PL.groups.indexOf(targetG);
+          var insertIdx = wasOverTop ? newToIdx : (newToIdx + 1);
+          CURRENT_PL.groups.splice(insertIdx, 0, srcGroup);
+          draggedGroup = null;
+          dragJustEnded = true;
+          setTimeout(function() { dragJustEnded = false; }, 120);
           reorderChannelsByGroupOrder();
           render();
           savePlaylistToServer(true);
+          return;
+        }
+      }
+
+      var srcChIdx = draggedGIdx >= 0 ? draggedGIdx : parseInt(e.dataTransfer.getData("text/plain"), 10);
+      if (!isNaN(srcChIdx) && CURRENT_PL.channels[srcChIdx]) {
+        if (targetG && CURRENT_PL.channels[srcChIdx].group !== targetG) {
+          CURRENT_PL.channels[srcChIdx].seriesLogo = getGroupSeriesCover(targetG);
+          CURRENT_PL.channels[srcChIdx].seriesPoster = getGroupSeriesPoster(targetG);
+          CURRENT_PL.channels[srcChIdx].group = targetG;
+          draggedGIdx = -1;
+          savePlaylistToServer();
+          render();
         }
       }
     };
@@ -903,16 +968,17 @@ function renderPlaylistEditor(a) {
     };
   }
 
-  // Drag and Drop para reordenar canales o moverlos a otros grupos
-  var draggedGIdx = -1;
+  // Drag and Drop para reordenar canales dentro de la lista
   var chRows = document.querySelectorAll(".channel-row");
   for (var i = 0; i < chRows.length; i++) {
     var row = chRows[i];
 
     row.ondragstart = function(e) {
       draggedGIdx = parseInt(this.getAttribute("data-ch-row"), 10);
+      draggedGroup = null;
       this.classList.add("dragging");
       e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("application/x-channel", draggedGIdx);
       e.dataTransfer.setData("text/plain", draggedGIdx);
     };
 
@@ -921,13 +987,14 @@ function renderPlaylistEditor(a) {
       chRows.forEach(function(r) {
         r.classList.remove("drag-over-top", "drag-over-bottom");
       });
-      gItems.forEach(function(g) {
-        g.classList.remove("drag-over");
+      document.querySelectorAll("[data-group-drag]").forEach(function(g) {
+        g.classList.remove("drag-over", "drag-over-top", "drag-over-bottom");
       });
       draggedGIdx = -1;
     };
 
     row.ondragover = function(e) {
+      if (draggedGroup) return;
       e.preventDefault();
       e.dataTransfer.dropEffect = "move";
       var rect = this.getBoundingClientRect();
@@ -948,6 +1015,7 @@ function renderPlaylistEditor(a) {
     row.ondrop = function(e) {
       e.preventDefault();
       this.classList.remove("drag-over-top", "drag-over-bottom");
+      if (draggedGroup) return;
       var srcGIdx = draggedGIdx >= 0 ? draggedGIdx : parseInt(e.dataTransfer.getData("text/plain"), 10);
       var targetGIdx = parseInt(this.getAttribute("data-ch-row"), 10);
       if (isNaN(srcGIdx) || isNaN(targetGIdx) || srcGIdx === targetGIdx) return;
@@ -963,32 +1031,6 @@ function renderPlaylistEditor(a) {
 
       CURRENT_PL.channels.splice(insertAt, 0, itemToMove);
       savePlaylistToServer();
-    };
-  }
-
-  // Arrastrar canal hacia un grupo de la barra lateral
-  for (var i = 0; i < gItems.length; i++) {
-    var gi = gItems[i];
-    gi.ondragover = function(e) {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = "move";
-      this.classList.add("drag-over");
-    };
-    gi.ondragleave = function(e) {
-      this.classList.remove("drag-over");
-    };
-    gi.ondrop = function(e) {
-      e.preventDefault();
-      this.classList.remove("drag-over");
-      var srcGIdx = draggedGIdx >= 0 ? draggedGIdx : parseInt(e.dataTransfer.getData("text/plain"), 10);
-      if (isNaN(srcGIdx) || !CURRENT_PL.channels[srcGIdx]) return;
-      var targetGroup = this.getAttribute("data-group-select");
-      if (targetGroup && CURRENT_PL.channels[srcGIdx].group !== targetGroup) {
-        CURRENT_PL.channels[srcGIdx].seriesLogo = getGroupSeriesCover(targetGroup);
-        CURRENT_PL.channels[srcGIdx].seriesPoster = getGroupSeriesPoster(targetGroup);
-        CURRENT_PL.channels[srcGIdx].group = targetGroup;
-        savePlaylistToServer();
-      }
     };
   }
 
