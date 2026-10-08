@@ -58,4 +58,9 @@ assert.ok(html.includes('max-width: 300px;'), 'series-poster-box must have max-w
 assert.ok(html.includes('(?:series-poster|tvg-poster|poster|tvg-cover)='), 'parseM3U must support all poster tags');
 assert.ok(apiCode.includes('(?:series-poster|tvg-poster|poster|tvg-cover)='), 'ott-api.js must support all poster tags');
 
+// 4. Memory cleanup on closeSeriesDetail to avoid GPU/RAM saturation on Smart TVs
+assert.ok(html.includes("posterImg.onload = null;"), 'closeSeriesDetail must clear poster onload');
+assert.ok(html.includes("posterImg.src = '';"), 'closeSeriesDetail must clear poster src to free texture RAM');
+assert.ok(html.includes('id="seriesPosterImg" src="" alt="Poster" onload="fitTvImage(this)" onerror="this.style.display=\'none\';"'), 'seriesPosterImg must have onerror handler');
+
 console.log('Series poster fit and proportional rendering tests pass successfully.');

@@ -46,9 +46,9 @@ assert.ok(
   'Focused button SVG polygon must fill white'
 );
 
-// 5. Verify version bumps to v2.5.45
-assert.ok(html.includes('v2.5.45'), 'index.html must display version v2.5.45');
-assert.ok(html.includes('native-player.js?v=2.5.45'), 'native-player.js query must be v2.5.45');
-assert.ok(server.includes('logo-teamg.png?v=2.5.45'), 'server.js logo query must be v2.5.45');
+// 5. Verify version bumps to v2.5.46
+assert.ok(html.includes('v2.5.46'), 'index.html must display version v2.5.46');
+assert.ok(html.includes('native-player.js?v=2.5.46'), 'native-player.js query must be v2.5.46');
+assert.ok(server.includes('logo-teamg.png?v=2.5.46'), 'server.js logo query must be v2.5.46');
 
 console.log('Player HUD action icons visual parity unit tests pass successfully.');
