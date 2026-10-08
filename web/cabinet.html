@@ -551,7 +551,8 @@ function renderPlaylistEditor(a) {
   } else {
     filteredChannels.forEach(function(c, idx) {
       var globalIdx = CURRENT_PL.channels.indexOf(c);
-      var thumb = c.logo ? "<img class='channel-thumb' src='" + esc(c.logo) + "' onerror=\"this.style.display='none'\" />" : "<div class='channel-thumb' style='color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;'>SIN LOGO</div>";
+      var thumbUrl = c.logo || c.seriesLogo || c.seriesPoster;
+      var thumb = thumbUrl ? "<img class='channel-thumb' src='" + esc(thumbUrl) + "' onerror=\"this.style.display='none'\" />" : "<div class='channel-thumb' style='color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;'>SIN LOGO</div>";
       h += "<div class='channel-row' draggable='true' data-ch-row='" + globalIdx + "'>" +
         "<span class='drag-handle' title='Arrastrar para reordenar'>☰</span>" +
         "<span class='channel-num'>#" + (idx + 1) + "</span>" +
@@ -1348,7 +1349,12 @@ function prepareSeriesArtwork(field, inputId, shape, button) {
   var prepared = cover ? api("/api/ott/admin/prepare-image", "POST", {url:cover,shape:shape}) : Promise.resolve({url:""});
   prepared.then(function(result) {
     if (CURRENT_PL !== playlist || CURRENT_GROUP !== group) { alert("Cambiaste de serie durante la preparación. Vuelve a guardar la carátula en su serie."); return; }
-    playlist.channels.forEach(function(c) { if (c.group === group) c[field] = result.url; });
+    playlist.channels.forEach(function(c) {
+      if (c.group === group) {
+        c[field] = result.url;
+        if (field === 'seriesLogo' && !c.logo) c.logo = result.url;
+      }
+    });
     document.getElementById(inputId).value = result.url;
     savePlaylistToServer();
   }).catch(function(err) { alert("No se guardó la carátula: " + err.message); })
