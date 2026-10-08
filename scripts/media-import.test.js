@@ -36,5 +36,15 @@ assert.equal(tvContext.state.activeSubTracks.length,0); // No server movie probe
   const v=await sharp(vertical).metadata();assert.equal(v.width,300);assert.equal(v.height,450);
   assert.equal(h.isProgressive,false);
   await assert.rejects(prepareImage({data:'data:image/png;base64,YmFk'}));
-  console.log('Artwork inheritance and WebP-to-baseline-JPEG preparation with horizontal/vertical proportions pass.');
+
+  // Check IPv4 priority and browser User-Agent in media-import.js
+  const mediaCode = fs.readFileSync('media-import.js', 'utf8');
+  assert.ok(mediaCode.includes('records.find(r => r.family === 4) || records[0]'), 'publicBuffer must prioritize IPv4 to avoid ENETUNREACH on IPv4-only cloud hosts');
+  assert.ok(mediaCode.includes('Chrome/122.0.0.0'), 'publicBuffer must use modern browser User-Agent to avoid 403 on Amazon/CloudFront CDNs');
+
+  // Check cabinet.html error detail extraction
+  const cabCode = fs.readFileSync('web/cabinet.html', 'utf8');
+  assert.ok(cabCode.includes('throw new Error(d && d.error ? d.error : ("HTTP " + r.status));'), 'cabinet.html must extract error message from API response');
+
+  console.log('Artwork inheritance, WebP-to-baseline-JPEG, IPv4 priority, and browser User-Agent pass successfully.');
 })().catch(e=>{console.error(e);process.exitCode=1;});
