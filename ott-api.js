@@ -126,7 +126,7 @@ function parseM3uText(text) {
 
       const mSeriesLogo = ln.match(/series-logo="([^"]*)"/i);
       const seriesLogo = mSeriesLogo ? mSeriesLogo[1] : '';
-      const mPoster = ln.match(/series-poster="([^"]*)"/i);
+      const mPoster = ln.match(/(?:series-poster|tvg-poster|poster|tvg-cover)="([^"]*)"/i);
       const seriesPoster = mPoster ? mPoster[1] : '';
       current = { id: 'c_' + (chId++), name, logo, seriesLogo, seriesPoster, group, adult, subs };
       groupsSet.add(group);
@@ -774,7 +774,7 @@ function fetchWithRedirects(targetUrl, options, maxRedirects, callback) {
       if (!body.data) return json(res, 400, { ok: false, error: 'Falta data' });
       let dataToSave = body.data;
       try {
-        const bytes = await require('./media-import').prepareImage({ data: body.data, shape: 'horizontal' });
+        const bytes = await require('./media-import').prepareImage({ data: body.data, shape: body.shape || 'horizontal' });
         dataToSave = 'data:image/jpeg;base64,' + bytes.toString('base64');
       } catch (err) {}
       const iconId = store.uid();

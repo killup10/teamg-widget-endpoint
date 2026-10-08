@@ -569,6 +569,7 @@ body::-webkit-scrollbar {
 
 .series-poster-box {
   width: 300px;
+  max-width: 300px;
   height: 440px;
   background: #000000;
   border-radius: 8px;
@@ -576,12 +577,15 @@ body::-webkit-scrollbar {
   border: 2px solid rgba(255, 204, 0, 0.4);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.9);
   -webkit-box-shadow: 0 8px 24px rgba(0, 0, 0, 0.9);
+  position: relative;
+  margin: 0 auto;
 }
 
 .series-poster-box img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  display: block;
 }
 
 .series-right {
@@ -1734,9 +1738,9 @@ body.theme-wine #topbar { background: #1c0b0b; }
 /* Columnas y desplazamiento compatibles con WebKit anterior a Flexbox. */
 #view-series-detail { position: absolute !important; top: 84px; bottom: 0; height: auto; overflow: auto; }
 .series-container { display: table; table-layout: fixed; max-width: none; }
-.series-left { display: table-cell; vertical-align: top; width: 26%; min-width: 0; padding-right: 24px; }
-.series-right { display: table-cell; vertical-align: top; width: 74%; }
-.series-poster-box { width: 100%; height: 440px; position: relative; box-shadow: none; -webkit-box-shadow: none; }
+.series-left { display: table-cell; vertical-align: top; width: 320px; min-width: 300px; padding-right: 24px; text-align: center; }
+.series-right { display: table-cell; vertical-align: top; width: auto; }
+.series-poster-box { width: 300px; max-width: 300px; height: 440px; margin: 0 auto; position: relative; box-shadow: none; -webkit-box-shadow: none; }
 .series-episodes-grid { display: block; max-height: 300px; overflow-y: auto; }
 .series-ep-tile { display: inline-block; vertical-align: top; }
 .round-icon-btn, .round-icon-btn.focused, .round-icon-btn:hover,
@@ -1863,7 +1867,7 @@ body.text-large .drawer-num { font-size: 25px !important; }
         <h3>Información</h3>
         <p id="optDescText">Usa tu usuario y contraseña otorgados por el administrador para vincular este televisor y descargar tus listas.</p>
         <div style="margin-top:22px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.5.43 — Botones de acción en reproducción con tamaño 7.5vh idénticos a Home
+          VERSIÓN: v2.5.44 — Proporción 2:3 vertical y ajuste matemático sin distorsión en pósters de series
         </div>
       </div>
     </div>
@@ -2047,7 +2051,7 @@ body.text-large .drawer-num { font-size: 25px !important; }
 
 <!-- Script HLS Vendor -->
 <script src="vendor/hls.min.js"></script>
-<script src="native-player.js?v=2.5.43"></script>
+<script src="native-player.js?v=2.5.44"></script>
 <script>
 (function() {
 'use strict';
@@ -2087,9 +2091,19 @@ function resolveIconUrl(url) {
 
 function fitTvImage(img) {
   if (!img || !img.parentNode) return;
+  var box = img.parentNode;
+  var w = box.clientWidth || box.offsetWidth || 300, h = box.clientHeight || box.offsetHeight || 440;
   var iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
-  // Optimización Smart TV: si la imagen ya es 16:9 (como todo el artwork oficial), llena el thumbnail al 100% sin reflow de layout
-  if (iw && ih && Math.abs((iw / ih) - (16 / 9)) < 0.08) {
+  if (!w || !h || !iw || !ih) return;
+
+  // Solo llenar al 100% si la caja es horizontal Y la imagen es 16:9,
+  // O si la proporción de la imagen coincide con la de la caja (ej. póster 2:3 en caja 2:3).
+  // Jamás estirar una imagen horizontal (16:9) al 100% de una caja vertical (w < h, ej. póster de serie).
+  var isBoxHorizontal = w >= h;
+  var isImg169 = Math.abs((iw / ih) - (16 / 9)) < 0.08;
+  var matchesBoxRatio = Math.abs((iw / ih) - (w / h)) < 0.08;
+
+  if ((isBoxHorizontal && isImg169) || matchesBoxRatio) {
     img.style.position = 'absolute';
     img.style.width = '100%';
     img.style.height = '100%';
@@ -2097,9 +2111,8 @@ function fitTvImage(img) {
     img.style.top = '0px';
     return;
   }
-  var box = img.parentNode;
-  var w = box.clientWidth, h = box.clientHeight;
-  if (!w || !h || !iw || !ih) return;
+
+  // Ajuste proporcional (contain) con centrado matemático: cero distorsión en Smart TV
   var ratio = Math.min(w / iw, h / ih);
   img.style.position = 'absolute';
   img.style.width = Math.round(iw * ratio) + 'px';
@@ -3546,9 +3559,17 @@ function openSeriesDetail(s) {
   var posterSrc = resolveIconUrl(s.poster || s.logo);
   var posterImg = $('seriesPosterImg');
   if (posterImg) {
+    posterImg.style.width = '';
+    posterImg.style.height = '';
+    posterImg.style.left = '';
+    posterImg.style.top = '';
+    posterImg.onload = function() { fitTvImage(posterImg); };
     if (posterSrc) {
       posterImg.src = posterSrc;
       posterImg.style.display = 'block';
+      if (posterImg.complete) {
+        fitTvImage(posterImg);
+      }
     } else {
       posterImg.src = 'icon.png';
     }
@@ -3910,7 +3931,7 @@ function parseM3U(text) {
       var mSubs = ln.match(/sub-tracks="([^"]*)"/i); if (mSubs) subs = mSubs[1];
       var mSeriesLogo = ln.match(/series-logo="([^"]*)"/i);
       var seriesLogo = mSeriesLogo ? resolveIconUrl(mSeriesLogo[1]) : '';
-      var mPoster = ln.match(/series-poster="([^"]*)"/i);
+      var mPoster = ln.match(/(?:series-poster|tvg-poster|poster|tvg-cover)="([^"]*)"/i);
       var seriesPoster = mPoster ? resolveIconUrl(mPoster[1]) : '';
       meta = { name: name, seriesPoster: seriesPoster, seriesLogo: seriesLogo, logo: logo, group: group, subs: subs, extgrp: '', id: 'ch-' + i };
     } else if (ln.indexOf('#EXTGRP:') === 0) {

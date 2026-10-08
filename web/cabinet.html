@@ -694,7 +694,7 @@ function renderPlaylistEditor(a) {
       }
       resizeImageForUpload(file, 300, 450, function(err, data) {
         if (err || !data) { finishUpload(); alert("No se pudo procesar la imagen."); return; }
-        api("/api/ott/admin/upload-image", "POST", { data: data }).then(function(res) {
+        api("/api/ott/admin/upload-image", "POST", { data: data, shape: 'vertical' }).then(function(res) {
           if (!res.url) throw new Error("El servidor no devolvió la imagen.");
           coverInput.value = res.url;
           previewCover(res.url);
