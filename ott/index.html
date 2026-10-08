@@ -1714,22 +1714,15 @@ body.theme-wine #topbar { background: #1c0b0b; }
 .home-overview p { font-size: 22px; }
 .home-overview h2 { font-size: 22px; margin: 36px 0 16px; }
 .home-welcome { margin-top: 50px; padding: 30px 24px; font-size: 30px; }
-.home-preview-card img, .home-preview-placeholder { height: 108px; }
-.home-preview-placeholder { line-height: 108px; }
-.home-preview-card div { padding: 8px 4px; font-size: 18px; }
 /* Home ligero: sin vídeos, animaciones ni solicitudes de listas adicionales. */
-.home-overview { padding: 5vh 2vw; font-size: 2.6vh; }
-.home-eyebrow { color: #d989a3; font-size: 2.4vh; letter-spacing: 0.3vw; }
-.home-overview h1 { font-size: 5vh; font-weight: normal; margin: 2vh 0; }
-.home-overview p { color: #dccbd0; font-size: 2.8vh; }
-.home-overview h2 { font-size: 2.8vh; font-weight: normal; margin: 5vh 0 2vh; }
-.home-welcome { margin-top: 8vh; padding: 4vh 2vw; border-left: 4px solid #9c284e; background: #241116; font-size: 4vh; }
-.home-preview-card { display: inline-block; vertical-align: top; width: 16%; margin-right: 0.6%; background: #241116; }
-.home-preview-card img, .home-preview-placeholder { display: block; width: 100%; height: 15vh; object-fit: cover; }
-.home-preview-placeholder { text-align: center; line-height: 15vh; color: #d989a3; }
-.home-preview-card div { padding: 1vh 0.4vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 2.4vh; }
-.home-preview-card.focused { outline: 3.5px solid #ffcc00 !important; outline-offset: -1px !important; background: #8a2542 !important; border: 2px solid #ffffff !important; box-shadow: none !important; -webkit-box-shadow: none !important; }
-.home-preview-card.focused div { color: #ffcc00 !important; font-weight: bold !important; }
+.home-overview { padding: 2.2vh 1vw 1vh; font-size: 2.4vh; box-sizing: border-box; -webkit-box-sizing: border-box; }
+.home-eyebrow { color: #d989a3; font-size: 2.2vh; letter-spacing: 0.25vw; }
+.home-overview h1 { font-size: 3.8vh; font-weight: normal; margin: 0.8vh 0; }
+.home-overview p { color: #dccbd0; font-size: 2.2vh; margin: 0.4vh 0; }
+.home-overview h2 { font-size: 2.6vh; font-weight: normal; margin: 2vh 0 1.2vh; }
+.home-welcome { margin-top: 5vh; padding: 3vh 2vw; border-left: 4px solid #9c284e; background: #241116; font-size: 3.5vh; }
+.home-preview-row { width: 100%; white-space: nowrap; font-size: 0; }
+.home-preview-placeholder { display: block; width: 100%; height: 17.5vh; line-height: 17.5vh; text-align: center; color: #d989a3; background: #000000; font-size: 2.5vh; }
 /* NetCast: reservar ancho y evitar que WebKit divida los controles en filas. */
 .topbar-right { width: 40%; white-space: nowrap; }
 .top-icons-row { width: 100%; white-space: nowrap; text-align: right; }
@@ -1761,7 +1754,6 @@ body.theme-wine #topbar { background: #1c0b0b; }
 .kb-input-box { white-space: nowrap; overflow: hidden; text-align: right; }
 body.text-large .opt-label, body.text-large .opt-value { font-size: 20px; }
 body.text-large .tile-title { font-size: 3.4vh; }
-body.text-large .home-preview-card div { font-size: 2.9vh; }
 body.text-large .series-ep-name { font-size: 18px; }
 body.text-large #optDescText { font-size: 20px; }
 body.text-large .tab-skew { font-size: 3.8vh; }
@@ -1867,7 +1859,7 @@ body.text-large .drawer-num { font-size: 25px !important; }
         <h3>Información</h3>
         <p id="optDescText">Usa tu usuario y contraseña otorgados por el administrador para vincular este televisor y descargar tus listas.</p>
         <div style="margin-top:22px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.5.44 — Proporción 2:3 vertical y ajuste matemático sin distorsión en pósters de series
+          VERSIÓN: v2.5.45 — Tarjetas de Home con dimensiones 26.5vh idénticas al catálogo (sin recortes ni achatamiento)
         </div>
       </div>
     </div>
@@ -2051,7 +2043,7 @@ body.text-large .drawer-num { font-size: 25px !important; }
 
 <!-- Script HLS Vendor -->
 <script src="vendor/hls.min.js"></script>
-<script src="native-player.js?v=2.5.44"></script>
+<script src="native-player.js?v=2.5.45"></script>
 <script>
 (function() {
 'use strict';
@@ -4290,9 +4282,13 @@ function renderHomeOverview(area) {
   for (var i = 0; i < items.length && i < 6; i++) {
     var src = resolveIconUrl(items[i].logo);
     var label = items[i].title + (items[i].seriesId ? ' · ' + items[i].season + '×' + items[i].episode : '');
-    cards += '<div class="home-preview-card" id="recentContent' + i + '">' +
-      (src ? '<div style="position:relative;height:108px;padding:0;"><img src="' + escapeHtml(src) + '" onerror="this.style.display=\'none\';" /></div>' : '<div class="home-preview-placeholder">TV</div>') +
-      '<div>' + escapeHtml(label) + '</div></div>';
+    cards += '<div class="tile-item home-preview-card" id="recentContent' + i + '">' +
+      '<div class="tile-thumb">' +
+      '<div class="tile-num">' + (i + 1) + '</div>' +
+      (src ? '<img src="' + escapeHtml(src) + '" onerror="this.style.display=\'none\';" />' : '<div class="home-preview-placeholder">TV</div>') +
+      '</div>' +
+      '<div class="tile-title" title="' + escapeHtml(label) + '"><span class="tile-title-text">' + escapeHtml(label) + '</span></div>' +
+      '</div>';
   }
   var specialHtml = '';
   try {
@@ -4301,7 +4297,7 @@ function renderHomeOverview(area) {
       var sColor = getPlColor(vpls[s]);
       var sBadge = getPlBadge(vpls[s]);
       if (sColor || sBadge) {
-        specialHtml += '<div style="margin:12px 0;padding:10px 14px;border:2px solid ' + escapeHtml(sColor || '#ff6a00') + ';border-radius:6px;background:#241116;">' +
+        specialHtml += '<div style="margin:0.8vh 0;padding:0.6vh 1.2vw;border:2px solid ' + escapeHtml(sColor || '#ff6a00') + ';border-radius:6px;background:#241116;">' +
           '<span class="pl-special-dot" style="background:' + escapeHtml(sColor || '#ff6a00') + ';"></span>' +
           '<b>' + escapeHtml(vpls[s].name) + '</b>' +
           (sBadge ? ' <span class="tab-badge" style="background:' + escapeHtml(sColor || '#ff6a00') + ';">' + escapeHtml(sBadge) + '</span>' : '') +
@@ -4692,7 +4688,7 @@ function updateMainFocus(shouldScroll) {
   if (targetEl) {
     targetEl.classList.add('focused');
     state.currentFocusedEl = targetEl;
-    if (state.currentFocusArea === 'content' && typeof startMarquee === 'function') {
+    if ((state.currentFocusArea === 'content' || state.currentFocusArea === 'recent') && typeof startMarquee === 'function') {
       startMarquee(targetEl);
     }
     if (shouldScroll === true) {
@@ -4898,7 +4894,10 @@ function handleMainNav(kc, eObj) {
         state.topIconIdx = Math.min(3, state.topIconIdx + 1);
         updateMainFocus(false);
       } else if (kc === KEY.DOWN) {
-        if (totalTabs > 0) {
+        if (!isInside && (state.recentContent || []).length) {
+          state.currentFocusArea = 'recent';
+          state.recentIdx = 0;
+        } else if (totalTabs > 0) {
           state.currentFocusArea = 'tabs';
         }
         updateMainFocus(true);
