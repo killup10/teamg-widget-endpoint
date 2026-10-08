@@ -1463,8 +1463,8 @@ video::cue {
   left: 0;
   right: 0;
   bottom: 0;
-  overflow-y: auto;
-  padding: 8px 10px 25px 10px;
+  overflow-y: hidden;
+  padding: 6px 10px;
   box-sizing: border-box;
   scrollbar-width: none !important;
   -ms-overflow-style: none !important;
@@ -1482,10 +1482,12 @@ video::cue {
   display: table !important;
   width: 100% !important;
   table-layout: fixed !important;
-  height: 72px !important;
-  min-height: 72px !important;
-  padding: 0 6px !important;
-  margin-bottom: 5px !important;
+  height: 11.8vh !important;
+  height: calc((100% - 28px) / 8) !important;
+  min-height: 0 !important;
+  max-height: calc((100% - 28px) / 8) !important;
+  padding: 0 8px !important;
+  margin-bottom: 4px !important;
   cursor: pointer;
   color: #dddddd;
   background: rgba(255, 255, 255, 0.04);
@@ -1833,7 +1835,7 @@ body.text-large .drawer-num { font-size: 25px !important; }
         <h3>Información</h3>
         <p id="optDescText">Usa tu usuario y contraseña otorgados por el administrador para vincular este televisor y descargar tus listas.</p>
         <div style="margin-top:22px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.5.41 — Títulos grandes de alto contraste y animación marquee al seleccionar canal
+          VERSIÓN: v2.5.42 — Barra lateral paginada a 8 canales/episodios idéntica a OTTPlayer para máxima fluidez en TV
         </div>
       </div>
     </div>
@@ -2017,7 +2019,7 @@ body.text-large .drawer-num { font-size: 25px !important; }
 
 <!-- Script HLS Vendor -->
 <script src="vendor/hls.min.js"></script>
-<script src="native-player.js?v=2.5.41"></script>
+<script src="native-player.js?v=2.5.42"></script>
 <script>
 (function() {
 'use strict';
@@ -5927,12 +5929,22 @@ function handlePlayerNav(kc, eObj) {
       closeChannelDrawer();
       return;
     }
-    if (kc === KEY.UP || isChUp) {
+    if (isChUp) {
+      state.drawerIdx = Math.max(0, state.drawerIdx - 8);
+      updateDrawerFocus();
+      return;
+    }
+    if (isChDown) {
+      state.drawerIdx = Math.min(list.length - 1, state.drawerIdx + 8);
+      updateDrawerFocus();
+      return;
+    }
+    if (kc === KEY.UP) {
       state.drawerIdx = Math.max(0, state.drawerIdx - 1);
       updateDrawerFocus();
       return;
     }
-    if (kc === KEY.DOWN || isChDown) {
+    if (kc === KEY.DOWN) {
       state.drawerIdx = Math.min(list.length - 1, state.drawerIdx + 1);
       updateDrawerFocus();
       return;
@@ -6157,7 +6169,9 @@ function handlePlayerNav(kc, eObj) {
   }
 }
 
-/* Drawer Lateral de Canales (Foto 3 / OTTPlayer) - Apertura fluida y navegación O(1) */
+var DRAWER_PAGE_SIZE = 8;
+
+/* Drawer Lateral de Canales (Foto 3 / OTTPlayer) - Paginado a exactamente 8 elementos para máxima fluidez */
 function renderDrawerList() {
   var isSeries = (state.activeSeriesEpisodes && state.activeSeriesEpisodes.length > 0);
   var list = isSeries ? state.activeSeriesEpisodes : getFilteredChannels();
@@ -6175,6 +6189,10 @@ function renderDrawerList() {
   if (cur >= list.length) cur = list.length - 1;
   state.drawerIdx = cur;
 
+  var curPage = Math.floor(cur / DRAWER_PAGE_SIZE);
+  var startIdx = curPage * DRAWER_PAGE_SIZE;
+  var pageItems = list.slice(startIdx, startIdx + DRAWER_PAGE_SIZE);
+
   if (isSeries) {
     var sTitle = state.currentSeries ? state.currentSeries.name : 'Episodios';
     $('drawerGroupName').innerHTML = '&lt; \u00A0 ' + escapeHtml(sTitle) + ' (' + (cur + 1) + '/' + list.length + ') \u00A0 &gt;';
@@ -6185,11 +6203,12 @@ function renderDrawerList() {
   }
 
   var frag = document.createDocumentFragment();
-  for (var i = 0; i < list.length; i++) {
-    var c = list[i];
+  for (var i = 0; i < pageItems.length; i++) {
+    var realIdx = startIdx + i;
+    var c = pageItems[i];
     var row = document.createElement('div');
-    row.className = 'drawer-row' + (i === cur ? ' focused' : '');
-    row.setAttribute('data-idx', i);
+    row.className = 'drawer-row' + (realIdx === cur ? ' focused' : '');
+    row.setAttribute('data-idx', realIdx);
 
     var logoSrc = resolveIconUrl(c.logo || (state.currentSeries && state.currentSeries.logo));
     var logoHtml = logoSrc
@@ -6197,9 +6216,9 @@ function renderDrawerList() {
       : '<div class="drawer-logo-placeholder">TV</div>';
     
     var rowTitle = isSeries ? (c.episodeTitle || c.name) : c.name;
-    var rowSub = isSeries ? ('T' + (c.season || 1) + ' : E' + (c.episode || (i + 1))) : (c.group || 'EN VIVO');
+    var rowSub = isSeries ? ('T' + (c.season || 1) + ' : E' + (c.episode || (realIdx + 1))) : (c.group || 'EN VIVO');
 
-    row.innerHTML = '<div class="drawer-num">' + (i + 1) + '</div>' +
+    row.innerHTML = '<div class="drawer-num">' + (realIdx + 1) + '</div>' +
       '<div class="drawer-logo-box">' + logoHtml + '</div>' +
       '<div class="drawer-info notranslate" translate="no">' +
         '<div class="drawer-name notranslate" translate="no">' + escapeHtml(rowTitle) + '</div>' +
@@ -6219,14 +6238,13 @@ function renderDrawerList() {
           playChannelAt(idx);
         }
       };
-    })(i, c);
+    })(realIdx, c);
     frag.appendChild(row);
   }
   container.appendChild(frag);
 
   var focusedRow = container.querySelector('.drawer-row.focused');
   state.currentDrawerFocusedEl = focusedRow;
-  if (focusedRow) safeScrollIntoView(focusedRow);
 }
 
 function openChannelDrawer() {
