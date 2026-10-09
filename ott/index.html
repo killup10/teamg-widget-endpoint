@@ -1903,7 +1903,7 @@ body.text-large .drawer-num { font-size: 25px !important; }
         <h3>Información</h3>
         <p id="optDescText">Usa tu usuario y contraseña otorgados por el administrador para vincular este televisor y descargar tus listas.</p>
         <div style="margin-top:22px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.5.50 — Tarjetas ajustadas, controles autoocultables y actualización de listas
+          VERSIÓN: v2.5.51 — Inicio HLS estable en NetCast y actualización de listas
         </div>
       </div>
     </div>
@@ -2087,7 +2087,8 @@ body.text-large .drawer-num { font-size: 25px !important; }
 
 <!-- Script HLS Vendor -->
 <script src="vendor/hls.min.js"></script>
-<script src="native-player.js?v=2.5.50"></script>
+<script src="native-player.js?v=2.5.51"></script>
+<script src="hls-variant.js?v=2.5.51"></script>
 <script>
 (function() {
 'use strict';
@@ -5287,6 +5288,7 @@ var lastChannelChangeTime = 0;
 
 function cleanPlayerEngines() {
   state.playerGeneration = (state.playerGeneration || 0) + 1;
+  if (state.cancelHlsVariant) { state.cancelHlsVariant(); state.cancelHlsVariant = null; }
   if (window.TeamGNative && TeamGNative.active()) TeamGNative.stop();
   var samsungSurface = $('samsung-player');
   if (samsungSurface) samsungSurface.style.display = 'none';
@@ -5787,12 +5789,26 @@ function playItem(c, recovering) {
 
   probeSubtitles(c.url || playUrl, c.subs);
 
-  if (useNative) {
-    startSamsungPlayer(v, netcastObj, playUrl, streamUrl, c);
-  } else if (preferNetcast && netcastObj) {
-    startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c);
+  function startSelectedPlayer(url) {
+    if (useNative) {
+      startSamsungPlayer(v, netcastObj, url, streamUrl, c);
+    } else if (preferNetcast && netcastObj) {
+      startNetcastPlayer(v, netcastObj, url, streamUrl, c);
+    } else {
+      playHtml5(v, netcastObj, url, streamUrl, c);
+    }
+  }
+  // Resolve a single AVC rendition before opening a legacy decoder, so it
+  // starts at its final resolution instead of switching from 480p to 1080p.
+  if (isLegacyNetcast && isHls && !state.recoveryVod && window.TeamGHlsVariant) {
+    var variantGeneration = state.playerGeneration;
+    state.cancelHlsVariant = TeamGHlsVariant.resolve(playUrl, function(variant) {
+      if (state.screen !== 'player' || state.playerGeneration !== variantGeneration) return;
+      if (variant) $('player-res').textContent = variant.width + 'x' + variant.height;
+      startSelectedPlayer(variant ? variant.url : playUrl);
+    });
   } else {
-    playHtml5(v, netcastObj, playUrl, streamUrl, c);
+    startSelectedPlayer(playUrl);
   }
 }
 
