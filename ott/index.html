@@ -1671,6 +1671,47 @@ video::cue {
 .player-top-right .top-clock-divider {
   display: none !important;
 }
+#player-overlay-top {
+  height: 16.2vh !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+}
+.player-top-left {
+  position: absolute !important;
+  left: 2.5vw !important;
+  top: 2.2vh !important;
+  float: none !important;
+  display: block !important;
+  white-space: nowrap !important;
+  max-width: 45vw !important;
+  overflow: hidden !important;
+}
+#player-logo-box {
+  display: inline-block !important;
+  vertical-align: middle !important;
+  float: none !important;
+}
+.player-channel-meta {
+  display: inline-block !important;
+  vertical-align: middle !important;
+  float: none !important;
+  max-width: 33vw !important;
+  overflow: hidden !important;
+}
+.player-top-right {
+  position: absolute !important;
+  right: 0.8vw !important;
+  top: 1.7vh !important;
+  float: none !important;
+  text-align: right !important;
+  white-space: nowrap !important;
+}
+.player-top-right .ott-action-col {
+  margin-left: 0.85vw !important;
+}
+.player-top-right .action-underline {
+  width: 4.4vw !important;
+}
 .top-clock-text { font-size: 3vh; border-top: 2px solid #eee; margin-top: 0.6vh; padding: 0.5vh 2vw 0 6vw; letter-spacing: 0; }
 #view-playlists { top: 16.2vh; }
 #content-area { bottom: 9vh; padding: 1vh 0.5vw 0; font-size: 0; }
@@ -1859,7 +1900,7 @@ body.text-large .drawer-num { font-size: 25px !important; }
         <h3>Información</h3>
         <p id="optDescText">Usa tu usuario y contraseña otorgados por el administrador para vincular este televisor y descargar tus listas.</p>
         <div style="margin-top:22px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.5.46 — Optimización de memoria en pósters verticales de series y paridad visual total
+          VERSIÓN: v2.5.47 — Visibilidad garantizada y alineación absoluta de la flecha de retroceso en reproducción
         </div>
       </div>
     </div>
@@ -1998,7 +2039,7 @@ body.text-large .drawer-num { font-size: 25px !important; }
             <div class="action-underline cs-blue"></div>
           </div>
           <div class="ott-action-col">
-            <div class="round-icon-btn" id="btnPlayerClose" title="Cerrar"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg></div>
+            <div class="round-icon-btn" id="btnPlayerClose" title="Volver (Retroceder)"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg></div>
             <div class="action-underline cs-white"></div>
           </div>
         </div>
@@ -2043,7 +2084,7 @@ body.text-large .drawer-num { font-size: 25px !important; }
 
 <!-- Script HLS Vendor -->
 <script src="vendor/hls.min.js"></script>
-<script src="native-player.js?v=2.5.46"></script>
+<script src="native-player.js?v=2.5.47"></script>
 <script>
 (function() {
 'use strict';

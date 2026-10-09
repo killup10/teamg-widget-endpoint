@@ -46,9 +46,26 @@ assert.ok(
   'Focused button SVG polygon must fill white'
 );
 
-// 5. Verify version bumps to v2.5.46
-assert.ok(html.includes('v2.5.46'), 'index.html must display version v2.5.46');
-assert.ok(html.includes('native-player.js?v=2.5.46'), 'native-player.js query must be v2.5.46');
-assert.ok(server.includes('logo-teamg.png?v=2.5.46'), 'server.js logo query must be v2.5.46');
+// 5. Verify absolute positioning and back arrow visibility in playback overlay
+assert.ok(
+  html.includes('.player-top-right {') &&
+  html.includes('position: absolute !important;') &&
+  html.includes('right: 0.8vw !important;') &&
+  html.includes('top: 1.7vh !important;'),
+  'Player top-right controls must be absolutely positioned to prevent line drops and overscan clipping'
+);
+
+assert.ok(
+  html.includes('id="btnPlayerClose"') &&
+  html.includes('title="Volver (Retroceder)"') &&
+  html.includes('polyline points="9 14 4 9 9 4"') &&
+  html.includes('stroke-width="2.6"'),
+  'btnPlayerClose must render the back arrow with high-visibility 2.6 stroke matching catalog return'
+);
+
+// 6. Verify version bumps to v2.5.47
+assert.ok(html.includes('v2.5.47'), 'index.html must display version v2.5.47');
+assert.ok(html.includes('native-player.js?v=2.5.47'), 'native-player.js query must be v2.5.47');
+assert.ok(server.includes('logo-teamg.png?v=2.5.47'), 'server.js logo query must be v2.5.47');
 
 console.log('Player HUD action icons visual parity unit tests pass successfully.');
