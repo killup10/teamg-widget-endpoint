@@ -1685,6 +1685,7 @@ video::cue {
   white-space: nowrap !important;
   max-width: 45vw !important;
   overflow: hidden !important;
+  z-index: 106 !important;
 }
 #player-logo-box {
   display: inline-block !important;
@@ -1705,6 +1706,7 @@ video::cue {
   float: none !important;
   text-align: right !important;
   white-space: nowrap !important;
+  z-index: 106 !important;
 }
 .player-top-right .ott-action-col {
   margin-left: 0.85vw !important;
@@ -1892,6 +1894,7 @@ body.text-large .drawer-num { font-size: 25px !important; }
         </div>
         <div class="opt-row" data-action="textsize"><span class="opt-label">Tamaño de texto</span><span class="opt-value" id="valTextSize">Normal</span></div>
         <div class="opt-row" data-action="resetprefs"><span class="opt-label">Restablecer preferencias</span><span class="opt-value">OK</span></div>
+        <div class="opt-row" data-action="reloadapp"><span class="opt-label">Actualizar / Recargar app</span><span class="opt-value">OK</span></div>
         <div class="opt-btn-action" id="btnDoSave">
           Iniciar sesión y vincular TV
         </div>
@@ -1900,7 +1903,7 @@ body.text-large .drawer-num { font-size: 25px !important; }
         <h3>Información</h3>
         <p id="optDescText">Usa tu usuario y contraseña otorgados por el administrador para vincular este televisor y descargar tus listas.</p>
         <div style="margin-top:22px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.5.47 — Visibilidad garantizada y alineación absoluta de la flecha de retroceso en reproducción
+          VERSIÓN: v2.5.48 — Flecha de retroceso garantizada en reproducción y recarga forzada en Smart TV
         </div>
       </div>
     </div>
@@ -2084,7 +2087,7 @@ body.text-large .drawer-num { font-size: 25px !important; }
 
 <!-- Script HLS Vendor -->
 <script src="vendor/hls.min.js"></script>
-<script src="native-player.js?v=2.5.47"></script>
+<script src="native-player.js?v=2.5.48"></script>
 <script>
 (function() {
 'use strict';
@@ -2429,8 +2432,8 @@ function cycleOption(idx, dir) {
     state.auth.textSize = state.auth.textSize === 'large' ? 'normal' : 'large';
     applyTextSize(); saveStorage(); updateOptionsDisplay(); return;
   }
-  if (idx === 9) return;
-  if (idx === 10) { doSaveAndLogin(); return; }
+  if (idx === 9 || idx === 10) return;
+  if (idx === 11) { doSaveAndLogin(); return; }
   // La URL de origen se administra exclusivamente desde el panel.
   if (idx >= 3) idx++;
   var d = (dir === -1) ? -1 : 1;
@@ -2889,6 +2892,7 @@ var OPT_DESCRIPTIONS = [
   'Color theme. Paleta de colores de la interfaz.',
   'Texto normal o grande para leer cómodamente desde el sofá.',
   'Pulsa OK para restablecer pantalla y motores de reproducción. Conserva tu cuenta, listas e historial.',
+  'Actualizar aplicación. Pulsa OK para recargar por completo la app desde el servidor e instalar la última versión.',
   'Iniciar sesión y vincular TV. Conecta con el servidor para descargar tus listas.'
 ];
 
@@ -2959,6 +2963,7 @@ function handleOptionsNav(kc, eObj) {
     cycleOption(state.optIdx, 1);
   } else if (kc === KEY.ENTER) {
     if (state.optIdx === 9) { resetPlaybackPreferences(); return; }
+    if (state.optIdx === 10) { reloadAppForce(); return; }
     if (state.optIdx === totalItems - 1) {
       doSaveAndLogin();
     } else if (state.optIdx === 0) {
@@ -5101,8 +5106,7 @@ function handleMainNav(kc, eObj) {
       showToast('🔄 Actualizando lista y canales desde el servidor...');
       loadPlaylistContent(state.currentPlaylist, true);
     } else {
-      showToast('🔄 Actualizando playlists desde el servidor...');
-      fetchFeed();
+      reloadAppForce();
     }
   } else if (isGreenKey(kc, eObj)) {
     if (isInside) openSearch(); else focusRecentContent();
@@ -6500,6 +6504,15 @@ if (state.auth.token) {
   renderPlaylistsView();
 }
 
+function reloadAppForce() {
+  showToast('🔄 Recargando aplicación y actualizando versión...');
+  setTimeout(function() {
+    var ts = Date.now();
+    var cleanUrl = window.location.protocol + '//' + window.location.host + window.location.pathname;
+    window.location.href = cleanUrl + '?v=' + ts;
+  }, 350);
+}
+
 // Clics directos para Magic Remote y Mouse
 var bRefresh = $('btnRefresh');
 if (bRefresh) {
@@ -6508,8 +6521,7 @@ if (bRefresh) {
       showToast('🔄 Actualizando lista y carátulas desde el servidor...');
       loadPlaylistContent(state.currentPlaylist, true);
     } else {
-      showToast('🔄 Actualizando playlists desde el servidor...');
-      fetchFeed();
+      reloadAppForce();
     }
   };
 }
@@ -7141,6 +7153,7 @@ for (var or = 0; or < optRows.length; or++) {
       state.optIdx = idx;
       updateOptionsFocus();
       if (idx === 9) { resetPlaybackPreferences(); return; }
+      if (idx === 10) { reloadAppForce(); return; }
       if (idx === 0) {
         openKeyboard('Login (e-mail/phone number)', state.auth.login, 'login');
       } else if (idx === 1) {

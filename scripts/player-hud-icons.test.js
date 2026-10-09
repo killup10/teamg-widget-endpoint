@@ -63,9 +63,22 @@ assert.ok(
   'btnPlayerClose must render the back arrow with high-visibility 2.6 stroke matching catalog return'
 );
 
-// 6. Verify version bumps to v2.5.47
-assert.ok(html.includes('v2.5.47'), 'index.html must display version v2.5.47');
-assert.ok(html.includes('native-player.js?v=2.5.47'), 'native-player.js query must be v2.5.47');
-assert.ok(server.includes('logo-teamg.png?v=2.5.47'), 'server.js logo query must be v2.5.47');
+// 6. Verify forced app reload function and button bindings
+assert.ok(
+  html.includes('function reloadAppForce()') &&
+  html.includes('cleanUrl + \'?v=\' + ts'),
+  'reloadAppForce must exist to bust WebKit cache and force hard app reload on Smart TVs'
+);
+
+assert.ok(
+  html.includes('data-action="reloadapp"') &&
+  html.includes('Actualizar / Recargar app'),
+  'view-options must provide explicit reload/update option row'
+);
+
+// 7. Verify version bumps to v2.5.48
+assert.ok(html.includes('v2.5.48'), 'index.html must display version v2.5.48');
+assert.ok(html.includes('native-player.js?v=2.5.48'), 'native-player.js query must be v2.5.48');
+assert.ok(server.includes('logo-teamg.png?v=2.5.48'), 'server.js logo query must be v2.5.48');
 
 console.log('Player HUD action icons visual parity unit tests pass successfully.');
