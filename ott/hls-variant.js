@@ -47,7 +47,7 @@
       finish(variant, request.status < 200 || request.status >= 300 || !/^\s*#EXTM3U/.test(request.responseText || ''));
     };
     request.onerror = function() { finish(null, true); };
-    timer = root.setTimeout(function() { finish(null, true); try { request.abort(); } catch (e) {} }, 8000);
+    timer = root.setTimeout(function() { finish(null, true); try { request.abort(); } catch (e) {} }, 3000);
     try { request.open('GET', requestUrl || url, true); request.send(); } catch (e) { finish(null, true); }
     return function() { done = true; root.clearTimeout(timer); try { request.abort(); } catch (e) {} };
   }
