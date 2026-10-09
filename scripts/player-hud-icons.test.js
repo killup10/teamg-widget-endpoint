@@ -1,5 +1,6 @@
 const fs = require('node:fs');
 const assert = require('node:assert/strict');
+const vm = require('node:vm');
 
 const html = fs.readFileSync('ott/index.html', 'utf8');
 const server = fs.readFileSync('server.js', 'utf8');
@@ -76,9 +77,33 @@ assert.ok(
   'view-options must provide explicit reload/update option row'
 );
 
-// 7. Verify version bumps to v2.5.48
-assert.ok(html.includes('v2.5.48'), 'index.html must display version v2.5.48');
-assert.ok(html.includes('native-player.js?v=2.5.48'), 'native-player.js query must be v2.5.48');
-assert.ok(server.includes('logo-teamg.png?v=2.5.48'), 'server.js logo query must be v2.5.48');
+// 7. Verify version bumps to v2.5.49
+assert.ok(html.includes('v2.5.49'), 'index.html must display version v2.5.49');
+assert.ok(html.includes('native-player.js?v=2.5.49'), 'native-player.js query must be v2.5.49');
+assert.ok(server.includes('logo-teamg.png?v=2.5.49'), 'server.js logo query must be v2.5.49');
+
+// 8. La barra superior (flecha de retroceso) no debe auto-ocultarse en reproducción
+assert.ok(
+  html.includes('player-overlay-bot') &&
+  html.indexOf("botOv) botOv.style.display = 'none'") !== -1,
+  'hidePlayerOverlay must hide the bottom bar'
+);
+assert.ok(
+  html.indexOf("topOv) topOv.style.display = 'none'") === -1,
+  'hidePlayerOverlay must NOT hide the top overlay (back arrow stays visible)'
+);
+
+const topOverlay = { style: { display: 'none' } };
+const bottomOverlay = { style: { display: 'block' } };
+const overlayContext = {
+  state: { playerHudVisible: true, playerFocusedEl: null },
+  $: id => id === 'player-overlay-top' ? topOverlay : bottomOverlay
+};
+const hideStart = html.indexOf('function hidePlayerOverlay()');
+const hideEnd = html.indexOf('var lastChannelChangeTime', hideStart);
+vm.runInNewContext(html.slice(hideStart, hideEnd) + '\nhidePlayerOverlay();', overlayContext);
+assert.equal(topOverlay.style.display, 'block', 'Auto-hide must restore the visible return controls');
+assert.equal(bottomOverlay.style.display, 'none');
+assert.equal(overlayContext.state.playerHudVisible, false);
 
 console.log('Player HUD action icons visual parity unit tests pass successfully.');
