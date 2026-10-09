@@ -350,12 +350,12 @@ function render() {
 /* ==================== VISTA: LISTA DE PLAYLISTS ==================== */
 function renderPlaylistsList(a) {
   var h = "<div class='card'><h2>Playlists</h2><input id='pn' placeholder='Nombre' style='width:200px'/><input id='pu' placeholder='URL M3U' style='width:280px'/><input id='pe' placeholder='URL EPG (opcional)' style='width:280px'/><br/>" +
-    "<label class='small'>Color <input id='pc' type='color' value='#ff6a00' title='Color de marca'/></label> " +
-    "<input id='pb' placeholder='Badge (ej. HALLOWEEN)' style='width:160px' maxlength='18'/> " +
-    "<input id='px' type='date' title='Expira: se oculta sola en TV'/> " +
+    "<input id='pc' type='hidden' value=''/> " +
+    "<input id='pb' type='hidden' value=''/> " +
+    "<input id='px' type='hidden' value=''/> " +
     "<input id='pid' type='hidden'/> " +
     "<button class='act green' id='bp'>Agregar</button> <button class='act' id='bh'>🎃 Halloween</button> <button class='act' id='bc' style='display:none'>Cancelar</button> <span class='small' id='pm'></span>" +
-    "<div class='small'>Naranja Halloween: <b style='color:#ff6a00'>#ff6a00</b> + badge HALLOWEEN + expira 02-nov (se oculta sola en la TV).</div><br/><table><tr><th>Nombre</th><th>URL</th><th>Marca</th><th>Acciones</th></tr>";
+    "<div class='small' style='margin-top:4px;color:#8fa0b5;'>Las playlists normales usan el estilo estándar. El botón <b>🎃 Halloween</b> aplica el naranja exclusivo y auto-caducidad.</div><br/><table><tr><th>Nombre</th><th>URL</th><th>Marca</th><th>Acciones</th></tr>";
   DATA.playlists.forEach(function(p) {
     var dot = p.color ? "<span class='dot' style='background:" + esc(p.color) + "'></span>" : "";
     var badge = p.badge ? "<span class='pill" + (p.expired ? " exp" : "") + "'>" + esc(p.badge) + "</span>" : "";
@@ -392,7 +392,7 @@ function renderPlaylistsList(a) {
     document.getElementById("pn").value = "";
     document.getElementById("pu").value = "";
     document.getElementById("pe").value = "";
-    document.getElementById("pc").value = "#ff6a00";
+    document.getElementById("pc").value = "";
     document.getElementById("pb").value = "";
     document.getElementById("px").value = "";
     document.getElementById("bp").textContent = "Agregar";
@@ -435,7 +435,7 @@ function renderPlaylistsList(a) {
       document.getElementById("pn").value = pl.name || "";
       document.getElementById("pu").value = pl.url || "";
       document.getElementById("pe").value = pl.epgUrl || "";
-      document.getElementById("pc").value = /^#[0-9a-fA-F]{6}$/.test(pl.color || "") ? pl.color : "#ff6a00";
+      document.getElementById("pc").value = /halloween/i.test(pl.name || "") ? "#ff6a00" : "";
       document.getElementById("pb").value = pl.badge || "";
       document.getElementById("px").value = pl.expiresAt || "";
       document.getElementById("bp").textContent = "Guardar";

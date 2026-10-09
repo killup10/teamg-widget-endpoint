@@ -240,7 +240,19 @@ function playlistExpired(p, nowMs) {
   return t < (nowMs || Date.now());
 }
 
+const isHalloween = (p) => /halloween/i.test((p && p.name) || '') || /halloween/i.test((p && p.badge) || '');
+
 const pub = (p) => {
+  const isHw = isHalloween(p);
+  let color = normalizeColor(p.color);
+  let badge = normalizeBadge(p.badge);
+  if (!isHw) {
+    if (color === HALLOWEEN_ORANGE || color === '#ff6a00') color = '';
+    if (/halloween/i.test(badge)) badge = '';
+  } else {
+    color = color || HALLOWEEN_ORANGE;
+    badge = badge || 'HALLOWEEN';
+  }
   const seriesCovers = [];
   const seen = new Set();
   if (p.customM3u) for (const c of parseM3uText(p.customM3u).channels) {
@@ -248,7 +260,7 @@ const pub = (p) => {
   }
   return {
     id: p._id, name: p.name, epg: p.epgUrl || '',
-    color: normalizeColor(p.color), badge: normalizeBadge(p.badge),
+    color, badge,
     expiresAt: normalizeExpires(p.expiresAt), expired: playlistExpired(p),
     seriesCovers,
   };
@@ -520,7 +532,19 @@ function fetchWithRedirects(targetUrl, options, maxRedirects, callback) {
         ok: true, mode: cols.mode,
         users: users.filter((u) => u.role !== 'admin').map((u) => ({ id: u._id, login: u.login, active: u.active !== false, expires: u.expires || '', created: u.created })),
         devices: devices.map((d) => ({ id: d._id, userId: d.userId, name: d.name, note: d.note || '', platform: d.platform, playlists: d.playlists || [], lastSeen: d.lastSeen })),
-        playlists: playlists.map((p) => ({ id: p._id, name: p.name, url: p.url, epgUrl: p.epgUrl || '', color: normalizeColor(p.color), badge: normalizeBadge(p.badge), expiresAt: normalizeExpires(p.expiresAt), expired: playlistExpired(p) })),
+        playlists: playlists.map((p) => {
+          const isHw = isHalloween(p);
+          let color = normalizeColor(p.color);
+          let badge = normalizeBadge(p.badge);
+          if (!isHw) {
+            if (color === HALLOWEEN_ORANGE || color === '#ff6a00') color = '';
+            if (/halloween/i.test(badge)) badge = '';
+          } else {
+            color = color || HALLOWEEN_ORANGE;
+            badge = badge || 'HALLOWEEN';
+          }
+          return { id: p._id, name: p.name, url: p.url, epgUrl: p.epgUrl || '', color, badge, expiresAt: normalizeExpires(p.expiresAt), expired: playlistExpired(p) };
+        }),
       });
     }
     if (sub === 'user' && req.method === 'POST') {
@@ -552,8 +576,16 @@ function fetchWithRedirects(targetUrl, options, maxRedirects, callback) {
     }
     if (sub === 'playlist' && req.method === 'POST') {
       // crear (sin id) o actualizar (con id): nombre + color/badge/expires para especiales como Halloween
-      const color = normalizeColor(body.color);
-      const badge = normalizeBadge(body.badge);
+      const isHw = /halloween/i.test(body.name || '') || /halloween/i.test(body.badge || '');
+      let color = normalizeColor(body.color);
+      let badge = normalizeBadge(body.badge);
+      if (!isHw) {
+        if (color === HALLOWEEN_ORANGE || color === '#ff6a00') color = '';
+        if (/halloween/i.test(badge)) badge = '';
+      } else {
+        color = color || HALLOWEEN_ORANGE;
+        badge = badge || 'HALLOWEEN';
+      }
       const expiresAt = normalizeExpires(body.expiresAt || body.expires);
       if (body.id) {
         const prev = await cols.playlists.findOne({ _id: String(body.id) });

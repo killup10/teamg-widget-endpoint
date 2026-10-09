@@ -1903,7 +1903,7 @@ body.text-large .drawer-num { font-size: 25px !important; }
         <h3>Información</h3>
         <p id="optDescText">Usa tu usuario y contraseña otorgados por el administrador para vincular este televisor y descargar tus listas.</p>
         <div style="margin-top:22px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.5.52 — Calidad HLS fija en LG NetCast y webOS
+          VERSIÓN: v2.5.53 — Color naranja exclusivo para Halloween (listas normales con estilo estándar)
         </div>
       </div>
     </div>
@@ -2087,8 +2087,8 @@ body.text-large .drawer-num { font-size: 25px !important; }
 
 <!-- Script HLS Vendor -->
 <script src="vendor/hls.min.js"></script>
-<script src="native-player.js?v=2.5.52"></script>
-<script src="hls-variant.js?v=2.5.52"></script>
+<script src="native-player.js?v=2.5.53"></script>
+<script src="hls-variant.js?v=2.5.53"></script>
 <script>
 (function() {
 'use strict';
@@ -4446,13 +4446,19 @@ function isPlExpired(pl) {
   if (isNaN(t)) return false;
   return t < new Date().getTime();
 }
+function isHalloweenPl(pl) {
+  if (!pl) return false;
+  return /halloween/i.test(pl.name || '') || /halloween/i.test(pl.badge || '');
+}
 function getPlColor(pl) {
+  if (!isHalloweenPl(pl)) return '';
   var c = String((pl && pl.color) || '').trim();
   if (/^#[0-9a-fA-F]{6}$/.test(c)) return c.toLowerCase();
-  return '';
+  return '#ff6a00';
 }
 function getPlBadge(pl) {
-  return String((pl && pl.badge) || '').trim().slice(0, 18);
+  if (!isHalloweenPl(pl)) return '';
+  return String((pl && pl.badge) || 'HALLOWEEN').trim().slice(0, 18);
 }
 function visiblePlaylists() {
   var out = [];
@@ -4509,8 +4515,16 @@ function renderTabs() {
     if (bar.children && bar.children.length === homeTabs.length) {
       for (var k = 0; k < bar.children.length; k++) {
         var isKAct = (state.tabIdx === k);
-        if (isKAct) bar.children[k].classList.add('active');
-        else bar.children[k].classList.remove('active');
+        var kColor = homeTabs[k].pl ? getPlColor(homeTabs[k].pl) : '';
+        if (isKAct) {
+          bar.children[k].classList.add('active');
+          if (kColor) { try { bar.children[k].style.background = '#7a2b0e'; bar.children[k].style.borderRight = '4px solid ' + kColor; } catch (e) {} }
+          else { try { bar.children[k].style.background = ''; bar.children[k].style.borderRight = ''; } catch (e) {} }
+        } else {
+          bar.children[k].classList.remove('active');
+          if (kColor) { try { bar.children[k].style.background = ''; bar.children[k].style.borderRight = '4px solid ' + kColor; } catch (e) {} }
+          else { try { bar.children[k].style.background = ''; bar.children[k].style.borderRight = ''; } catch (e) {} }
+        }
       }
       return;
     }

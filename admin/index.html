@@ -41,15 +41,15 @@ input[type=color]{padding:2px;width:44px;height:34px;vertical-align:middle}
     <input id="pn" placeholder="Nombre (ej. Plan Gplay)" style="width:200px" />
     <input id="pu" placeholder="URL M3U" style="width:300px" />
     <input id="pe" placeholder="URL EPG XMLTV (opcional)" style="width:300px" /><br/>
-    <label class="small">Color <input id="pc" type="color" value="#ff6a00" title="Color de marca" /></label>
-    <input id="pb" placeholder="Badge (ej. HALLOWEEN)" style="width:160px" maxlength="18" />
-    <input id="px" type="date" title="Expira (se oculta sola en TV)" />
+    <input id="pc" type="hidden" value="" />
+    <input id="pb" type="hidden" value="" />
+    <input id="px" type="hidden" value="" />
     <input id="pid" type="hidden" />
     <button id="btnP">Agregar</button>
     <button id="btnHalloween" class="ghost" title="Rellena especial Halloween naranja">🎃 Halloween</button>
     <button id="btnPCancel" class="ghost" style="display:none">Cancelar edición</button>
     <span class="small" id="pmsg"></span>
-    <p class="small">Naranja Halloween: <b style="color:#ff6a00">#ff6a00</b> + badge HALLOWEEN + expira 02-nov (se oculta sola en la TV).</p>
+    <p class="small">Las playlists normales usan el estilo visual estándar. Pulsa <b>🎃 Halloween</b> para aplicar el naranja exclusivo y auto-caducidad.</p>
     <table id="tP"></table>
   </div>
   <div class="card"><h2>Dispositivos y asignación</h2>
@@ -123,7 +123,7 @@ function bind(o){
     document.getElementById("pn").value=pl.name||"";
     document.getElementById("pu").value=pl.url||"";
     document.getElementById("pe").value=pl.epgUrl||"";
-    document.getElementById("pc").value=/^#[0-9a-fA-F]{6}$/.test(pl.color||"")?pl.color:"#ff6a00";
+    document.getElementById("pc").value=/halloween/i.test(pl.name||"")?"#ff6a00":"";
     document.getElementById("pb").value=pl.badge||"";
     document.getElementById("px").value=pl.expiresAt||"";
     document.getElementById("btnP").textContent="Guardar";
@@ -141,7 +141,7 @@ function resetPlaylistForm(){
   document.getElementById("pn").value="";
   document.getElementById("pu").value="";
   document.getElementById("pe").value="";
-  document.getElementById("pc").value="#ff6a00";
+  document.getElementById("pc").value="";
   document.getElementById("pb").value="";
   document.getElementById("px").value="";
   document.getElementById("btnP").textContent="Agregar";

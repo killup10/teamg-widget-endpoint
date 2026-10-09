@@ -237,7 +237,7 @@ const server = http.createServer((req, res) => {
       "items": [
         {
           "title": "Abrir TeamG Play",
-          "image": base + "/ott/logo-teamg.png?v=2.5.52",
+          "image": base + "/ott/logo-teamg.png?v=2.5.53",
           "action": "link:" + base + "/ott/index.html?v=" + Date.now()
         }
       ]
