@@ -77,23 +77,23 @@ assert.ok(
   'view-options must provide explicit reload/update option row'
 );
 
-// 7. Verify version bumps to v2.5.49
-assert.ok(html.includes('v2.5.49'), 'index.html must display version v2.5.49');
-assert.ok(html.includes('native-player.js?v=2.5.49'), 'native-player.js query must be v2.5.49');
-assert.ok(server.includes('logo-teamg.png?v=2.5.49'), 'server.js logo query must be v2.5.49');
+// 7. Verify version bumps to v2.5.50
+assert.ok(html.includes('v2.5.50'), 'index.html must display version v2.5.50');
+assert.ok(html.includes('native-player.js?v=2.5.50'), 'native-player.js query must be v2.5.50');
+assert.ok(server.includes('logo-teamg.png?v=2.5.50'), 'server.js logo query must be v2.5.50');
 
-// 8. La barra superior (flecha de retroceso) no debe auto-ocultarse en reproducción
+// 8. Both playback overlays must auto-hide.
 assert.ok(
   html.includes('player-overlay-bot') &&
   html.indexOf("botOv) botOv.style.display = 'none'") !== -1,
   'hidePlayerOverlay must hide the bottom bar'
 );
 assert.ok(
-  html.indexOf("topOv) topOv.style.display = 'none'") === -1,
-  'hidePlayerOverlay must NOT hide the top overlay (back arrow stays visible)'
+  html.indexOf("topOv) topOv.style.display = 'none'") !== -1,
+  'hidePlayerOverlay must hide the top overlay'
 );
 
-const topOverlay = { style: { display: 'none' } };
+const topOverlay = { style: { display: 'block' } };
 const bottomOverlay = { style: { display: 'block' } };
 const overlayContext = {
   state: { playerHudVisible: true, playerFocusedEl: null },
@@ -102,7 +102,7 @@ const overlayContext = {
 const hideStart = html.indexOf('function hidePlayerOverlay()');
 const hideEnd = html.indexOf('var lastChannelChangeTime', hideStart);
 vm.runInNewContext(html.slice(hideStart, hideEnd) + '\nhidePlayerOverlay();', overlayContext);
-assert.equal(topOverlay.style.display, 'block', 'Auto-hide must restore the visible return controls');
+assert.equal(topOverlay.style.display, 'none', 'Auto-hide must hide the top controls');
 assert.equal(bottomOverlay.style.display, 'none');
 assert.equal(overlayContext.state.playerHudVisible, false);
 

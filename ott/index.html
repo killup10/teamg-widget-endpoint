@@ -1903,7 +1903,7 @@ body.text-large .drawer-num { font-size: 25px !important; }
         <h3>Información</h3>
         <p id="optDescText">Usa tu usuario y contraseña otorgados por el administrador para vincular este televisor y descargar tus listas.</p>
         <div style="margin-top:22px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.5.49 — Flecha de retroceso siempre visible en reproducción
+          VERSIÓN: v2.5.50 — Tarjetas ajustadas, controles autoocultables y actualización de listas
         </div>
       </div>
     </div>
@@ -2087,7 +2087,7 @@ body.text-large .drawer-num { font-size: 25px !important; }
 
 <!-- Script HLS Vendor -->
 <script src="vendor/hls.min.js"></script>
-<script src="native-player.js?v=2.5.49"></script>
+<script src="native-player.js?v=2.5.50"></script>
 <script>
 (function() {
 'use strict';
@@ -5117,13 +5117,7 @@ function handleMainNav(kc, eObj) {
 
   // Teclas directas de colores (Franja Foto 1)
   if (isRedKey(kc, eObj)) {
-    if (state.currentPlaylist) {
-      delete state._playlistCache[state.currentPlaylist.id];
-      showToast('🔄 Actualizando lista y canales desde el servidor...');
-      loadPlaylistContent(state.currentPlaylist, true);
-    } else {
-      reloadAppForce();
-    }
+    refreshPlaylists();
   } else if (isGreenKey(kc, eObj)) {
     if (isInside) openSearch(); else focusRecentContent();
   } else if (isYellowKey(kc, eObj)) {
@@ -5279,10 +5273,8 @@ function showPlayerOverlay() {
 
 function hidePlayerOverlay() {
   state.playerHudVisible = false;
-  // La barra superior (flecha de retroceso + reloj) SIEMPRE queda visible en
-  // reproducción: el auto-ocultado de 8s solo esconde la barra inferior.
   var topOv = $('player-overlay-top');
-  if (topOv) topOv.style.display = 'block';
+  if (topOv) topOv.style.display = 'none';
   var botOv = $('player-overlay-bot');
   if (botOv) botOv.style.display = 'none';
   if (state.playerFocusedEl) {
@@ -6522,6 +6514,20 @@ if (state.auth.token) {
   renderPlaylistsView();
 }
 
+function refreshPlaylists() {
+  if (state.currentPlaylist) {
+    if (state._playlistCache) delete state._playlistCache[state.currentPlaylist.id];
+    showToast('Actualizando lista de reproducción...');
+    loadPlaylistContent(state.currentPlaylist, true);
+  } else if (state.auth.token) {
+    showToast('Actualizando listas de reproducción...');
+    state._feedRetries = 0;
+    fetchFeed();
+  } else {
+    showToast('Vincula tu cuenta para actualizar las listas.');
+  }
+}
+
 function reloadAppForce() {
   showToast('🔄 Recargando aplicación y actualizando versión...');
   setTimeout(function() {
@@ -6534,14 +6540,7 @@ function reloadAppForce() {
 // Clics directos para Magic Remote y Mouse
 var bRefresh = $('btnRefresh');
 if (bRefresh) {
-  bRefresh.onclick = function() {
-    if (state.currentPlaylist) {
-      showToast('🔄 Actualizando lista y carátulas desde el servidor...');
-      loadPlaylistContent(state.currentPlaylist, true);
-    } else {
-      reloadAppForce();
-    }
-  };
+  bRefresh.onclick = refreshPlaylists;
 }
 $('btnPlaylistSearch').onclick = function() { openSearch(); };
 var bEdit = $('btnEdit');
