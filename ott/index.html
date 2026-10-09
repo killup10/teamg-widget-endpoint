@@ -1903,7 +1903,7 @@ body.text-large .drawer-num { font-size: 25px !important; }
         <h3>Información</h3>
         <p id="optDescText">Usa tu usuario y contraseña otorgados por el administrador para vincular este televisor y descargar tus listas.</p>
         <div style="margin-top:22px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.5.51 — Inicio HLS estable en NetCast y actualización de listas
+          VERSIÓN: v2.5.52 — Calidad HLS fija en LG NetCast y webOS
         </div>
       </div>
     </div>
@@ -2087,8 +2087,8 @@ body.text-large .drawer-num { font-size: 25px !important; }
 
 <!-- Script HLS Vendor -->
 <script src="vendor/hls.min.js"></script>
-<script src="native-player.js?v=2.5.51"></script>
-<script src="hls-variant.js?v=2.5.51"></script>
+<script src="native-player.js?v=2.5.52"></script>
+<script src="hls-variant.js?v=2.5.52"></script>
 <script>
 (function() {
 'use strict';
@@ -5800,13 +5800,18 @@ function playItem(c, recovering) {
   }
   // Resolve a single AVC rendition before opening a legacy decoder, so it
   // starts at its final resolution instead of switching from 480p to 1080p.
-  if (isLegacyNetcast && isHls && !state.recoveryVod && window.TeamGHlsVariant) {
+  if ((isLegacyNetcast || /webOS|Web0S/i.test(ua) || preferNetcast) && isHls && !state.recoveryVod && window.TeamGHlsVariant) {
     var variantGeneration = state.playerGeneration;
-    state.cancelHlsVariant = TeamGHlsVariant.resolve(playUrl, function(variant) {
+    state.cancelHlsVariant = TeamGHlsVariant.resolve(playUrl, function(variant, failed) {
       if (state.screen !== 'player' || state.playerGeneration !== variantGeneration) return;
+      if (failed) {
+        hideTuning();
+        showToast('No se pudo leer la calidad del canal. Vuelve a abrirlo.');
+        return;
+      }
       if (variant) $('player-res').textContent = variant.width + 'x' + variant.height;
       startSelectedPlayer(variant ? variant.url : playUrl);
-    });
+    }, API_BASE + '/api/ott/stream.m3u8?manifestOnly=1&url=' + encodeURIComponent(playUrl));
   } else {
     startSelectedPlayer(playUrl);
   }
@@ -5947,11 +5952,23 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c) {
     (state.auth.hlsPlayer !== 'Native HLS player' && !nativeHls);
   var isHlsStream = (playUrl.indexOf('.m3u8') !== -1 || streamUrl.indexOf('.m3u8') !== -1 || playUrl.indexOf('/chunks') !== -1 || streamUrl.indexOf('/chunks') !== -1);
   if (wantsJs && window.Hls && Hls.isSupported() && isHlsStream) {
-    state.hlsInstance = new Hls({ maxBufferLength: 15, enableWorker: false });
+    var stableLgHls = /NetCast|webOS|Web0S/i.test(navigator.userAgent || '');
+    state.hlsInstance = new Hls({ maxBufferLength: 15, enableWorker: false, autoStartLoad: !stableLgHls });
     state.hlsInstance.loadSource(playUrl);
     state.hlsInstance.attachMedia(v);
     state.hlsInstance.on(Hls.Events.LEVEL_LOADED, function(evt, data) { if (data && data.details) state.recoveryVod = !data.details.live; });
     state.hlsInstance.on(Hls.Events.MANIFEST_PARSED, function() {
+      if (stableLgHls) {
+        var levels = state.hlsInstance.levels || [], selected = -1;
+        for (var li = 0; li < levels.length; li++) {
+          var level = levels[li];
+          if (!level.height || level.height > 1080 || level.width > 1920) continue;
+          if (selected < 0 || level.height > levels[selected].height ||
+            (level.height === levels[selected].height && level.bitrate > levels[selected].bitrate)) selected = li;
+        }
+        if (selected >= 0) state.hlsInstance.currentLevel = selected;
+        state.hlsInstance.startLoad();
+      }
       try {
         var p = v.play();
         if (p && typeof p.catch === 'function') p.catch(function(e) {});

@@ -77,10 +77,10 @@ assert.ok(
   'view-options must provide explicit reload/update option row'
 );
 
-// 7. Verify version bumps to v2.5.51
-assert.ok(html.includes('v2.5.51'), 'index.html must display version v2.5.51');
-assert.ok(html.includes('native-player.js?v=2.5.51'), 'native-player.js query must be v2.5.51');
-assert.ok(server.includes('logo-teamg.png?v=2.5.51'), 'server.js logo query must be v2.5.51');
+// 7. Verify version bumps to v2.5.52
+assert.ok(html.includes('v2.5.52'), 'index.html must display version v2.5.52');
+assert.ok(html.includes('native-player.js?v=2.5.52'), 'native-player.js query must be v2.5.52');
+assert.ok(server.includes('logo-teamg.png?v=2.5.52'), 'server.js logo query must be v2.5.52');
 
 // 8. Both playback overlays must auto-hide.
 assert.ok(

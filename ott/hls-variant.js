@@ -32,23 +32,23 @@
     best.url = anchor.href;
     return best;
   }
-  function resolve(url, callback) {
+  function resolve(url, callback, requestUrl) {
     var request = new root.XMLHttpRequest(), done = false, timer = null;
-    function finish(variant) {
+    function finish(variant, failed) {
       if (done) return;
       done = true;
       root.clearTimeout(timer);
-      callback(variant);
+      callback(variant, !!failed);
     }
     request.onreadystatechange = function() {
       if (request.readyState !== 4 || done) return;
       var variant = null;
-      try { if (request.status >= 200 && request.status < 300) variant = choose(request.responseText, request.responseURL || url); } catch (e) {}
-      finish(variant);
+      try { if (request.status >= 200 && request.status < 300) variant = choose(request.responseText, requestUrl ? url : (request.responseURL || url)); } catch (e) {}
+      finish(variant, request.status < 200 || request.status >= 300 || !/^\s*#EXTM3U/.test(request.responseText || ''));
     };
-    request.onerror = function() { finish(null); };
-    timer = root.setTimeout(function() { finish(null); try { request.abort(); } catch (e) {} }, 5000);
-    try { request.open('GET', url, true); request.send(); } catch (e) { finish(null); }
+    request.onerror = function() { finish(null, true); };
+    timer = root.setTimeout(function() { finish(null, true); try { request.abort(); } catch (e) {} }, 8000);
+    try { request.open('GET', requestUrl || url, true); request.send(); } catch (e) { finish(null, true); }
     return function() { done = true; root.clearTimeout(timer); try { request.abort(); } catch (e) {} };
   }
   root.TeamGHlsVariant = {choose:choose, resolve:resolve};

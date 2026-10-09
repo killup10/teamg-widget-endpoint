@@ -834,7 +834,7 @@ function handleStream(req, res, query) {
         upRes.resume();
         const { URL } = require('url');
         const redirectUrl = new URL(upRes.headers.location, targetUrl).href;
-        return handleStream(req, res, { url: redirectUrl });
+        return handleStream(req, res, { url: redirectUrl, manifestOnly: query.manifestOnly });
       } catch (e) {}
     }
 
@@ -873,6 +873,8 @@ function handleStream(req, res, query) {
           if (l.charAt(0) === '#') return line;
           try {
             const absChunk = new URL(l, targetUrl).href;
+            // Read only the playlist through our origin; video remains direct.
+            if (query.manifestOnly === '1') return absChunk;
             const ext = (absChunk.indexOf('.m3u8') !== -1 || absChunk.indexOf('chunks') !== -1 || absChunk.indexOf('playlist') !== -1) ? '.m3u8' : '.ts';
             const hostHeader = (req && req.headers && req.headers.host) ? req.headers.host : 'ott.teamg.store';
             const proto = (req && req.headers && req.headers['x-forwarded-proto']) ? req.headers['x-forwarded-proto'].split(',')[0].trim() : 'https';
