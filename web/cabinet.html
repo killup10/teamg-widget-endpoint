@@ -250,12 +250,20 @@ var CURRENT_PL = null, CURRENT_GROUP = null, EDITING_CH_IDX = -1;
 var CURRENT_VIEW_MODE = "list";
 
 function api(p, m, b) {
+  var ctl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+  var timer = ctl ? setTimeout(function() { ctl.abort(); }, 15000) : null;
   return fetch(p, {
     method: m || "GET",
     headers: { "Content-Type": "application/json", "x-admin-key": KEY },
-    body: b ? JSON.stringify(b) : undefined
+    body: b ? JSON.stringify(b) : undefined,
+    signal: ctl ? ctl.signal : undefined
   }).then(function(r) {
-    if (r.status === 403) { location.href = "/web/"; throw new Error("auth"); }
+    if (timer) clearTimeout(timer);
+    if (r.status === 403 || r.status === 401) {
+      sessionStorage.removeItem("ottkey");
+      location.href = "/web/";
+      throw new Error("Sesión expirada o no autorizada. Redirigiendo al login...");
+    }
     if (!r.ok) {
       return r.json().then(function(d) {
         throw new Error(d && d.error ? d.error : ("HTTP " + r.status));
@@ -264,6 +272,12 @@ function api(p, m, b) {
       });
     }
     return r.json();
+  }).catch(function(err) {
+    if (timer) clearTimeout(timer);
+    if (err && err.name === 'AbortError') {
+      throw new Error("Tiempo de espera agotado al conectar con el servidor (15s).");
+    }
+    throw err;
   });
 }
 
@@ -272,9 +286,24 @@ function esc(s) {
 }
 
 function refresh() {
+  var a = document.getElementById("app");
+  if (a && !DATA) {
+    a.innerHTML = "<p>Cargando datos del panel...</p>";
+  }
   api("/api/ott/admin/overview").then(function(o) {
     DATA = o;
     render();
+  }).catch(function(err) {
+    console.error("Error al cargar datos:", err);
+    if (a) {
+      a.innerHTML = "<div class='card'><h2>No se pudo conectar con el servidor</h2>" +
+        "<p style='color:#e53935;font-size:15px;margin:12px 0;'><b>Detalle:</b> " + esc(err.message || err) + "</p>" +
+        "<p class='small'>Es posible que tu sesión haya caducado, el servidor esté iniciando o haya un corte de red.</p>" +
+        "<div style='margin-top:16px;'>" +
+        "<button class='act green' onclick='refresh()'>↻ Reintentar</button> " +
+        "<button class='act' onclick='sessionStorage.removeItem("ottkey");location.href="/web/";'>Iniciar sesión de nuevo</button>" +
+        "</div></div>";
+    }
   });
 }
 

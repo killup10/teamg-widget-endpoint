@@ -527,25 +527,37 @@ function fetchWithRedirects(targetUrl, options, maxRedirects, callback) {
     }
     if (!(await adminAuthed(cols, req))) return json(res, 403, { ok: false, error: 'admin' });
     if (sub === 'overview' && req.method === 'GET') {
-      const [users, devices, playlists] = await Promise.all([cols.users.find({}), cols.devices.find({}), cols.playlists.find({})]);
-      return json(res, 200, {
-        ok: true, mode: cols.mode,
-        users: users.filter((u) => u.role !== 'admin').map((u) => ({ id: u._id, login: u.login, active: u.active !== false, expires: u.expires || '', created: u.created })),
-        devices: devices.map((d) => ({ id: d._id, userId: d.userId, name: d.name, note: d.note || '', platform: d.platform, playlists: d.playlists || [], lastSeen: d.lastSeen })),
-        playlists: playlists.map((p) => {
-          const isHw = isHalloween(p);
-          let color = normalizeColor(p.color);
-          let badge = normalizeBadge(p.badge);
-          if (!isHw) {
-            if (color === HALLOWEEN_ORANGE || color === '#ff6a00') color = '';
-            if (/halloween/i.test(badge)) badge = '';
-          } else {
-            color = color || HALLOWEEN_ORANGE;
-            badge = badge || 'HALLOWEEN';
-          }
-          return { id: p._id, name: p.name, url: p.url, epgUrl: p.epgUrl || '', color, badge, expiresAt: normalizeExpires(p.expiresAt), expired: playlistExpired(p) };
-        }),
-      });
+      try {
+        const [users, devices, playlists] = await Promise.all([
+          Promise.resolve(cols.users.find({})).catch(() => []),
+          Promise.resolve(cols.devices.find({})).catch(() => []),
+          Promise.resolve(cols.playlists.find({})).catch(() => []),
+        ]);
+        const userList = Array.isArray(users) ? users : [];
+        const deviceList = Array.isArray(devices) ? devices : [];
+        const playlistList = Array.isArray(playlists) ? playlists : [];
+        return json(res, 200, {
+          ok: true, mode: cols.mode,
+          users: userList.filter((u) => u && u.role !== 'admin').map((u) => ({ id: u._id, login: u.login, active: u.active !== false, expires: u.expires || '', created: u.created })),
+          devices: deviceList.filter(Boolean).map((d) => ({ id: d._id, userId: d.userId, name: d.name, note: d.note || '', platform: d.platform, playlists: d.playlists || [], lastSeen: d.lastSeen })),
+          playlists: playlistList.filter(Boolean).map((p) => {
+            const isHw = isHalloween(p);
+            let color = normalizeColor(p && p.color);
+            let badge = normalizeBadge(p && p.badge);
+            if (!isHw) {
+              if (color === HALLOWEEN_ORANGE || color === '#ff6a00') color = '';
+              if (/halloween/i.test(badge)) badge = '';
+            } else {
+              color = color || HALLOWEEN_ORANGE;
+              badge = badge || 'HALLOWEEN';
+            }
+            return { id: p._id, name: p.name, url: p.url, epgUrl: p.epgUrl || '', color, badge, expiresAt: normalizeExpires(p.expiresAt), expired: playlistExpired(p) };
+          }),
+        });
+      } catch (errOverview) {
+        console.error('[Admin Overview Error]:', errOverview);
+        return json(res, 500, { ok: false, error: (errOverview && errOverview.message) || 'Error al obtener datos' });
+      }
     }
     if (sub === 'user' && req.method === 'POST') {
       // crear (sin id) o actualizar (con id): active, expires, password

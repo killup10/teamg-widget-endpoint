@@ -2,10 +2,10 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 
-const ottHtml = fs.readFileSync(path.join(__dirname, '..', 'ott', 'index.html'), 'utf8');
-const ottApi = fs.readFileSync(path.join(__dirname, '..', 'ott-api.js'), 'utf8');
-const cabinetHtml = fs.readFileSync(path.join(__dirname, '..', 'web', 'cabinet.html'), 'utf8');
-const adminHtml = fs.readFileSync(path.join(__dirname, '..', 'admin', 'index.html'), 'utf8');
+const ottHtml = fs.readFileSync(path.join(__dirname, '..', 'ott', 'index.html'), 'utf8').replace(/\r\n/g, '\n');
+const ottApi = fs.readFileSync(path.join(__dirname, '..', 'ott-api.js'), 'utf8').replace(/\r\n/g, '\n');
+const cabinetHtml = fs.readFileSync(path.join(__dirname, '..', 'web', 'cabinet.html'), 'utf8').replace(/\r\n/g, '\n');
+const adminHtml = fs.readFileSync(path.join(__dirname, '..', 'admin', 'index.html'), 'utf8').replace(/\r\n/g, '\n');
 
 // 1. Verify ott/index.html has isHalloweenPl gating getPlColor and getPlBadge
 assert.ok(ottHtml.includes('function isHalloweenPl(pl)'), 'isHalloweenPl function must exist in ott/index.html');
