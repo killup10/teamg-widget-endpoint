@@ -251,7 +251,7 @@ var CURRENT_VIEW_MODE = "list";
 
 function api(p, m, b) {
   var ctl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
-  var timer = ctl ? setTimeout(function() { ctl.abort(); }, 15000) : null;
+  var timer = ctl ? setTimeout(function() { ctl.abort(); }, 45000) : null;
   return fetch(p, {
     method: m || "GET",
     headers: { "Content-Type": "application/json", "x-admin-key": KEY },
@@ -275,7 +275,7 @@ function api(p, m, b) {
   }).catch(function(err) {
     if (timer) clearTimeout(timer);
     if (err && err.name === 'AbortError') {
-      throw new Error("Tiempo de espera agotado al conectar con el servidor (15s).");
+      throw new Error("Tiempo de espera agotado al conectar con el servidor en la nube.");
     }
     throw err;
   });
@@ -288,17 +288,24 @@ function esc(s) {
 function refresh() {
   var a = document.getElementById("app");
   if (a && !DATA) {
-    a.innerHTML = "<p>Cargando datos del panel...</p>";
+    a.innerHTML = "<div class='card'><p style='font-size:16px;color:#22c55e;font-weight:bold;'>Cargando datos del panel...</p><p class='small' id='wakeNotice' style='color:#777;margin-top:6px;'>Conectando con el servidor...</p></div>";
   }
+  var timerNotice = setTimeout(function() {
+    var wn = document.getElementById("wakeNotice");
+    if (wn) wn.textContent = "El servidor en la nube se está iniciando tras un periodo inactivo. Esperando respuesta...";
+  }, 2500);
+
   api("/api/ott/admin/overview").then(function(o) {
+    clearTimeout(timerNotice);
     DATA = o;
     render();
   }).catch(function(err) {
+    clearTimeout(timerNotice);
     console.error("Error al cargar datos:", err);
     if (a) {
       a.innerHTML = "<div class='card'><h2>No se pudo conectar con el servidor</h2>" +
         "<p style='color:#e53935;font-size:15px;margin:12px 0;'><b>Detalle:</b> " + esc(err.message || err) + "</p>" +
-        "<p class='small'>Es posible que tu sesión haya caducado, el servidor esté iniciando o haya un corte de red.</p>" +
+        "<p class='small'>Si el servidor estuvo inactivo, puede tomar unos segundos iniciar. Pulsa Reintentar o vuelve a ingresar.</p>" +
         "<div style='margin-top:16px;'>" +
         "<button class='act green' onclick='refresh()'>↻ Reintentar</button> " +
         "<button class='act' onclick='sessionStorage.removeItem("ottkey");location.href="/web/";'>Iniciar sesión de nuevo</button>" +
@@ -306,6 +313,11 @@ function refresh() {
     }
   });
 }
+
+// Mantener activo el servidor en la nube mientras el panel esté abierto en una pestaña
+setInterval(function() {
+  try { fetch('/ping').catch(function() {}); } catch (e) {}
+}, 3 * 60 * 1000);
 
 var TABS = ["Home", "Playlists", "Devices", "Cabinet", "Fake-users", "Logout"];
 

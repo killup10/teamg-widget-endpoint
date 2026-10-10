@@ -32,15 +32,22 @@ function verify(token) {
 
 // Admin real con usuario+password (vive en la misma colección users con role).
 // Se crea solo desde variables de entorno ADMIN_LOGIN/ADMIN_PASS (nunca en el repo).
+let adminEnsured = false;
 async function ensureAdmin(cols) {
+  if (adminEnsured) return;
   const login = (process.env.ADMIN_LOGIN || '').trim();
   const pass = process.env.ADMIN_PASS || '';
   if (!login || !pass) return;
   const prev = await cols.users.findOne({ login });
-  if (prev) { if (prev.role !== 'admin') await cols.users.updateOne({ _id: prev._id }, { $set: { role: 'admin' } }); return; }
+  if (prev) {
+    if (prev.role !== 'admin') await cols.users.updateOne({ _id: prev._id }, { $set: { role: 'admin' } });
+    adminEnsured = true;
+    return;
+  }
   const salt = crypto.randomBytes(8).toString('hex');
   await cols.users.insertOne({ _id: store.uid(), login, salt, pass: store.hashPass(pass, salt), role: 'admin', active: true, created: store.nowIso() });
   console.log('[OTT] admin creado: ' + login);
+  adminEnsured = true;
 }
 function admSign(uid) {
   const exp = Date.now() + 1000 * 60 * 60 * 12; // 12h
@@ -48,6 +55,9 @@ function admSign(uid) {
   const sig = crypto.createHmac('sha256', secret()).update(body).digest('hex');
   return 'adm.' + body + '.' + sig;
 }
+const adminAuthCache = new Map();
+const ADMIN_CACHE_TTL = 30 * 1000; // 30s cache para evitar consultas DB continuas
+
 async function adminAuthed(cols, req) {
   const h = req.headers['x-admin-key'] || '';
   if (ADMIN() && h === ADMIN()) return true; // compatibilidad: ADMIN_KEY
@@ -58,7 +68,14 @@ async function adminAuthed(cols, req) {
     if (sig !== p[2]) return false;
     const d = JSON.parse(Buffer.from(p[1], 'base64').toString());
     if (!d.u || !d.a || d.e < Date.now()) return false;
+    const cached = adminAuthCache.get(d.u);
+    if (cached && (Date.now() - cached.ts < ADMIN_CACHE_TTL)) {
+      return cached.role === 'admin' && cached.active !== false;
+    }
     const u = await cols.users.findOne({ _id: d.u });
+    if (u) {
+      adminAuthCache.set(d.u, { role: u.role, active: u.active, ts: Date.now() });
+    }
     return !!(u && u.role === 'admin' && u.active !== false);
   } catch (e) { return false; }
 }
@@ -531,7 +548,7 @@ function fetchWithRedirects(targetUrl, options, maxRedirects, callback) {
         const [users, devices, playlists] = await Promise.all([
           Promise.resolve(cols.users.find({})).catch(() => []),
           Promise.resolve(cols.devices.find({})).catch(() => []),
-          Promise.resolve(cols.playlists.find({})).catch(() => []),
+          Promise.resolve(cols.playlists.find({}, { customM3u: 0 })).catch(() => []),
         ]);
         const userList = Array.isArray(users) ? users : [];
         const deviceList = Array.isArray(devices) ? devices : [];

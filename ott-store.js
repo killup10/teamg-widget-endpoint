@@ -9,10 +9,20 @@ const nowIso = () => new Date().toISOString();
 function memCol() {
   const rows = [];
   return {
-    async find(q) {
-      return rows.filter((r) => Object.keys(q || {}).every((k) => r[k] === q[k]));
+    async find(q, proj) {
+      let res = rows.filter((r) => Object.keys(q || {}).every((k) => r[k] === q[k]));
+      if (proj && typeof proj === 'object') {
+        res = res.map((r) => {
+          const out = { ...r };
+          for (const k of Object.keys(proj)) {
+            if (proj[k] === 0) delete out[k];
+          }
+          return out;
+        });
+      }
+      return res;
     },
-    async findOne(q) { const a = await this.find(q); return a[0] || null; },
+    async findOne(q, proj) { const a = await this.find(q, proj); return a[0] || null; },
     async insertOne(d) { rows.push(d); return { insertedId: d._id }; },
     async updateOne(f, u) {
       const r = await this.findOne(f); if (!r) return { matchedCount: 0 };
@@ -35,8 +45,8 @@ async function init() {
     await client.connect();
     const db = client.db(process.env.OTT_DB || 'ottv');
     const wrap = (c) => ({
-      find: (q) => c.find(q || {}).toArray(),
-      findOne: (q) => c.findOne(q),
+      find: (q, proj) => c.find(q || {}, proj ? { projection: proj } : {}).toArray(),
+      findOne: (q, proj) => c.findOne(q, proj ? { projection: proj } : {}),
       insertOne: (d) => c.insertOne(d),
       updateOne: (f, u) => c.updateOne(f, u),
       deleteOne: (f) => c.deleteOne(f),
