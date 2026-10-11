@@ -21,7 +21,18 @@ async function call(path, method = 'GET', body = {}, query = {}, admin = false) 
   const userId = new ObjectId(), deviceId = new ObjectId(), playlistId = new ObjectId();
   await cols.users.insertOne({ _id: userId, login: 'mongo-client', salt: 'test-salt', pass: store.hashPass('original', 'test-salt'), active: false, role: 'fake' });
   await cols.devices.insertOne({ _id: deviceId, userId, playlists: [] });
-  await cols.playlists.insertOne({ _id: playlistId, name: 'Live', customM3u: '#EXTM3U\n#EXTINF:-1,Test\nhttps://example.com/live.ts\n' });
+  await cols.playlists.insertOne({ _id: playlistId, name: 'Live', channels: [{ name: 'Heavy content must not enter startup metadata' }], customM3u: '#EXTM3U\n#EXTINF:-1,Test\nhttps://example.com/live.ts\n' });
+  const readPlaylists = cols.playlists.find;
+  let startupReads = 0;
+  cols.playlists.find = async function(query, projection) {
+    const rows = await readPlaylists.call(this, query, projection);
+    if (projection) {
+      startupReads++;
+      assert.equal(projection.name, 1, 'Startup must request only explicit metadata fields');
+      assert.ok(rows.every(row => !('customM3u' in row) && !('channels' in row)), 'Startup must not read playlist content');
+    }
+    return rows;
+  };
   const admin = (path, method, body) => call('/api/ott/admin/' + path, method, body, {}, true);
   let result = await admin('user', 'POST', { id: String(userId), active: true, password: 'updated' });
   assert.equal(result.status, 200);
@@ -38,6 +49,12 @@ async function call(path, method = 'GET', body = {}, query = {}, admin = false) 
   result = await call('/api/ott/feed', 'GET', {}, { token, deviceId: String(deviceId) });
   assert.equal(result.status, 200);
   assert.equal(result.data.playlists.length, 1);
+  // Reopening the app reuses its saved token/device and needs no registration.
+  result = await call('/api/ott/feed', 'GET', {}, { token, deviceId: String(deviceId) });
+  assert.equal(result.status, 200);
+  assert.equal(result.data.playlists[0].id, String(playlistId));
+  assert.equal(startupReads, 3, 'Device registration and both automatic feed loads must use lightweight metadata');
+  cols.playlists.find = readPlaylists;
   result = await call('/api/ott/m3u', 'GET', {}, { token, deviceId: String(deviceId), pid: String(playlistId) });
   assert.equal(result.status, 200);
   assert.match(result.data, /#EXTM3U/);

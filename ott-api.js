@@ -273,6 +273,7 @@ async function findById(col, id) {
 }
 
 const isHalloween = (p) => /halloween/i.test((p && p.name) || '') || /halloween/i.test((p && p.badge) || '');
+const PLAYLIST_METADATA_PROJECTION = { _id: 1, name: 1, epgUrl: 1, color: 1, badge: 1, expiresAt: 1, seriesCovers: 1 };
 
 const pub = (p) => {
   const isHw = isHalloween(p);
@@ -400,7 +401,7 @@ async function handle(req, res, pathname, query, body) {
     if (prev) await cols.devices.updateOne({ _id: prev._id }, { $set: { name, platform, lastSeen: store.nowIso() } });
     else await cols.devices.insertOne({ _id: devId, userId: uid, name, platform, playlists: [], created: store.nowIso(), lastSeen: store.nowIso() });
     const dev = await findById(cols.devices, devId);
-    const pls = await cols.playlists.find({}, { customM3u: 0 });
+    const pls = await cols.playlists.find({}, PLAYLIST_METADATA_PROJECTION);
     const devPls = (dev && dev.playlists ? dev.playlists : []).map(String);
     const mine = pls.filter((p) => devPls.indexOf(String(p._id)) > -1 && !playlistExpired(p)).map(pub);
     return json(res, 200, { ok: true, device: { id: dev._id, name: dev.name }, playlists: mine });
@@ -411,7 +412,7 @@ async function handle(req, res, pathname, query, body) {
     const a = await authedDevice(body, query);
     if (a.err) return json(res, 401, { ok: false, error: a.err });
     await a.cols.devices.updateOne({ _id: a.dev._id }, { $set: { lastSeen: store.nowIso() } });
-    const pls = await a.cols.playlists.find({}, { customM3u: 0 });
+    const pls = await a.cols.playlists.find({}, PLAYLIST_METADATA_PROJECTION);
     const devPls = (a.dev.playlists || []).map(String);
     const mine = pls.filter((p) => devPls.indexOf(String(p._id)) > -1 && !playlistExpired(p)).map(pub);
     return json(res, 200, { ok: true, playlists: mine });
