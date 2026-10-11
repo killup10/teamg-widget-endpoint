@@ -67,10 +67,10 @@ const { handle } = require('../ott-api');
   assert.equal(status, 401);
   assert.equal((await cols.devices.findOne({ _id: 'tv_living_room' })).userId, u1._id);
 
-  // 7. Verify TV UI (ott/index.html) displays playlists first in getHomeTabsList and renders cards in renderHomeOverview
+  // 7. Playlists stay in bottom tabs without duplicate Home folder cards.
   const html = fs.readFileSync(path.join(__dirname, '..', 'ott', 'index.html'), 'utf8');
-  assert.ok(html.includes('Tus Listas'), 'renderHomeOverview must render Tus Listas heading when playlists exist');
-  assert.ok(html.includes('home-pl-card'), 'renderHomeOverview must render home-pl-card elements');
+  assert.ok(!html.includes('home-pl-card'), 'Home must not duplicate playlists as folder cards');
+  assert.ok(html.includes('Último contenido abierto'), 'Home must retain recent content');
   assert.ok(html.includes("homeTabs.push({ id: '__fav', name: 'Favoritos' });"), 'getHomeTabsList must place Favoritos after assigned playlists');
 
   console.log('Client playlists assignment and visibility unit tests pass successfully.');

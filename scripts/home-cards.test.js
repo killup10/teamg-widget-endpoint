@@ -33,9 +33,9 @@ const mockCtx = {
   state: mockState,
   escapeHtml: s => String(s || ''),
   resolveIconUrl: s => s,
-  visiblePlaylists: () => [],
-  getPlColor: () => null,
-  getPlBadge: () => null,
+  visiblePlaylists: () => [{ id: 'live', name: 'Cine por Genero' }, { id: 'halloween', name: 'Halloween' }],
+  getPlColor: pl => pl.id === 'halloween' ? '#ff6a00' : '',
+  getPlBadge: pl => pl.id === 'halloween' ? 'HALLOWEEN' : '',
   $: id => {
     if (!domElements[id]) domElements[id] = { style: {} };
     return domElements[id];
@@ -55,6 +55,9 @@ assert.ok(out.includes('<div class="tile-num">1</div>'), 'First card must have t
 assert.ok(out.includes('<div class="tile-num">2</div>'), 'Second card must have tile-num 2');
 assert.ok(out.includes('<div class="tile-title" title="Canal 1 HD"><span class="tile-title-text">Canal 1 HD</span></div>'), 'Card 1 must have tile-title with tile-title-text');
 assert.ok(out.includes('Serie Genial · 1×5'), 'Card 2 series label formatted correctly');
+assert.ok(out.includes('Halloween') && out.includes('HALLOWEEN'), 'Halloween banner must remain above recent content');
+assert.ok(out.includes('Último contenido abierto'), 'Recent content heading must remain');
+assert.ok(!out.includes('home-pl-card') && !out.includes('Cine por Genero'), 'Normal playlists must appear only in the bottom tabs');
 
 // 3. Verify marquee is activated when currentFocusArea is 'recent'
 assert.ok(
