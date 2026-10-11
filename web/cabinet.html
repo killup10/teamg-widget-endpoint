@@ -371,7 +371,7 @@ function render() {
       h += "<span class='small'>Fake-user:</span> <select data-fu='" + d.id + "'>" + DATA.users.map(function(u) { return "<option value='" + u.id + "'" + (u.id === d.userId ? " selected" : "") + ">" + esc(u.login) + "</option>"; }).join("") + "</select><br/>";
       h += "<span class='small'>connected playlists:</span><br/>";
       DATA.playlists.forEach(function(p) {
-        var on = (d.playlists || []).indexOf(p.id) > -1;
+        var on = (d.playlists || []).map(String).indexOf(String(p.id)) > -1;
         h += "<label class='chk'><input type='checkbox' data-dev='" + d.id + "' value='" + p.id + "'" + (on ? " checked" : "") + "/>" + esc(p.name) + "</label>";
       });
       h += "<br/><button class='act' data-save='" + d.id + "'>OK</button></div>";

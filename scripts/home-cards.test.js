@@ -68,9 +68,9 @@ assert.ok(
   'Top DOWN navigation must target recent cards when on Home screen and recent cards exist'
 );
 
-// 5. Verify version bumps to v2.5.54
-assert.ok(html.includes('v2.5.54'), 'index.html must display version v2.5.54');
-assert.ok(html.includes('native-player.js?v=2.5.54'), 'native-player.js query must be v2.5.54');
-assert.ok(server.includes('logo-teamg.png?v=2.5.54'), 'server.js logo query must be v2.5.54');
+// 5. Verify version bumps to v2.5.55
+assert.ok(html.includes('v2.5.55'), 'index.html must display version v2.5.55');
+assert.ok(html.includes('native-player.js?v=2.5.55'), 'native-player.js query must be v2.5.55');
+assert.ok(server.includes('logo-teamg.png?v=2.5.55'), 'server.js logo query must be v2.5.55');
 
 console.log('Home preview cards and navigation visual parity unit tests pass successfully.');

@@ -257,6 +257,26 @@ function playlistExpired(p, nowMs) {
   return t < (nowMs || Date.now());
 }
 
+async function findById(col, id) {
+  if (!col || !id) return null;
+  const sId = String(id).trim();
+  if (!sId) return null;
+  let doc = await col.findOne({ _id: sId });
+  if (doc) return doc;
+  try {
+    const { ObjectId } = require('mongodb');
+    if (ObjectId && ObjectId.isValid && ObjectId.isValid(sId)) {
+      doc = await col.findOne({ _id: new ObjectId(sId) });
+      if (doc) return doc;
+    }
+  } catch (e) {}
+  try {
+    const all = await col.find({});
+    doc = all.find((x) => x && String(x._id) === sId) || null;
+  } catch (e2) {}
+  return doc;
+}
+
 const isHalloween = (p) => /halloween/i.test((p && p.name) || '') || /halloween/i.test((p && p.badge) || '');
 
 const pub = (p) => {
@@ -270,15 +290,29 @@ const pub = (p) => {
     color = color || HALLOWEEN_ORANGE;
     badge = badge || 'HALLOWEEN';
   }
-  const seriesCovers = [];
-  const seen = new Set();
-  if (p.customM3u) for (const c of parseM3uText(p.customM3u).channels) {
-    if (c.seriesLogo && !seen.has(c.group)) { seriesCovers.push({ group: c.group, logo: c.seriesLogo }); seen.add(c.group); }
+  const seriesCovers = Array.isArray(p.seriesCovers) ? p.seriesCovers : [];
+  if (seriesCovers.length === 0 && p.customM3u && typeof p.customM3u === 'string' && p.customM3u.length < 500000) {
+    try {
+      const seen = new Set();
+      const parsed = parseM3uText(p.customM3u);
+      if (parsed && Array.isArray(parsed.channels)) {
+        for (const c of parsed.channels) {
+          if (c.seriesLogo && !seen.has(c.group)) {
+            seriesCovers.push({ group: c.group, logo: c.seriesLogo });
+            seen.add(c.group);
+          }
+        }
+      }
+    } catch (eCov) {}
   }
   return {
-    id: p._id, name: p.name, epg: p.epgUrl || '',
-    color, badge,
-    expiresAt: normalizeExpires(p.expiresAt), expired: playlistExpired(p),
+    id: String(p._id),
+    name: String(p.name || ''),
+    epg: p.epgUrl || '',
+    color,
+    badge,
+    expiresAt: normalizeExpires(p.expiresAt),
+    expired: playlistExpired(p),
     seriesCovers,
   };
 };
@@ -287,13 +321,17 @@ async function authedDevice(body, query) {
   const cols = await store.init();
   const uid = verify(body.token || query.token);
   if (!uid) return { err: 'no-auth' };
-  const user = await cols.users.findOne({ _id: uid });
+  const user = await cols.users.findOne({ _id: String(uid) });
   if (!user) return { err: 'no-user' };
   if (expired(user)) return { err: 'blocked' };
-  const devId = body.deviceId || query.deviceId;
+  const devId = String(body.deviceId || query.deviceId || '').trim();
   if (!devId) return { err: 'no-device' };
-  const dev = await cols.devices.findOne({ _id: devId, userId: uid });
+  let dev = await cols.devices.findOne({ _id: devId });
   if (!dev) return { err: 'no-device' };
+  if (String(dev.userId) !== String(uid)) {
+    await cols.devices.updateOne({ _id: devId }, { $set: { userId: uid, lastSeen: store.nowIso() } });
+    dev.userId = uid;
+  }
   return { cols, user, dev };
 }
 
@@ -354,19 +392,19 @@ async function handle(req, res, pathname, query, body) {
   if (pathname === '/api/ott/device' && req.method === 'POST') {
     const uid = verify(body.token);
     if (!uid) return json(res, 401, { ok: false, error: 'no-auth' });
-    const user = await cols.users.findOne({ _id: uid });
+    const user = await cols.users.findOne({ _id: String(uid) });
     if (!user) return json(res, 401, { ok: false, error: 'no-user' });
     const devId = String(body.deviceId || '').trim();
     if (!devId) return json(res, 400, { ok: false, error: 'Falta deviceId' });
     const name = String(body.name || body.platform || 'SmartTV').trim().slice(0, 60) || 'SmartTV';
     const platform = String(body.platform || '').slice(0, 60);
     const prev = await cols.devices.findOne({ _id: devId });
-    if (prev && prev.userId !== uid) return json(res, 403, { ok: false, error: 'Dispositivo de otro usuario' });
-    if (prev) await cols.devices.updateOne({ _id: devId }, { $set: { name, platform, lastSeen: store.nowIso() } });
+    if (prev) await cols.devices.updateOne({ _id: devId }, { $set: { userId: uid, name, platform, lastSeen: store.nowIso() } });
     else await cols.devices.insertOne({ _id: devId, userId: uid, name, platform, playlists: [], created: store.nowIso(), lastSeen: store.nowIso() });
     const dev = await cols.devices.findOne({ _id: devId });
-    const pls = await cols.playlists.find({});
-    const mine = pls.filter((p) => (dev.playlists || []).indexOf(p._id) > -1 && !playlistExpired(p)).map(pub);
+    const pls = await cols.playlists.find({}, { customM3u: 0 });
+    const devPls = (dev && dev.playlists ? dev.playlists : []).map(String);
+    const mine = pls.filter((p) => devPls.indexOf(String(p._id)) > -1 && !playlistExpired(p)).map(pub);
     return json(res, 200, { ok: true, device: { id: dev._id, name: dev.name }, playlists: mine });
   }
 
@@ -375,16 +413,19 @@ async function handle(req, res, pathname, query, body) {
     const a = await authedDevice(body, query);
     if (a.err) return json(res, 401, { ok: false, error: a.err });
     await a.cols.devices.updateOne({ _id: a.dev._id }, { $set: { lastSeen: store.nowIso() } });
-    const pls = await a.cols.playlists.find({});
-    return json(res, 200, { ok: true, playlists: pls.filter((p) => (a.dev.playlists || []).indexOf(p._id) > -1 && !playlistExpired(p)).map(pub) });
+    const pls = await a.cols.playlists.find({}, { customM3u: 0 });
+    const devPls = (a.dev.playlists || []).map(String);
+    const mine = pls.filter((p) => devPls.indexOf(String(p._id)) > -1 && !playlistExpired(p)).map(pub);
+    return json(res, 200, { ok: true, playlists: mine });
   }
 
   // ---- TV: descargar M3U / EPG asignados (proxy, evita CORS) ----
   if ((pathname === '/api/ott/m3u' || pathname === '/api/ott/epg') && req.method === 'GET') {
     const a = await authedDevice(body, query);
     if (a.err) return json(res, 401, { ok: false, error: a.err });
-    const pl = await a.cols.playlists.findOne({ _id: String(query.pid || '') });
-    if (!pl || (a.dev.playlists || []).indexOf(pl._id) < 0) return json(res, 403, { ok: false, error: 'No asignada' });
+    const pl = await findById(a.cols.playlists, query.pid);
+    const devPls = (a.dev.playlists || []).map(String);
+    if (!pl || devPls.indexOf(String(pl._id)) < 0) return json(res, 403, { ok: false, error: 'No asignada' });
     if (playlistExpired(pl)) return json(res, 410, { ok: false, error: 'Lista expirada' });
     if (pathname === '/api/ott/m3u' && pl.customM3u) {
       res.writeHead(200, {

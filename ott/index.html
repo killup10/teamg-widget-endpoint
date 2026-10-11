@@ -1903,7 +1903,7 @@ body.text-large .drawer-num { font-size: 25px !important; }
         <h3>Información</h3>
         <p id="optDescText">Usa tu usuario y contraseña otorgados por el administrador para vincular este televisor y descargar tus listas.</p>
         <div style="margin-top:22px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.5.54 — Reproducción directa sin bloqueo de calidad en Smart TVs y WebOS
+          VERSIÓN: v2.5.55 — Reproducción directa sin bloqueo de calidad en Smart TVs y WebOS
         </div>
       </div>
     </div>
@@ -2087,7 +2087,7 @@ body.text-large .drawer-num { font-size: 25px !important; }
 
 <!-- Script HLS Vendor -->
 <script src="vendor/hls.min.js"></script>
-<script src="native-player.js?v=2.5.54"></script>
+<script src="native-player.js?v=2.5.55"></script>
 <script src="hls-variant.js?v=2.5.54"></script>
 <script>
 (function() {
@@ -4359,8 +4359,8 @@ function renderHomeOverview(area) {
       '</div>';
   }
   var specialHtml = '';
+  var vpls = visiblePlaylists();
   try {
-    var vpls = visiblePlaylists();
     for (var s = 0; s < vpls.length; s++) {
       var sColor = getPlColor(vpls[s]);
       var sBadge = getPlBadge(vpls[s]);
@@ -4374,12 +4374,43 @@ function renderHomeOverview(area) {
       }
     }
   } catch (eSp) {}
+
+  var plCards = '';
+  for (var p = 0; p < vpls.length; p++) {
+    var plItem = vpls[p];
+    var isHw = isHalloweenPl(plItem);
+    var pColor = getPlColor(plItem);
+    var pBadge = getPlBadge(plItem);
+    var pBorder = pColor ? ('border:2px solid ' + escapeHtml(pColor) + ';') : 'border:1px solid rgba(255,255,255,0.18);';
+    var pIconSvg = isHw
+      ? '<span style="font-size:36px;">🎃</span>'
+      : '<svg width="40" height="40" viewBox="0 0 24 24" fill="#ffcc00" stroke="#d4a300" stroke-width="1.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>';
+    plCards += '<div class="tile-item home-preview-card home-pl-card' + (isHw ? ' is-halloween' : '') + '" id="homePlCard' + p + '" style="' + pBorder + 'cursor:pointer;">' +
+      '<div class="tile-thumb" style="display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#1f1418,#12080c);">' +
+      '<div class="tile-num">' + (p + 1) + '</div>' +
+      pIconSvg +
+      '</div>' +
+      '<div class="tile-title" title="' + escapeHtml(plItem.name) + '">' +
+      '<span class="tile-title-text" style="font-weight:bold;color:#fff;">' + escapeHtml(plItem.name) + '</span>' +
+      (pBadge ? ' <span class="tab-badge" style="background:' + escapeHtml(pColor || '#ff6a00') + ';font-size:10px;padding:2px 6px;margin-left:4px;">' + escapeHtml(pBadge) + '</span>' : '') +
+      '</div>' +
+      '</div>';
+  }
+
   area.innerHTML = '<div class="home-overview"><div class="home-eyebrow">TEAMG PLAY</div>' +
-    '<h1>Tu próximo contenido empieza aquí</h1><p>Elige un playlist abajo o vuelve a tu último contenido.</p>' + specialHtml +
+    '<h1>Tu próximo contenido empieza aquí</h1><p>Selecciona una lista para abrirla o continúa viendo tu contenido reciente.</p>' + specialHtml +
+    (plCards ? '<h2>Tus Listas (' + vpls.length + ')</h2><div class="home-preview-row">' + plCards + '</div>' : '') +
     (cards ? '<h2>Último contenido abierto</h2><div class="home-preview-row">' + cards + '</div>' :
     '<div class="home-welcome">Cine · Series · TV en vivo</div>') + '</div>';
+
   for (var j = 0; j < items.length && j < 6; j++) {
     $('recentContent' + j).onclick = (function(idx) { return function() { openRecentContent(idx); }; })(j);
+  }
+  for (var q = 0; q < vpls.length; q++) {
+    (function(plObj, idx) {
+      var el = $('homePlCard' + idx);
+      if (el) el.onclick = function() { loadPlaylistContent(plObj); };
+    })(vpls[q], q);
   }
   var track = $('grid-scrollbar'); if (track) track.style.display = 'none';
 }
@@ -4469,11 +4500,12 @@ function visiblePlaylists() {
   return out;
 }
 function getHomeTabsList() {
-  var homeTabs = [{ id: '__fav', name: 'Favorites' }];
+  var homeTabs = [];
   var pls = visiblePlaylists();
   for (var p = 0; p < pls.length; p++) {
     homeTabs.push({ id: pls[p].id, name: pls[p].name, pl: pls[p] });
   }
+  homeTabs.push({ id: '__fav', name: 'Favoritos' });
   return homeTabs;
 }
 
