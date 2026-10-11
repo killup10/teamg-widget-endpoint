@@ -7,9 +7,9 @@ const { handle } = require('../ott-api');
 process.env.ADMIN_KEY = 'local-regression-admin';
 delete process.env.MONGODB_URI;
 
-async function call(path, method = 'GET', body = {}, query = {}, admin = false) {
+async function call(path, method = 'GET', body = {}, query = {}, admin = false, headers = {}) {
   let status, data;
-  await handle({ method, headers: admin ? { 'x-admin-key': process.env.ADMIN_KEY } : {} }, {
+  await handle({ method, headers: { ...headers, ...(admin ? { 'x-admin-key': process.env.ADMIN_KEY } : {}) } }, {
     writeHead(code) { status = code; },
     end(raw) { try { data = JSON.parse(raw); } catch { data = raw; } }
   }, path, query, body);
@@ -58,6 +58,39 @@ async function call(path, method = 'GET', body = {}, query = {}, admin = false) 
   result = await call('/api/ott/m3u', 'GET', {}, { token, deviceId: String(deviceId), pid: String(playlistId) });
   assert.equal(result.status, 200);
   assert.match(result.data, /#EXTM3U/);
+  const originalFindOne = cols.playlists.findOne;
+  let contentReads = 0;
+  cols.playlists.findOne = async function(query, projection) {
+    if (!projection) return originalFindOne.call(this, query);
+    assert.ok(projection && projection._id === 1, 'TV reads must explicitly select fields');
+    assert.ok(!projection.artworkBackup && !projection.channels, 'TV must not read artwork backups or channel arrays');
+    const found = await originalFindOne.call(this, query, projection);
+    if (projection.customM3u) contentReads++;
+    return found;
+  };
+  const m3uQuery = { token, deviceId: String(deviceId), pid: String(playlistId) };
+  result = await call('/api/ott/m3u', 'GET', {}, m3uQuery);
+  assert.equal(result.status, 200);
+  assert.equal(contentReads, 0, 'Reopening app must reuse server content cache');
+  const editedText = '#EXTM3U\n#EXTINF:-1,Edited\nhttps://example.com/edited.ts\n';
+  await cols.playlists.updateOne({ _id: playlistId }, { $set: { customM3u: editedText, updatedAt: '2026-10-11T03:00:00Z' } });
+  result = await call('/api/ott/m3u', 'GET', {}, m3uQuery);
+  assert.equal(result.data, editedText, 'Cabinet revision changes must invalidate cache immediately');
+  assert.ok(contentReads > 0);
+  const readsAfterEdit = contentReads;
+  result = await call('/api/ott/m3u', 'GET', {}, { ...m3uQuery, _cb: 'force-refresh' });
+  assert.ok(contentReads > readsAfterEdit, 'Manual refresh must bypass cache');
+  result = await call('/api/ott/m3u', 'GET', {}, m3uQuery, false, { 'accept-encoding': 'gzip' });
+  assert.equal(require('node:zlib').gunzipSync(result.data).toString(), editedText);
+  await cols.playlists.updateOne({ _id: playlistId }, { $set: { expiresAt: '2000-01-01' } });
+  result = await call('/api/ott/m3u', 'GET', {}, m3uQuery);
+  assert.equal(result.status, 410, 'Cache must not bypass playlist expiry');
+  await cols.playlists.updateOne({ _id: playlistId }, { $set: { expiresAt: '' } });
+  await cols.devices.updateOne({ _id: deviceId }, { $set: { playlists: [] } });
+  result = await call('/api/ott/m3u', 'GET', {}, m3uQuery);
+  assert.equal(result.status, 403, 'Cache must not bypass assignments');
+  await cols.devices.updateOne({ _id: deviceId }, { $set: { playlists: [String(playlistId)] } });
+  cols.playlists.findOne = originalFindOne;
   result = await admin('assign', 'POST', { deviceId: 'missing', playlistIds: [] });
   assert.equal(result.status, 404, 'A missing device must not report a successful assignment');
   result = await admin('assign', 'POST', { deviceId: String(deviceId), playlistIds: ['missing'] });

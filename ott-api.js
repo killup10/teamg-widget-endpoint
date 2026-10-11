@@ -257,23 +257,39 @@ function playlistExpired(p, nowMs) {
   return t < (nowMs || Date.now());
 }
 
-async function findById(col, id) {
+async function findById(col, id, projection) {
   if (!col || !id) return null;
   const sId = String(id).trim();
   if (!sId) return null;
-  let doc = await col.findOne({ _id: sId });
+  let doc = await col.findOne({ _id: sId }, projection);
   if (doc) return doc;
   const { ObjectId } = require('mongodb');
   if (ObjectId.isValid(sId)) {
-    doc = await col.findOne({ _id: new ObjectId(sId) });
+    doc = await col.findOne({ _id: new ObjectId(sId) }, projection);
     if (doc) return doc;
   }
-  const all = await col.find({});
+  const all = await col.find({}, projection);
   return all.find((x) => x && String(x._id) === sId) || null;
 }
 
 const isHalloween = (p) => /halloween/i.test((p && p.name) || '') || /halloween/i.test((p && p.badge) || '');
 const PLAYLIST_METADATA_PROJECTION = { _id: 1, name: 1, epgUrl: 1, color: 1, badge: 1, expiresAt: 1, seriesCovers: 1 };
+const playlistContentCache = new Map();
+const CONTENT_CACHE_LIMIT = 64 * 1024 * 1024;
+let contentCacheBytes = 0;
+function cachePlaylistContent(id, revision, text) {
+  const old = playlistContentCache.get(id);
+  if (old) { contentCacheBytes -= old.bytes; playlistContentCache.delete(id); }
+  const bytes = Buffer.byteLength(text);
+  if (bytes > CONTENT_CACHE_LIMIT) return;
+  while (contentCacheBytes + bytes > CONTENT_CACHE_LIMIT && playlistContentCache.size) {
+    const oldest = playlistContentCache.keys().next().value;
+    contentCacheBytes -= playlistContentCache.get(oldest).bytes;
+    playlistContentCache.delete(oldest);
+  }
+  playlistContentCache.set(id, { revision, text, bytes, ts: Date.now() });
+  contentCacheBytes += bytes;
+}
 
 const pub = (p) => {
   const isHw = isHalloween(p);
@@ -422,24 +438,45 @@ async function handle(req, res, pathname, query, body) {
   if ((pathname === '/api/ott/m3u' || pathname === '/api/ott/epg') && req.method === 'GET') {
     const a = await authedDevice(body, query);
     if (a.err) return json(res, 401, { ok: false, error: a.err });
-    const pl = await findById(a.cols.playlists, query.pid);
+    const pl = await findById(a.cols.playlists, query.pid, { _id: 1, url: 1, epgUrl: 1, expiresAt: 1, updatedAt: 1, created: 1 });
     const devPls = (a.dev.playlists || []).map(String);
     if (!pl || devPls.indexOf(String(pl._id)) < 0) return json(res, 403, { ok: false, error: 'No asignada' });
     if (playlistExpired(pl)) return json(res, 410, { ok: false, error: 'Lista expirada' });
-    if (pathname === '/api/ott/m3u' && pl.customM3u) {
-      res.writeHead(200, {
+    const isFresh = (query.refresh === '1' || !!query._cb);
+    if (pathname === '/api/ott/m3u') {
+      const id = String(pl._id), revision = String(pl.updatedAt || pl.created || '');
+      const cached = playlistContentCache.get(id);
+      let text = null;
+      if (!isFresh && cached && cached.revision === revision && Date.now() - cached.ts < CACHE_TTL_MS) text = cached.text;
+      else {
+        const content = await findById(a.cols.playlists, query.pid, { _id: 1, customM3u: 1, updatedAt: 1, created: 1 });
+        if (content && content.customM3u) {
+          text = content.customM3u;
+          cachePlaylistContent(id, String(content.updatedAt || content.created || ''), text);
+        }
+      }
+      if (text) {
+      const headers = {
         'Content-Type': 'text/plain; charset=utf-8',
         'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
         'Pragma': 'no-cache',
-        'Expires': '0'
-      });
-      res.end(pl.customM3u);
+        'Expires': '0',
+        'Vary': 'Accept-Encoding'
+      };
+      let payload = text;
+      const encoding = req.headers['accept-encoding'] || '';
+      if (/\bgzip\b/i.test(encoding) && !/gzip\s*;\s*q=0(?:\.0*)?(?:\s*[,;]|\s*$)/i.test(encoding)) {
+        payload = await new Promise((resolve, reject) => require('node:zlib').gzip(text, (err, data) => err ? reject(err) : resolve(data)));
+        headers['Content-Encoding'] = 'gzip';
+      }
+      res.writeHead(200, headers);
+      res.end(payload);
       return;
+      }
     }
     let target = pathname === '/api/ott/m3u' ? pl.url : (pl.epgUrl || '');
     if (!target) return json(res, 404, { ok: false, error: 'Sin URL' });
     try {
-      const isFresh = (query.refresh === '1' || !!query._cb);
       const text = await getCachedOrFetchText(target, isFresh);
       res.writeHead(200, {
         'Content-Type': pathname === '/api/ott/m3u' ? 'text/plain; charset=utf-8' : 'application/xml; charset=utf-8',
