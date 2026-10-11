@@ -17,23 +17,6 @@ async function call(path, method = 'GET', body = {}, query = {}, admin = false) 
 }
 
 (async () => {
-  const source = fs.readFileSync(require.resolve('../ott-api'), 'utf8');
-  const context = { require, store: { init: async () => ({ mode: 'mongo' }) } };
-  vm.runInNewContext(source.slice(source.indexOf('async function findById('), source.indexOf('const isHalloween =')), context);
-  const lookupId = new ObjectId();
-  const queries = [];
-  const collection = {
-    findOne: async query => { queries.push(query); return null; },
-    find: () => { throw new Error('Must not download entire MongoDB collection'); }
-  };
-  assert.equal(await context.findById(collection, String(lookupId)), null);
-  assert.equal(queries.length, 1, 'MongoDB lookup must use one indexed query');
-  assert.equal(queries[0]._id.$in[0], String(lookupId));
-  assert.ok(queries[0]._id.$in[1].equals(lookupId), 'Query must match both string and ObjectId IDs');
-  await context.findById(collection, 'missing-string-id');
-  assert.equal(queries.length, 2, 'Missing IDs must not trigger a full collection scan');
-  collection.findOne = async () => { throw new Error('Database unavailable'); };
-  await assert.rejects(context.findById(collection, String(lookupId)), /Database unavailable/);
   const cols = await store.init();
   const userId = new ObjectId(), deviceId = new ObjectId(), playlistId = new ObjectId();
   await cols.users.insertOne({ _id: userId, login: 'mongo-client', salt: 'test-salt', pass: store.hashPass('original', 'test-salt'), active: false, role: 'fake' });

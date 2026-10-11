@@ -5,6 +5,13 @@ const assert = require('node:assert/strict');
 const html = fs.readFileSync('ott/index.html', 'utf8');
 const normalizedHtml = html.replace(/\r\n/g, '\n');
 const server = fs.readFileSync('server.js', 'utf8');
+// Root and /ott entry points must load the same scripts without 404s.
+const scriptPaths = Array.from(html.matchAll(/<script src="([^"]+)"/g), match => match[1]);
+for (const entry of ['https://ott.teamg.store/', 'https://ott.teamg.store/ott', 'https://ott.teamg.store/ott/index.html']) {
+  for (const src of scriptPaths) {
+    assert.ok(new URL(src, entry).pathname.startsWith('/ott/'), 'App scripts must resolve under /ott/ from every entry point');
+  }
+}
 
 // 1. Verify CSS styles for Home preview cards match catalog tile-item dimensions
 assert.ok(html.includes('.tile-item { width: calc(16.666% - 0.4vw); height: 26.5vh;'), 'tile-item must define 26.5vh height');

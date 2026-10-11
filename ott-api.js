@@ -261,15 +261,9 @@ async function findById(col, id) {
   if (!col || !id) return null;
   const sId = String(id).trim();
   if (!sId) return null;
-  const { ObjectId } = require('mongodb');
-  if ((await store.init()).mode === 'mongo') {
-    // Una consulta por el índice _id; nunca descargar la colección completa.
-    const ids = [sId];
-    if (ObjectId.isValid(sId)) ids.push(new ObjectId(sId));
-    return col.findOne({ _id: { $in: ids } });
-  }
   let doc = await col.findOne({ _id: sId });
   if (doc) return doc;
+  const { ObjectId } = require('mongodb');
   if (ObjectId.isValid(sId)) {
     doc = await col.findOne({ _id: new ObjectId(sId) });
     if (doc) return doc;
