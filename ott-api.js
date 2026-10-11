@@ -585,15 +585,22 @@ function fetchWithRedirects(targetUrl, options, maxRedirects, callback) {
     if (sub === 'overview' && req.method === 'GET') {
       try {
         const readStarted = Date.now();
+        const readTimings = [];
+        async function readOverview(name, col, projection) {
+          const started = Date.now();
+          const rows = await col.find({}, projection);
+          readTimings.push(name + ';dur=' + (Date.now() - started));
+          return rows;
+        }
         const [users, devices, playlists] = await Promise.all([
-          cols.users.find({}),
-          cols.devices.find({}),
-          cols.playlists.find({}, { customM3u: 0 }),
+          readOverview('users', cols.users, { _id: 1, role: 1, login: 1, active: 1, expires: 1, created: 1 }),
+          readOverview('devices', cols.devices, { _id: 1, userId: 1, name: 1, note: 1, platform: 1, playlists: 1, lastSeen: 1 }),
+          readOverview('playlists', cols.playlists, { _id: 1, name: 1, url: 1, epgUrl: 1, color: 1, badge: 1, expiresAt: 1 }),
         ]);
         const userList = Array.isArray(users) ? users : [];
         const deviceList = Array.isArray(devices) ? devices : [];
         const playlistList = Array.isArray(playlists) ? playlists : [];
-        if (res.setHeader) res.setHeader('Server-Timing', 'auth;dur=' + (readStarted - requestStarted) + ', db;dur=' + (Date.now() - readStarted));
+        if (res.setHeader) res.setHeader('Server-Timing', 'auth;dur=' + (readStarted - requestStarted) + ', db;dur=' + (Date.now() - readStarted) + ', ' + readTimings.join(', '));
         return json(res, 200, {
           ok: true, mode: cols.mode,
           users: userList.filter((u) => u && u.role !== 'admin').map((u) => ({ id: u._id, login: u.login, active: u.active !== false, expires: u.expires || '', created: u.created })),

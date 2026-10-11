@@ -13,6 +13,13 @@ function memCol() {
       let res = rows.filter((r) => Object.keys(q || {}).every((k) => r[k] === q[k]));
       if (proj && typeof proj === 'object') {
         res = res.map((r) => {
+          const included = Object.keys(proj).filter((k) => proj[k] === 1);
+          if (included.length) {
+            const selected = {};
+            included.forEach((k) => { if (k in r) selected[k] = r[k]; });
+            if (proj._id !== 0 && '_id' in r) selected._id = r._id;
+            return selected;
+          }
           const out = { ...r };
           for (const k of Object.keys(proj)) {
             if (proj[k] === 0) delete out[k];
