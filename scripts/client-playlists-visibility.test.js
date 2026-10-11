@@ -19,7 +19,8 @@ const { handle } = require('../ott-api');
   const p3 = {
     _id: { toString() { return 'pl_mongo_obj'; } },
     name: 'Películas 4K',
-    url: 'http://cdn/4k.m3u'
+    url: 'http://cdn/4k.m3u',
+    customM3u: '#EXTM3U\n#EXTINF:-1,Test\nhttps://example.com/test.ts\n'
   };
   await cols.playlists.insertOne(p1);
   await cols.playlists.insertOne(p2);
@@ -53,16 +54,18 @@ const { handle } = require('../ott-api');
   // 5. Client accesses M3U for assigned playlist
   let m3uStatus, m3uHeaders, m3uBody;
   await handle({ method: 'GET', headers: {} }, { writeHead(s, h) { m3uStatus = s; m3uHeaders = h; }, end(raw) { m3uBody = raw; } }, '/api/ott/m3u', { token: token1, deviceId: 'tv_living_room', pid: 'pl_mongo_obj' }, {});
-  // p3 has url 'http://cdn/4k.m3u' so proxy redirect or fetch starts (not 403)
-  assert.notEqual(m3uStatus, 403, 'Assigned playlist with ObjectId string match must NOT return 403 No asignada');
+  assert.equal(m3uStatus, 200);
+  assert.ok(m3uBody.includes('#EXTM3U'));
 
-  // 6. Device reassignment / re-login without 403 error
-  // If TV is claimed by cliente2, it reconciles instead of failing with 403
+  // 6. Another client cannot take over the TV or its assigned playlists.
   let login2Res;
   await handle({ method: 'POST', headers: {} }, { writeHead(s) { status = s; }, end(raw) { login2Res = JSON.parse(raw); } }, '/api/ott/login', {}, { login: 'cliente2', password: '123456' });
   await handle({ method: 'POST', headers: {} }, { writeHead(s) { status = s; }, end(raw) { resData = JSON.parse(raw); } }, '/api/ott/device', {}, { token: login2Res.token, deviceId: 'tv_living_room', name: 'LG OLED Renamed' });
-  assert.equal(status, 200, 'Device re-login with valid user credentials must succeed and update device ownership without 403');
-  assert.equal(resData.ok, true);
+  assert.equal(status, 403);
+  assert.equal((await cols.devices.findOne({ _id: 'tv_living_room' })).userId, u1._id);
+  await handle({ method: 'GET', headers: {} }, { writeHead(s) { status = s; }, end(raw) { resData = JSON.parse(raw); } }, '/api/ott/feed', { token: login2Res.token, deviceId: 'tv_living_room' }, {});
+  assert.equal(status, 401);
+  assert.equal((await cols.devices.findOne({ _id: 'tv_living_room' })).userId, u1._id);
 
   // 7. Verify TV UI (ott/index.html) displays playlists first in getHomeTabsList and renders cards in renderHomeOverview
   const html = fs.readFileSync(path.join(__dirname, '..', 'ott', 'index.html'), 'utf8');

@@ -72,7 +72,7 @@ async function adminAuthed(cols, req) {
     if (cached && (Date.now() - cached.ts < ADMIN_CACHE_TTL)) {
       return cached.role === 'admin' && cached.active !== false;
     }
-    const u = await cols.users.findOne({ _id: d.u });
+    const u = await findById(cols.users, d.u);
     if (u) {
       adminAuthCache.set(d.u, { role: u.role, active: u.active, ts: Date.now() });
     }
@@ -263,18 +263,13 @@ async function findById(col, id) {
   if (!sId) return null;
   let doc = await col.findOne({ _id: sId });
   if (doc) return doc;
-  try {
-    const { ObjectId } = require('mongodb');
-    if (ObjectId && ObjectId.isValid && ObjectId.isValid(sId)) {
-      doc = await col.findOne({ _id: new ObjectId(sId) });
-      if (doc) return doc;
-    }
-  } catch (e) {}
-  try {
-    const all = await col.find({});
-    doc = all.find((x) => x && String(x._id) === sId) || null;
-  } catch (e2) {}
-  return doc;
+  const { ObjectId } = require('mongodb');
+  if (ObjectId.isValid(sId)) {
+    doc = await col.findOne({ _id: new ObjectId(sId) });
+    if (doc) return doc;
+  }
+  const all = await col.find({});
+  return all.find((x) => x && String(x._id) === sId) || null;
 }
 
 const isHalloween = (p) => /halloween/i.test((p && p.name) || '') || /halloween/i.test((p && p.badge) || '');
@@ -321,16 +316,15 @@ async function authedDevice(body, query) {
   const cols = await store.init();
   const uid = verify(body.token || query.token);
   if (!uid) return { err: 'no-auth' };
-  const user = await cols.users.findOne({ _id: String(uid) });
+  const user = await findById(cols.users, uid);
   if (!user) return { err: 'no-user' };
   if (expired(user)) return { err: 'blocked' };
   const devId = String(body.deviceId || query.deviceId || '').trim();
   if (!devId) return { err: 'no-device' };
-  let dev = await cols.devices.findOne({ _id: devId });
+  const dev = await findById(cols.devices, devId);
   if (!dev) return { err: 'no-device' };
   if (String(dev.userId) !== String(uid)) {
-    await cols.devices.updateOne({ _id: devId }, { $set: { userId: uid, lastSeen: store.nowIso() } });
-    dev.userId = uid;
+    return { err: 'no-device' };
   }
   return { cols, user, dev };
 }
@@ -392,16 +386,19 @@ async function handle(req, res, pathname, query, body) {
   if (pathname === '/api/ott/device' && req.method === 'POST') {
     const uid = verify(body.token);
     if (!uid) return json(res, 401, { ok: false, error: 'no-auth' });
-    const user = await cols.users.findOne({ _id: String(uid) });
+    const user = await findById(cols.users, uid);
     if (!user) return json(res, 401, { ok: false, error: 'no-user' });
+    const block = expired(user);
+    if (block) return json(res, 403, { ok: false, error: 'Cuenta ' + block + '. Contacta a tu proveedor.' });
     const devId = String(body.deviceId || '').trim();
     if (!devId) return json(res, 400, { ok: false, error: 'Falta deviceId' });
     const name = String(body.name || body.platform || 'SmartTV').trim().slice(0, 60) || 'SmartTV';
     const platform = String(body.platform || '').slice(0, 60);
-    const prev = await cols.devices.findOne({ _id: devId });
-    if (prev) await cols.devices.updateOne({ _id: devId }, { $set: { userId: uid, name, platform, lastSeen: store.nowIso() } });
+    const prev = await findById(cols.devices, devId);
+    if (prev && String(prev.userId) !== String(uid)) return json(res, 403, { ok: false, error: 'Dispositivo de otro usuario. Contacta a tu proveedor para reasignarlo.' });
+    if (prev) await cols.devices.updateOne({ _id: prev._id }, { $set: { name, platform, lastSeen: store.nowIso() } });
     else await cols.devices.insertOne({ _id: devId, userId: uid, name, platform, playlists: [], created: store.nowIso(), lastSeen: store.nowIso() });
-    const dev = await cols.devices.findOne({ _id: devId });
+    const dev = await findById(cols.devices, devId);
     const pls = await cols.playlists.find({}, { customM3u: 0 });
     const devPls = (dev && dev.playlists ? dev.playlists : []).map(String);
     const mine = pls.filter((p) => devPls.indexOf(String(p._id)) > -1 && !playlistExpired(p)).map(pub);
@@ -587,9 +584,9 @@ function fetchWithRedirects(targetUrl, options, maxRedirects, callback) {
     if (sub === 'overview' && req.method === 'GET') {
       try {
         const [users, devices, playlists] = await Promise.all([
-          Promise.resolve(cols.users.find({})).catch(() => []),
-          Promise.resolve(cols.devices.find({})).catch(() => []),
-          Promise.resolve(cols.playlists.find({}, { customM3u: 0 })).catch(() => []),
+          cols.users.find({}),
+          cols.devices.find({}),
+          cols.playlists.find({}, { customM3u: 0 }),
         ]);
         const userList = Array.isArray(users) ? users : [];
         const deviceList = Array.isArray(devices) ? devices : [];
@@ -620,16 +617,17 @@ function fetchWithRedirects(targetUrl, options, maxRedirects, callback) {
     if (sub === 'user' && req.method === 'POST') {
       // crear (sin id) o actualizar (con id): active, expires, password
       if (body.id) {
+        const prev = await findById(cols.users, body.id);
+        if (!prev) return json(res, 404, { ok: false, error: 'Usuario no encontrado' });
         const upd = {};
         if (typeof body.active === 'boolean') upd.active = body.active;
         if (typeof body.expires === 'string') upd.expires = body.expires.slice(0, 10);
         if (body.password) {
-          const prev = await cols.users.findOne({ _id: String(body.id) });
-          if (!prev) return json(res, 404, { ok: false });
           const salt = crypto.randomBytes(8).toString('hex');
           upd.salt = salt; upd.pass = store.hashPass(body.password, salt);
         }
-        await cols.users.updateOne({ _id: String(body.id) }, { $set: upd });
+        await cols.users.updateOne({ _id: prev._id }, { $set: upd });
+        adminAuthCache.delete(String(prev._id));
         return json(res, 200, { ok: true });
       }
       const login = String(body.login || '').trim();
@@ -697,7 +695,13 @@ function fetchWithRedirects(targetUrl, options, maxRedirects, callback) {
     }
     if (sub === 'assign' && req.method === 'POST') {
       if (!body.deviceId || !Array.isArray(body.playlistIds)) return json(res, 400, { ok: false, error: 'deviceId+playlistIds' });
-      await cols.devices.updateOne({ _id: String(body.deviceId) }, { $set: { playlists: body.playlistIds.map(String) } });
+      const dev = await findById(cols.devices, body.deviceId);
+      if (!dev) return json(res, 404, { ok: false, error: 'Dispositivo no encontrado' });
+      const ids = body.playlistIds.map(String);
+      for (const id of ids) {
+        if (!(await findById(cols.playlists, id))) return json(res, 404, { ok: false, error: 'Lista no encontrada' });
+      }
+      await cols.devices.updateOne({ _id: dev._id }, { $set: { playlists: ids } });
       return json(res, 200, { ok: true });
     }
     if (sub === 'device' && req.method === 'DELETE') {
@@ -707,15 +711,17 @@ function fetchWithRedirects(targetUrl, options, maxRedirects, callback) {
     if (sub === 'device' && req.method === 'PUT') {
       // edición admin: nota interna (no afecta al cliente) y/o reasignar fake-user
       if (!body.id) return json(res, 400, { ok: false, error: 'id' });
+      const dev = await findById(cols.devices, body.id);
+      if (!dev) return json(res, 404, { ok: false, error: 'Dispositivo no encontrado' });
       const upd = {};
       if (typeof body.note === 'string') upd.note = body.note.slice(0, 120);
       if (typeof body.name === 'string' && body.name.trim()) upd.name = body.name.trim().slice(0, 60);
       if (typeof body.userId === 'string') {
-        const nu = await cols.users.findOne({ _id: body.userId });
+        const nu = await findById(cols.users, body.userId);
         if (!nu) return json(res, 404, { ok: false, error: 'usuario' });
         upd.userId = body.userId;
       }
-      await cols.devices.updateOne({ _id: String(body.id) }, { $set: upd });
+      await cols.devices.updateOne({ _id: dev._id }, { $set: upd });
       return json(res, 200, { ok: true });
     }
     if (sub === 'playlist/channels' && req.method === 'GET') {

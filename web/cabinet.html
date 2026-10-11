@@ -290,22 +290,15 @@ function refresh() {
   if (a && !DATA) {
     a.innerHTML = "<div class='card'><p style='font-size:16px;color:#22c55e;font-weight:bold;'>Cargando datos del panel...</p><p class='small' id='wakeNotice' style='color:#777;margin-top:6px;'>Conectando con el servidor...</p></div>";
   }
-  var timerNotice = setTimeout(function() {
-    var wn = document.getElementById("wakeNotice");
-    if (wn) wn.textContent = "El servidor en la nube se está iniciando tras un periodo inactivo. Esperando respuesta...";
-  }, 2500);
-
   api("/api/ott/admin/overview").then(function(o) {
-    clearTimeout(timerNotice);
     DATA = o;
     render();
   }).catch(function(err) {
-    clearTimeout(timerNotice);
     console.error("Error al cargar datos:", err);
     if (a) {
       a.innerHTML = "<div class='card'><h2>No se pudo conectar con el servidor</h2>" +
         "<p style='color:#e53935;font-size:15px;margin:12px 0;'><b>Detalle:</b> " + esc(err.message || err) + "</p>" +
-        "<p class='small'>Si el servidor estuvo inactivo, puede tomar unos segundos iniciar. Pulsa Reintentar o vuelve a ingresar.</p>" +
+        "<p class='small'>Pulsa Reintentar o vuelve a ingresar.</p>" +
         "<div style='margin-top:16px;'>" +
         "<button class='act green' onclick='refresh()'>↻ Reintentar</button> " +
         "<button class='act' onclick='relogin()'>Iniciar sesión de nuevo</button>" +
