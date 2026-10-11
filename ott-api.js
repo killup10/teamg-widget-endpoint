@@ -353,6 +353,7 @@ async function searchYouTubeTrailer(title) {
 }
 
 async function handle(req, res, pathname, query, body) {
+  const requestStarted = Date.now();
   const cols = await store.init();
 
   // ---- TV: buscar trailer oficial de película o serie ----
@@ -583,6 +584,7 @@ function fetchWithRedirects(targetUrl, options, maxRedirects, callback) {
     if (!(await adminAuthed(cols, req))) return json(res, 403, { ok: false, error: 'admin' });
     if (sub === 'overview' && req.method === 'GET') {
       try {
+        const readStarted = Date.now();
         const [users, devices, playlists] = await Promise.all([
           cols.users.find({}),
           cols.devices.find({}),
@@ -591,6 +593,7 @@ function fetchWithRedirects(targetUrl, options, maxRedirects, callback) {
         const userList = Array.isArray(users) ? users : [];
         const deviceList = Array.isArray(devices) ? devices : [];
         const playlistList = Array.isArray(playlists) ? playlists : [];
+        if (res.setHeader) res.setHeader('Server-Timing', 'auth;dur=' + (readStarted - requestStarted) + ', db;dur=' + (Date.now() - readStarted));
         return json(res, 200, {
           ok: true, mode: cols.mode,
           users: userList.filter((u) => u && u.role !== 'admin').map((u) => ({ id: u._id, login: u.login, active: u.active !== false, expires: u.expires || '', created: u.created })),

@@ -250,6 +250,7 @@ var CURRENT_PL = null, CURRENT_GROUP = null, EDITING_CH_IDX = -1;
 var CURRENT_VIEW_MODE = "list";
 
 function api(p, m, b) {
+  var requestStarted = Date.now();
   var ctl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
   var timer = ctl ? setTimeout(function() { ctl.abort(); }, 45000) : null;
   return fetch(p, {
@@ -258,6 +259,7 @@ function api(p, m, b) {
     body: b ? JSON.stringify(b) : undefined,
     signal: ctl ? ctl.signal : undefined
   }).then(function(r) {
+    if (p === "/api/ott/admin/overview") console.log("[Cabinet] overview response", r.status, Date.now() - requestStarted, "ms", r.headers.get("Server-Timing") || "");
     if (timer) clearTimeout(timer);
     if (r.status === 403 || r.status === 401) {
       sessionStorage.removeItem("ottkey");
@@ -289,7 +291,9 @@ function refresh() {
   var a = document.getElementById("app");
   api("/api/ott/admin/overview").then(function(o) {
     DATA = o;
+    var renderStarted = Date.now();
     render();
+    console.log("[Cabinet] render", Date.now() - renderStarted, "ms");
   }).catch(function(err) {
     console.error("Error al cargar datos:", err);
     if (a) {
