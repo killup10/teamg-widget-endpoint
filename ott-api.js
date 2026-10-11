@@ -709,8 +709,9 @@ function fetchWithRedirects(targetUrl, options, maxRedirects, callback) {
       const dev = await findById(cols.devices, body.deviceId);
       if (!dev) return json(res, 404, { ok: false, error: 'Dispositivo no encontrado' });
       const ids = body.playlistIds.map(String);
-      for (const id of ids) {
-        if (!(await findById(cols.playlists, id))) return json(res, 404, { ok: false, error: 'Lista no encontrada' });
+      if (ids.length) {
+        const available = new Set((await cols.playlists.find({}, { _id: 1 })).map((p) => String(p._id)));
+        if (ids.some((id) => !available.has(id))) return json(res, 404, { ok: false, error: 'Lista no encontrada' });
       }
       await cols.devices.updateOne({ _id: dev._id }, { $set: { playlists: ids } });
       return json(res, 200, { ok: true });

@@ -374,13 +374,21 @@ function render() {
     bindDel("dd", "device");
     var s = document.querySelectorAll("[data-save]");
     for (var i = 0; i < s.length; i++) s[i].onclick = function() {
+      var button = this;
+      if (button.disabled) return;
       var dev = this.getAttribute("data-save"), ids = [], c = document.querySelectorAll("input[data-dev='" + dev + "']");
       for (var j = 0; j < c.length; j++) if (c[j].checked) ids.push(c[j].value);
       var note = document.querySelector("input[data-note='" + dev + "']").value;
       var fu = document.querySelector("select[data-fu='" + dev + "']").value;
+      button.disabled = true;
+      button.textContent = "Guardando...";
       api("/api/ott/admin/device", "PUT", { id: dev, note: note, userId: fu }).then(function() {
         return api("/api/ott/admin/assign", "POST", { deviceId: dev, playlistIds: ids });
-      }).then(function() { alert("Guardado. El cliente pulsa el botón rojo en la TV."); refresh(); });
+      }).then(function() { alert("Guardado. Las listas estarán disponibles al abrir la app o actualizarla."); refresh(); }).catch(function(err) {
+        button.disabled = false;
+        button.textContent = "OK";
+        alert("No se pudo guardar: " + (err.message || err));
+      });
     };
   }
 

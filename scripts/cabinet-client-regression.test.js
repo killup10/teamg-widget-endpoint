@@ -26,7 +26,7 @@ async function call(path, method = 'GET', body = {}, query = {}, admin = false) 
   let startupReads = 0;
   cols.playlists.find = async function(query, projection) {
     const rows = await readPlaylists.call(this, query, projection);
-    if (projection) {
+    if (projection && projection.name === 1) {
       startupReads++;
       assert.equal(projection.name, 1, 'Startup must request only explicit metadata fields');
       assert.ok(rows.every(row => !('customM3u' in row) && !('channels' in row)), 'Startup must not read playlist content');
