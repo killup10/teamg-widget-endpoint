@@ -9,3 +9,9 @@ for(const path of ['ott/index.html','ott/native-player.js','ott/hls-variant.js']
   for(const source of scripts)if(source.trim())parserExports.parse(source,{ecmaVersion:5,allowReserved:true});
   console.log(path+': ES5 syntax verified.');
 }
+for(const path of ['web/cabinet.html','web/index.html','admin/index.html']) {
+  const text=fs.readFileSync(path,'utf8');
+  const scripts=path.endsWith('.html')?[...text.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)].map(m=>m[1]):[text];
+  for(const source of scripts)if(source.trim())parserExports.parse(source,{ecmaVersion:2020,allowReserved:true});
+  console.log(path+': Web syntax verified.');
+}

@@ -308,10 +308,15 @@ function refresh() {
         "<p class='small'>Si el servidor estuvo inactivo, puede tomar unos segundos iniciar. Pulsa Reintentar o vuelve a ingresar.</p>" +
         "<div style='margin-top:16px;'>" +
         "<button class='act green' onclick='refresh()'>↻ Reintentar</button> " +
-        "<button class='act' onclick='sessionStorage.removeItem("ottkey");location.href="/web/";'>Iniciar sesión de nuevo</button>" +
+        "<button class='act' onclick='relogin()'>Iniciar sesión de nuevo</button>" +
         "</div></div>";
     }
   });
+}
+
+function relogin() {
+  sessionStorage.removeItem("ottkey");
+  location.href = "/web/";
 }
 
 // Mantener activo el servidor en la nube mientras el panel esté abierto en una pestaña
