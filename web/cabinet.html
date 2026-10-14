@@ -52,43 +52,43 @@ h4{font-weight:400;color:#555;margin:18px 0 6px}
 .breadcrumb a{color:#22c55e;text-decoration:none;font-weight:bold}
 .breadcrumb b{color:#222;font-size:18px}
 
-.editor-layout{display:flex;gap:20px;min-height:560px}
-.editor-sidebar{width:260px;background:#fff;border-radius:8px;box-shadow:0 1px 6px #0001;padding:16px;display:flex;flex-direction:column}
+.editor-layout{display:flex;gap:20px;min-height:560px;width:100%;box-sizing:border-box}
+.editor-sidebar{width:260px;min-width:260px;flex-shrink:0;background:#fff;border-radius:8px;box-shadow:0 1px 6px #0001;padding:16px;display:flex;flex-direction:column;box-sizing:border-box}
 .btn-new-group{border:1px solid #ccc;background:#fff;padding:10px 14px;border-radius:4px;cursor:pointer;font-size:14px;font-weight:bold;margin-bottom:14px;text-align:center;color:#333;width:100%}
 .btn-new-group:hover{border-color:#22c55e;color:#22c55e}
 .groups-list{flex:1;overflow-y:auto;border-top:1px solid #eee;padding-top:8px}
-.group-item{display:flex;align-items:center;padding:10px 8px;cursor:grab;border-bottom:1px solid #f2f2f2;border-radius:4px;font-size:14px;color:#555;user-select:none}
+.group-item{display:flex;align-items:center;padding:10px 8px;cursor:grab;border-bottom:1px solid #f2f2f2;border-radius:4px;font-size:14px;color:#555;user-select:none;min-width:0}
 .group-item:active{cursor:grabbing}
 .group-item:hover{background:#f0fdf4}
 .group-item.active{background:#e8f5e9;color:#15803d;font-weight:bold;border-left:4px solid #22c55e}
-.group-item-name{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.group-item-actions{display:flex;gap:4px;margin-left:6px;opacity:0.9}
+.group-item-name{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.group-item-actions{display:flex;gap:4px;margin-left:6px;opacity:0.9;flex-shrink:0}
 .group-item:hover .group-item-actions{opacity:1}
 .group-item-actions span{cursor:pointer;font-size:13px;padding:2px 6px;background:#f3f4f6;border-radius:3px;border:1px solid #e5e7eb;display:inline-flex;align-items:center;justify-content:center}
 .group-item-actions span:hover{background:#22c55e;color:#fff;border-color:#22c55e}
 
-.editor-main{flex:1;display:flex;flex-direction:column}
-.editor-main-header{display:flex;align-items:center;gap:12px;margin-bottom:12px}
-.btn-create-channel{background:#22c55e;color:#fff;border:0;padding:10px 18px;border-radius:4px;font-weight:bold;cursor:pointer;font-size:14px;display:flex;align-items:center;gap:6px}
-.view-mode-btns{display:flex;gap:0;border:1px solid #ccc;border-radius:4px;overflow:hidden}
+.editor-main{flex:1;display:flex;flex-direction:column;min-width:0}
+.editor-main-header{display:flex;align-items:center;gap:12px;margin-bottom:12px;min-width:0}
+.btn-create-channel{background:#22c55e;color:#fff;border:0;padding:10px 18px;border-radius:4px;font-weight:bold;cursor:pointer;font-size:14px;display:flex;align-items:center;gap:6px;flex-shrink:0}
+.view-mode-btns{display:flex;gap:0;border:1px solid #ccc;border-radius:4px;overflow:hidden;flex-shrink:0}
 .view-mode-btn{border:0;background:#fff;padding:8px 12px;cursor:pointer;font-size:15px;color:#555}
 .view-mode-btn.sel{background:#22c55e;color:#fff}
-.search-channels{flex:1;border:1px solid #ddd;border-radius:4px;padding:8px 12px;font-size:14px}
-.channels-container{flex:1;background:#fff;border-radius:8px;box-shadow:0 1px 6px #0001;padding:12px;overflow-y:auto;max-height:640px}
+.search-channels{flex:1;min-width:0;border:1px solid #ddd;border-radius:4px;padding:8px 12px;font-size:14px}
+.channels-container{flex:1;background:#fff;border-radius:8px;box-shadow:0 1px 6px #0001;padding:12px;overflow-y:auto;overflow-x:hidden;max-height:640px;box-sizing:border-box;min-width:0}
 
 /* Filas de Canales Verde Estilo Foto 2 con Drag and Drop */
-.channel-row{background:#22c55e;color:#fff;border-radius:4px;display:flex;align-items:center;padding:6px 12px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,0.15);cursor:grab;user-select:none;transition:transform 0.1s ease}
+.channel-row{background:#22c55e;color:#fff;border-radius:4px;display:flex;align-items:center;padding:6px 12px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,0.15);cursor:grab;user-select:none;transition:transform 0.1s ease;box-sizing:border-box;width:100%;min-width:0}
 .channel-row:active{cursor:grabbing}
 .channel-row.dragging{opacity:0.35;transform:scale(0.98);outline:2px dashed #ffffff}
 .channel-row.drag-over-top{border-top:3px solid #ffcc00 !important}
 .channel-row.drag-over-bottom{border-bottom:3px solid #ffcc00 !important}
-.drag-handle{font-size:18px;cursor:grab;padding:0 8px 0 2px;opacity:0.75;display:inline-flex;align-items:center}
+.drag-handle{flex-shrink:0;font-size:18px;cursor:grab;padding:0 8px 0 2px;opacity:0.75;display:inline-flex;align-items:center}
 .drag-handle:hover{opacity:1}
-.channel-num{font-size:12px;background:rgba(0,0,0,0.25);padding:2px 6px;border-radius:3px;margin-right:10px;font-weight:bold}
-.channel-thumb{width:68px;height:42px;background:#000;border-radius:3px;margin-right:14px;object-fit:cover;display:block}
-.channel-name{flex:1;font-size:16px;font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.channel-actions{display:flex;gap:6px}
-.channel-btn{background:rgba(255,255,255,0.25);border:0;color:#fff;width:32px;height:32px;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px}
+.channel-num{flex-shrink:0;font-size:12px;background:rgba(0,0,0,0.25);padding:2px 6px;border-radius:3px;margin-right:10px;font-weight:bold}
+.channel-thumb{flex-shrink:0;width:68px;height:42px;background:#000;border-radius:3px;margin-right:14px;object-fit:cover;display:block}
+.channel-name{flex:1;min-width:0;font-size:16px;font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-right:12px}
+.channel-actions{display:flex;gap:6px;flex-shrink:0;margin-left:auto}
+.channel-btn{flex-shrink:0;background:rgba(255,255,255,0.25);border:0;color:#fff;width:32px;height:32px;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px}
 .channel-btn:hover{background:#fff;color:#22c55e}
 .group-item.drag-over{background:#dcfce7 !important;border:2px dashed #22c55e !important}
 .group-item.drag-over-top{border-top:3px solid #22c55e !important;background:#dcfce7 !important}
