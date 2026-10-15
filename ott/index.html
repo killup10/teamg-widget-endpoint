@@ -5922,7 +5922,7 @@ function startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c) {
   setTimeout(function() { hideTuning(); }, 4000);
 }
 
-function playHtml5(v, netcastObj, playUrl, streamUrl, c) {
+function playHtml5(v, netcastObj, playUrl, streamUrl, c, androidFallbackEngine) {
   c._triedHtml5 = true;
   if (netcastObj) {
     try { netcastObj.onPlayStateChange = null; } catch(e0) {}
@@ -5949,6 +5949,7 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c) {
   };
   v.onerror = function() {
     if (!v.src || v.src === '' || v.src === window.location.href) return;
+    if (tryAndroidHlsFallback()) return;
     var ua = navigator.userAgent || '';
     var isLegacyNetcast = (ua.indexOf('NetCast') !== -1 && ua.indexOf('Web0S') === -1 && ua.indexOf('webOS') === -1);
     if (isLegacyNetcast && netcastObj && !c._triedNetcast && typeof netcastObj.play === 'function') {
@@ -5962,14 +5963,38 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c) {
   };
 
   var nativeHls = !!(v.canPlayType && v.canPlayType('application/vnd.apple.mpegurl'));
+  var androidHls = /Android/i.test(navigator.userAgent || '') && !/NetCast|webOS|Web0S|Tizen/i.test(navigator.userAgent || '');
   var wantsJs = state.auth.hlsPlayer === 'JS player (hls.js)' ||
-    (state.auth.hlsPlayer !== 'Native HLS player' && !nativeHls);
+    (state.auth.hlsPlayer !== 'Native HLS player' && (!nativeHls || androidHls));
+  if (androidHls && androidFallbackEngine) wantsJs = androidFallbackEngine === 'js';
   var isHlsStream = (playUrl.indexOf('.m3u8') !== -1 || streamUrl.indexOf('.m3u8') !== -1 || playUrl.indexOf('/chunks') !== -1 || streamUrl.indexOf('/chunks') !== -1);
-  if (wantsJs && window.Hls && Hls.isSupported() && isHlsStream) {
+  if (androidHls && /(?:\.m3u8|\/chunks|\/playlist)/i.test(playUrl + ' ' + streamUrl)) isHlsStream = true;
+  var jsHlsSupported = !!((wantsJs || androidHls) && window.Hls && Hls.isSupported());
+  var useJsHls = wantsJs && jsHlsSupported && isHlsStream;
+  function tryAndroidHlsFallback() {
+    if (!androidHls || androidFallbackEngine || !isHlsStream) return false;
+    if (useJsHls ? !nativeHls : !jsHlsSupported) return false;
+    v.onerror = null;
+    if (state.hlsInstance) { try { state.hlsInstance.destroy(); } catch (destroyError) {} state.hlsInstance = null; }
+    try { v.pause(); v.removeAttribute('src'); v.load(); } catch (resetError) {}
+    playHtml5(v, netcastObj, playUrl, streamUrl, c, useJsHls ? 'native' : 'js');
+    return true;
+  }
+  function androidPlayError(err) {
+    if (androidHls && err && err.name === 'NotAllowedError') {
+      hideTuning();
+      showToast('Pulsa OK / Play para iniciar el canal.');
+    }
+  }
+  if (useJsHls) {
     var stableLgHls = /NetCast|webOS|Web0S/i.test(navigator.userAgent || '');
     state.hlsInstance = new Hls({ maxBufferLength: 15, enableWorker: false, autoStartLoad: !stableLgHls });
     state.hlsInstance.loadSource(playUrl);
     state.hlsInstance.attachMedia(v);
+    // Iniciar durante el gesto del mando, sin esperar la descarga del manifiesto.
+    if (androidHls) {
+      try { var initialPlay = v.play(); if (initialPlay && initialPlay.catch) initialPlay.catch(androidPlayError); } catch (initialPlayError) { androidPlayError(initialPlayError); }
+    }
     state.hlsInstance.on(Hls.Events.LEVEL_LOADED, function(evt, data) { if (data && data.details) state.recoveryVod = !data.details.live; });
     state.hlsInstance.on(Hls.Events.MANIFEST_PARSED, function() {
       if (stableLgHls) {
@@ -5985,7 +6010,7 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c) {
       }
       try {
         var p = v.play();
-        if (p && typeof p.catch === 'function') p.catch(function(e) {});
+        if (p && typeof p.catch === 'function') p.catch(androidPlayError);
       } catch(ePlay) {}
     });
     state.hlsInstance.on(Hls.Events.FRAG_BUFFERED, function() {
@@ -5998,6 +6023,7 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c) {
     });
     state.hlsInstance.on(Hls.Events.ERROR, function(evt, data) {
       if (data.fatal) {
+        if (tryAndroidHlsFallback()) return;
         var ua = navigator.userAgent || '';
         var isLegacyNetcast = (ua.indexOf('NetCast') !== -1 && ua.indexOf('Web0S') === -1 && ua.indexOf('webOS') === -1);
         if (isLegacyNetcast && netcastObj && !c._triedNetcast && typeof netcastObj.play === 'function') {
@@ -6017,7 +6043,7 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c) {
       v.load(); // Esencial en Smart TVs (LG webOS / Samsung Tizen) para refrescar el pipeline de video
       var playPromise = v.play();
       if (playPromise && typeof playPromise.catch === 'function') {
-        playPromise.catch(function(err) { console.warn('v.play error:', err); });
+        playPromise.catch(function(err) { androidPlayError(err); console.warn('v.play error:', err); });
       }
     } catch (e) {
       console.warn('Error al llamar v.play():', e);
