@@ -14,6 +14,23 @@ assert.equal(merged.channels[1].seriesLogo,'https://example/h.jpg');
 assert.equal(merged.channels[2].seriesLogo,'https://example/h.jpg');
 assert.equal(merged.channels[2].seriesPoster,'https://example/v.jpg');
 assert.equal(merged.added,1);
+assert.equal(merged.channels[0].name,'T1 E3', 'New episodes must precede existing entries in the source order');
+const ordered=context.mergePlaylistSource([
+  {name:'Old drama',group:'Drama',url:'https://example/old-drama'},
+  {name:'Old comedy',group:'Comedia',url:'https://example/old-comedy'}
+],[
+  {name:'Premiere 1',group:'Drama',url:'https://example/premiere-1'},
+  {name:'Premiere 2',group:'Drama',url:'https://example/premiere-2'},
+  {name:'New series E1',group:'New series',url:'https://example/series-1'},
+  {name:'New series E2',group:'New series',url:'https://example/series-2'}
+]);
+assert.deepEqual(Array.from(ordered.channels,c=>c.name),['New series E1','New series E2','Premiere 1','Premiere 2','Old drama','Old comedy']);
+const repeated=context.mergePlaylistSource(ordered.channels,ordered.channels);
+assert.equal(repeated.added,0);
+assert.deepEqual(Array.from(repeated.channels,c=>c.name),Array.from(ordered.channels,c=>c.name),'Resync must preserve the saved order without duplicates');
+const cabinet=fs.readFileSync('web/cabinet.html','utf8');
+assert.ok(cabinet.includes('CURRENT_PL.channels.unshift({'), 'Manual additions must appear first in their group');
+assert.ok(cabinet.includes('CURRENT_PL.groups.unshift(ng)'), 'New series folders must appear first');
 const sourceOnly=context.mergePlaylistSource([], [{name:'E1',group:'Nueva',url:'https://example/new',seriesLogo:'https://example/source.jpg'}]);
 assert.equal(sourceOnly.channels[0].seriesLogo,'https://example/source.jpg');
 const tv=fs.readFileSync('ott/index.html','utf8');

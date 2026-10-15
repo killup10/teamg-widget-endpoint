@@ -5303,6 +5303,10 @@ var lastChannelChangeTime = 0;
 
 function cleanPlayerEngines() {
   state.playerGeneration = (state.playerGeneration || 0) + 1;
+  if (state.androidAudioSession) {
+    apiCall('POST', '/api/ott/android-audio/stop', { token: state.auth.token, deviceId: state.auth.deviceId, sessionId: state.androidAudioSession }, function() {});
+    state.androidAudioSession = null;
+  }
   if (state.cancelHlsVariant) { state.cancelHlsVariant(); state.cancelHlsVariant = null; }
   if (window.TeamGNative && TeamGNative.active()) TeamGNative.stop();
   var samsungSurface = $('samsung-player');
@@ -5812,6 +5816,33 @@ function playItem(c, recovering) {
     } else {
       playHtml5(v, netcastObj, url, streamUrl, c);
     }
+  }
+  var androidLiveAudio = /Android/i.test(ua) && !/NetCast|webOS|Web0S|Tizen/i.test(ua) && !state.recoveryVod && !isDirectCdn;
+  if (androidLiveAudio && state.currentPlaylist && state.auth.token) {
+    var audioGeneration = state.playerGeneration;
+    // La comprobación no retrasa señales compatibles ni pierde el gesto inicial.
+    startSelectedPlayer(playUrl);
+    apiCall('POST', '/api/ott/android-audio/prepare', {
+      token: state.auth.token, deviceId: state.auth.deviceId,
+      playlistId: state.currentPlaylist.id, url: streamUrl
+    }, function(status, result) {
+      if (state.screen !== 'player' || state.playerGeneration !== audioGeneration) {
+        if (result && result.sessionId) apiCall('POST', '/api/ott/android-audio/stop', { token: state.auth.token, deviceId: state.auth.deviceId, sessionId: result.sessionId }, function() {});
+        return;
+      }
+      if (status === 200 && result && result.ok) {
+        state.androidAudioSession = result.sessionId || null;
+        if (result.transcoded) {
+          v.onerror = null;
+          if (state.hlsInstance) { try { state.hlsInstance.destroy(); } catch (audioDestroyError) {} state.hlsInstance = null; }
+          try { v.pause(); v.removeAttribute('src'); v.load(); } catch (audioResetError) {}
+          startSelectedPlayer((API_BASE || '') + result.url);
+        }
+      } else {
+        showToast((result && result.error) || 'No se pudo comprobar el audio. Intentando señal original.');
+      }
+    });
+    return;
   }
   // Resolve a single AVC rendition before opening a legacy decoder, so it
   // starts at its final resolution instead of switching from 480p to 1080p.

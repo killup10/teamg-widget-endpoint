@@ -179,6 +179,7 @@ function parseM3uText(text) {
 
 function mergePlaylistSource(existing, incoming) {
   const result = existing.map(c => ({ ...c }));
+  const fresh = [];
   let added = 0, updated = 0;
   const byUrl = new Map(), byName = new Map(), covers = new Map();
   const key = c => String(c.group || '').trim().toLowerCase() + '\n' + String(c.name || '').trim().toLowerCase();
@@ -200,10 +201,14 @@ function mergePlaylistSource(existing, incoming) {
       if (!old.seriesPoster) old.seriesPoster = cover.seriesPoster || source.seriesPoster || '';
     } else {
       const c = { ...source, seriesLogo:cover.seriesLogo || source.seriesLogo || '', seriesPoster:cover.seriesPoster || source.seriesPoster || '' };
-      result.push(c); if (c.url) byUrl.set(c.url, c); byName.set(key(c), c); added++;
+      fresh.push(c); if (c.url) byUrl.set(c.url, c); byName.set(key(c), c); added++;
     }
   }
-  return { channels: result, added, updated };
+  const existingGroups = [...new Set(existing.map(c => c.group))];
+  const groups = [...new Set(fresh.map(c => c.group).filter(group => !existingGroups.includes(group)))].concat(existingGroups);
+  const buckets = new Map(groups.map(group => [group, []]));
+  for (const c of fresh.concat(result)) buckets.get(c.group).push(c);
+  return { channels: groups.flatMap(group => buckets.get(group)), added, updated };
 }
 
 function serializeChannelsToM3u(channels) {
@@ -372,6 +377,31 @@ async function searchYouTubeTrailer(title) {
 async function handle(req, res, pathname, query, body) {
   const requestStarted = Date.now();
   const cols = await store.init();
+  if ((pathname === '/api/ott/android-audio/prepare' || pathname === '/api/ott/android-audio/stop') && req.method === 'POST') {
+    const a = await authedDevice(body, query);
+    if (a.err) return json(res, 401, { ok: false, error: a.err });
+    const owner = String(a.user._id) + '/' + String(a.dev._id);
+    const audio = require('./android-audio');
+    if (pathname.endsWith('/stop')) {
+      await audio.stop(owner, String(body.sessionId || ''));
+      return json(res, 200, { ok: true });
+    }
+    const pl = await findById(cols.playlists, body.playlistId, { _id: 1, url: 1, expiresAt: 1, updatedAt: 1, created: 1 });
+    if (!pl || !(a.dev.playlists || []).map(String).includes(String(pl._id))) return json(res, 403, { ok: false, error: 'Lista no asignada' });
+    if (playlistExpired(pl)) return json(res, 410, { ok: false, error: 'Lista expirada' });
+    const url = String(body.url || '').trim();
+    if (!/^https?:\/\//i.test(url) || url.length > 4096) return json(res, 400, { ok: false, error: 'Señal inválida' });
+    const cached = playlistContentCache.get(String(pl._id));
+    let text;
+    if (cached && cached.revision === String(pl.updatedAt || pl.created || '')) text = cached.text;
+    else {
+      const content = await findById(cols.playlists, pl._id, { _id: 1, customM3u: 1 });
+      text = content?.customM3u || (pl.url ? await getCachedOrFetchText(pl.url) : '');
+    }
+    if (!parseM3uText(text).channels.some(channel => channel.url === url)) return json(res, 403, { ok: false, error: 'Señal no asignada' });
+    try { return json(res, 200, { ok: true, ...(await audio.prepare(owner, url)) }); }
+    catch (err) { return json(res, 503, { ok: false, error: err.message || 'Audio compatible no disponible' }); }
+  }
 
   // ---- TV: buscar trailer oficial de película o serie ----
   if (pathname === '/api/ott/trailer' && req.method === 'GET') {

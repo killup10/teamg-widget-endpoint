@@ -666,7 +666,7 @@ function renderPlaylistEditor(a) {
     if (ng && ng.trim()) {
       ng = ng.trim();
       if (CURRENT_PL.groups.indexOf(ng) < 0) {
-        CURRENT_PL.groups.push(ng);
+        CURRENT_PL.groups.unshift(ng);
         CURRENT_GROUP = ng;
         render();
       }
@@ -1366,7 +1366,7 @@ document.getElementById("btnSaveChModal").onclick = async function() {
   }
 
   if (EDITING_CH_IDX === -1) {
-    CURRENT_PL.channels.push({
+    CURRENT_PL.channels.unshift({
       id: "c_" + (CURRENT_PL.channels.length + 1),
       name: name,
       url: url,
