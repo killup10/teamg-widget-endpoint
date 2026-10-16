@@ -419,6 +419,101 @@ async function handle(req, res, pathname, query, body) {
     return json(res, 404, { ok: false, error: 'No se encontro trailer para ' + q });
   }
 
+  // ---- TV: GENERAR O CONSULTAR CÓDIGO DE ACTIVACIÓN DE 12 HORAS ----
+  if (pathname === '/api/ott/code/generate' && req.method === 'POST') {
+    const devId = String(body.deviceId || '').trim();
+    if (!devId) return json(res, 400, { ok: false, error: 'Falta deviceId' });
+    const name = String(body.name || body.platform || 'SmartTV').trim().slice(0, 60) || 'SmartTV';
+    const platform = String(body.platform || '').slice(0, 60);
+
+    const now = Date.now();
+    const allCodes = await cols.codes.find({});
+    const existing = allCodes.filter((c) => c && c.deviceId === devId && !c.activated && c.expiresAt > (now + 60 * 1000));
+    if (existing.length > 0) {
+      existing.sort((a, b) => b.expiresAt - a.expiresAt);
+      const chosen = existing[0];
+      return json(res, 200, {
+        ok: true,
+        code: chosen.code,
+        expiresAt: chosen.expiresAt,
+        expiresInHours: 12,
+        reused: true
+      });
+    }
+
+    let codeStr = '';
+    let codeRaw = '';
+    let tries = 0;
+    while (tries < 10) {
+      const num = Math.floor(100000 + Math.random() * 900000);
+      codeRaw = String(num);
+      codeStr = codeRaw.slice(0, 3) + '-' + codeRaw.slice(3);
+      const dup = allCodes.find((c) => c && c.codeRaw === codeRaw && !c.activated && c.expiresAt > now);
+      if (!dup) break;
+      tries++;
+    }
+
+    const expiresAt = now + 12 * 60 * 60 * 1000; // 12 horas exactas
+    const doc = {
+      _id: store.uid(),
+      code: codeStr,
+      codeRaw: codeRaw,
+      deviceId: devId,
+      deviceName: name,
+      platform: platform,
+      createdAt: store.nowIso(),
+      expiresAt: expiresAt,
+      activated: false
+    };
+    await cols.codes.insertOne(doc);
+    return json(res, 200, {
+      ok: true,
+      code: codeStr,
+      expiresAt: expiresAt,
+      expiresInHours: 12
+    });
+  }
+
+  // ---- TV: CONSULTAR ESTADO DE ACTIVACIÓN POR CÓDIGO (POLLING) ----
+  if (pathname === '/api/ott/code/status' && req.method === 'GET') {
+    const devId = String(query.deviceId || '').trim();
+    const raw = String(query.code || '').replace(/[\s-]/g, '').trim();
+    if (!devId && !raw) return json(res, 400, { ok: false, error: 'Falta parametro' });
+
+    const allCodes = await cols.codes.find({});
+    let item = null;
+    if (raw) {
+      item = allCodes.find((c) => c && (c.codeRaw === raw || String(c.code).replace(/[\s-]/g, '') === raw));
+    }
+    if (!item && devId) {
+      const devCodes = allCodes.filter((c) => c && c.deviceId === devId);
+      devCodes.sort((a, b) => (b.expiresAt || 0) - (a.expiresAt || 0));
+      item = devCodes[0] || null;
+    }
+
+    if (!item) return json(res, 404, { ok: false, error: 'Código no encontrado' });
+    if (item.expiresAt < Date.now()) {
+      return json(res, 200, { ok: false, expired: true, error: 'Código expirado' });
+    }
+
+    if (item.activated) {
+      return json(res, 200, {
+        ok: true,
+        activated: true,
+        token: item.token,
+        user: item.user,
+        playlists: item.playlists || []
+      });
+    }
+
+    return json(res, 200, {
+      ok: true,
+      activated: false,
+      code: item.code,
+      expiresAt: item.expiresAt
+    });
+  }
+
   // ---- TV: login con usuario/password que crea el admin ----
   if (pathname === '/api/ott/login' && req.method === 'POST') {
     const u = await cols.users.findOne({ login: String(body.login || '').trim() });
@@ -802,6 +897,107 @@ function fetchWithRedirects(targetUrl, options, maxRedirects, callback) {
       }
       await cols.devices.updateOne({ _id: dev._id }, { $set: upd });
       return json(res, 200, { ok: true });
+    }
+
+    if (sub === 'code/activate' && req.method === 'POST') {
+      const rawCode = String(body.code || '').replace(/[\s-]/g, '').trim();
+      if (!rawCode) return json(res, 400, { ok: false, error: 'Ingresa el código de activación' });
+      if (!body.userId) return json(res, 400, { ok: false, error: 'Selecciona un fake-user (cliente)' });
+
+      const allCodes = await cols.codes.find({});
+      const record = allCodes.find((c) => c && (c.codeRaw === rawCode || String(c.code).replace(/[\s-]/g, '') === rawCode));
+      if (!record) return json(res, 404, { ok: false, error: 'Código no encontrado. Verifica los dígitos en la pantalla de la TV.' });
+      if (record.expiresAt < Date.now()) return json(res, 400, { ok: false, error: 'El código ha expirado (límite de 12 horas).' });
+      if (record.activated) return json(res, 400, { ok: false, error: 'Este código ya fue activado previamente.' });
+
+      const user = await findById(cols.users, body.userId);
+      if (!user || user.role === 'admin') return json(res, 400, { ok: false, error: 'Usuario cliente no válido' });
+      const block = expired(user);
+      if (block) return json(res, 400, { ok: false, error: 'La cuenta ' + user.login + ' está ' + block });
+
+      const playlistIds = Array.isArray(body.playlistIds) ? body.playlistIds.map(String) : [];
+      if (playlistIds.length > 0) {
+        const available = new Set((await cols.playlists.find({}, { _id: 1 })).map((p) => String(p._id)));
+        if (playlistIds.some((id) => !available.has(id))) {
+          return json(res, 404, { ok: false, error: 'Una de las listas asignadas no existe' });
+        }
+      }
+
+      const devId = record.deviceId;
+      const prevDev = await findById(cols.devices, devId);
+      const note = (typeof body.note === 'string' && body.note.trim()) ? body.note.trim().slice(0, 120) : (prevDev?.note || '');
+      const devName = record.deviceName || (prevDev ? prevDev.name : 'Smart TV');
+      const platform = record.platform || (prevDev ? prevDev.platform : '');
+
+      if (prevDev) {
+        await cols.devices.updateOne({ _id: devId }, {
+          $set: {
+            userId: user._id,
+            name: devName,
+            platform: platform,
+            note: note,
+            playlists: playlistIds,
+            lastSeen: store.nowIso()
+          }
+        });
+      } else {
+        await cols.devices.insertOne({
+          _id: devId,
+          userId: user._id,
+          name: devName,
+          platform: platform,
+          note: note,
+          playlists: playlistIds,
+          created: store.nowIso(),
+          lastSeen: store.nowIso()
+        });
+      }
+
+      const devToken = sign(user._id);
+      const pls = await cols.playlists.find({}, PLAYLIST_METADATA_PROJECTION);
+      const mine = pls.filter((p) => playlistIds.indexOf(String(p._id)) > -1 && !playlistExpired(p)).map(pub);
+
+      await cols.codes.updateOne({ _id: record._id }, {
+        $set: {
+          activated: true,
+          activatedAt: store.nowIso(),
+          userId: user._id,
+          token: devToken,
+          user: { id: user._id, login: user.login },
+          playlists: mine
+        }
+      });
+
+      return json(res, 200, {
+        ok: true,
+        message: '¡TV activada con éxito!',
+        deviceId: devId,
+        user: user.login,
+        playlistsCount: mine.length
+      });
+    }
+
+    if (sub === 'codes' && req.method === 'GET') {
+      const all = await cols.codes.find({});
+      const now = Date.now();
+      const recent = all.filter((c) => c && (c.expiresAt > (now - 12 * 3600 * 1000) || c.activated));
+      recent.sort((a, b) => (b.expiresAt || 0) - (a.expiresAt || 0));
+      return json(res, 200, {
+        ok: true,
+        codes: recent.slice(0, 50).map((c) => ({
+          id: c._id,
+          code: c.code,
+          deviceId: c.deviceId,
+          deviceName: c.deviceName,
+          platform: c.platform,
+          createdAt: c.createdAt,
+          expiresAt: c.expiresAt,
+          expired: c.expiresAt < now,
+          activated: !!c.activated,
+          activatedAt: c.activatedAt || null,
+          user: c.user || null
+        }))
+      });
     }
     if (sub === 'playlist/channels' && req.method === 'GET') {
       const pl = await cols.playlists.findOne({ _id: String(query.id || '') });

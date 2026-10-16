@@ -318,7 +318,7 @@ setInterval(function() {
   try { fetch('/ping').catch(function() {}); } catch (e) {}
 }, 3 * 60 * 1000);
 
-var TABS = ["Home", "Playlists", "Devices", "Cabinet", "Fake-users", "Logout"];
+var TABS = ["Home", "Activar TV", "Playlists", "Devices", "Cabinet", "Fake-users", "Logout"];
 
 function render() {
   var t = document.getElementById("tabs");
@@ -341,7 +341,11 @@ function render() {
   DATA.users.forEach(function(u) { un[u.id] = u.login; });
 
   if (TAB === "Home") {
-    a.innerHTML = "<div class='card'><h2>Home</h2><p>Fake-users: <b>" + DATA.users.length + "</b> · Devices: <b>" + DATA.devices.length + "</b> · Playlists: <b>" + DATA.playlists.length + "</b> <span class='small'>(store: " + esc(DATA.mode) + ")</span></p><p class='small'>1. Crea fake-users · 2. Agrega M3U en Playlists · 3. Edita canales/logos · 4. Activa y asigna en Devices.</p></div>";
+    a.innerHTML = "<div class='card'><h2>Home</h2><p>Fake-users: <b>" + DATA.users.length + "</b> · Devices: <b>" + DATA.devices.length + "</b> · Playlists: <b>" + DATA.playlists.length + "</b> <span class='small'>(store: " + esc(DATA.mode) + ")</span></p><p class='small'>1. Crea fake-users · 2. Agrega M3U en Playlists · 3. Edita canales/logos · 4. Activa y asigna en Devices o por Código TV.</p></div>";
+  }
+
+  if (TAB === "Activar TV") {
+    renderActivarTV(a, un);
   }
 
   if (TAB === "Cabinet") {
@@ -357,8 +361,13 @@ function render() {
   }
 
   if (TAB === "Devices") {
-    var h = "<div class='card'><h2>Devices</h2>";
-    if (!DATA.devices.length) h += "<p class='small'>Sin dispositivos. Aparecen cuando el cliente se loguea y registra su TV.</p>";
+    var h = "<div class='card'>" +
+      "<div style='background:#f0fdf4;border:1px solid #86efac;border-radius:6px;padding:12px 18px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;'>" +
+        "<span>⚡ <b>¿El cliente te dictó un código desde su TV?</b> Actívalo al instante sin contraseñas.</span>" +
+        "<button class='act green' id='btnGoToActivarTv' style='margin:0;'>⚡ Ir a Activar TV</button>" +
+      "</div>" +
+      "<h2>Devices</h2>";
+    if (!DATA.devices.length) h += "<p class='small'>Sin dispositivos. Aparecen cuando el cliente se loguea y registra su TV o se activa por código.</p>";
     DATA.devices.forEach(function(d) {
       h += "<div class='dev'><b>" + esc(d.note || d.name) + "</b> <span class='small'>TV: " + esc(d.name) + " · fake-user: " + esc(un[d.userId] || d.userId) + " · " + esc(d.platform || "") + " · visto: " + esc(d.lastSeen || "-") + "</span> <button class='danger' data-dd='" + d.id + "'>Borrar</button><br/>";
       h += "<span class='small'>Nombre/nota:</span> <input data-note='" + d.id + "' value='" + esc(d.note || "") + "' placeholder='Ej. TV Sala' style='width:320px'/>";
@@ -372,6 +381,8 @@ function render() {
     });
     a.innerHTML = h + "</div>";
     bindDel("dd", "device");
+    var bGo = document.getElementById("btnGoToActivarTv");
+    if (bGo) bGo.onclick = function() { TAB = "Activar TV"; render(); };
     var s = document.querySelectorAll("[data-save]");
     for (var i = 0; i < s.length; i++) s[i].onclick = function() {
       var button = this;
@@ -393,6 +404,160 @@ function render() {
   }
 
   if (TAB === "Fake-users") { renderFU(a, un); }
+}
+
+function renderActivarTV(a, un) {
+  var h = "<div class='card'>" +
+    "<h2>⚡ Activar Smart TV por Código (12 Horas)</h2>" +
+    "<p class='small' style='color:#555;line-height:1.5;max-width:750px;'>El cliente abre <b>Opciones (la tuerca ⚙)</b> en su TV y te dicta el <b>CÓDIGO DE ACTIVACIÓN</b> de 6 dígitos que aparece a la derecha. Introduce el código aquí, selecciona el cliente y las listas para activar su pantalla de inmediato sin contraseñas.</p>" +
+    "<div style='background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:16px;margin:16px 0;max-width:680px;'>" +
+      "<div style='margin-bottom:12px;'>" +
+        "<label style='display:block;font-size:13px;font-weight:bold;color:#166534;margin-bottom:4px;'>1. CÓDIGO DE LA TV (6 dígitos):</label>" +
+        "<input id='actCode' placeholder='849-215' maxlength='10' style='font-size:22px;letter-spacing:4px;font-weight:900;text-align:center;width:220px;padding:8px 12px;border:2px solid #22c55e;border-radius:4px;background:#fff;color:#15803d;text-transform:uppercase;'/>" +
+      "</div>" +
+      "<div style='margin-bottom:12px;'>" +
+        "<label style='display:block;font-size:13px;font-weight:bold;color:#166534;margin-bottom:4px;'>2. ASIGNAR A CLIENTE (Fake-user):</label>" +
+        "<select id='actUser' style='font-size:15px;padding:8px 10px;width:100%;max-width:380px;border:1px solid #22c55e;border-radius:4px;background:#fff;'>" +
+          "<option value=''>-- Seleccionar fake-user --</option>" +
+          DATA.users.map(function(u) {
+            return "<option value='" + u.id + "'>" + esc(u.login) + (u.active ? "" : " (inactivo)") + "</option>";
+          }).join("") +
+        "</select>" +
+      "</div>" +
+      "<div style='margin-bottom:12px;'>" +
+        "<label style='display:block;font-size:13px;font-weight:bold;color:#166534;margin-bottom:4px;'>3. NOTA / NOMBRE DEL DISPOSITIVO (opcional):</label>" +
+        "<input id='actNote' placeholder='Ej. TV Sala Juan Pérez' style='font-size:14px;padding:8px 10px;width:100%;max-width:380px;border:1px solid #ccc;border-radius:4px;'/>" +
+      "</div>" +
+      "<div style='margin-bottom:16px;'>" +
+        "<label style='display:block;font-size:13px;font-weight:bold;color:#166534;margin-bottom:4px;'>4. LISTAS CONECTADAS: <button type='button' class='plain small' id='actBtnCheckAll' style='margin-left:8px;padding:2px 8px;font-size:11px;'>Marcar todas</button></label>" +
+        "<div style='max-height:160px;overflow-y:auto;background:#fff;border:1px solid #e5e7eb;border-radius:4px;padding:8px 12px;'>" +
+          DATA.playlists.map(function(p) {
+            return "<label class='chk' style='display:block;margin:4px 0;'><input type='checkbox' class='act-pl-chk' value='" + p.id + "' checked/> " + esc(p.name) + "</label>";
+          }).join("") +
+        "</div>" +
+      "</div>" +
+      "<div>" +
+        "<button class='act green' id='btnSubmitActivateTv' style='font-size:15px;padding:12px 30px;letter-spacing:1px;'>⚡ ACTIVAR TV AHORA</button>" +
+      "</div>" +
+      "<div id='actFeedback' style='margin-top:12px;'></div>" +
+    "</div>" +
+    "</div>" +
+    "<div class='card'>" +
+    "<h3>Pantallas esperando activación o códigos recientes (12 horas)</h3>" +
+    "<div id='actRecentList'><p class='small'>Cargando códigos de TVs...</p></div>" +
+    "</div>";
+
+  a.innerHTML = h;
+
+  var btnAll = document.getElementById("actBtnCheckAll");
+  if (btnAll) btnAll.onclick = function() {
+    var chks = document.querySelectorAll(".act-pl-chk");
+    var allChecked = true;
+    for (var i = 0; i < chks.length; i++) { if (!chks[i].checked) { allChecked = false; break; } }
+    for (var j = 0; j < chks.length; j++) { chks[j].checked = !allChecked; }
+    btnAll.textContent = allChecked ? "Marcar todas" : "Desmarcar todas";
+  };
+
+  var btnAct = document.getElementById("btnSubmitActivateTv");
+  if (btnAct) btnAct.onclick = function() {
+    var code = document.getElementById("actCode").value.trim();
+    var userId = document.getElementById("actUser").value;
+    var note = document.getElementById("actNote").value.trim();
+    var fb = document.getElementById("actFeedback");
+
+    if (!code) {
+      alert("Por favor ingresa el código que se muestra en la pantalla de la TV.");
+      document.getElementById("actCode").focus();
+      return;
+    }
+    if (!userId) {
+      alert("Por favor selecciona el cliente (fake-user) para este televisor.");
+      document.getElementById("actUser").focus();
+      return;
+    }
+
+    var playlistIds = [];
+    var chks = document.querySelectorAll(".act-pl-chk");
+    for (var i = 0; i < chks.length; i++) {
+      if (chks[i].checked) playlistIds.push(chks[i].value);
+    }
+
+    btnAct.disabled = true;
+    btnAct.textContent = "Activando TV...";
+    if (fb) fb.innerHTML = "<span class='small'>Conectando con el dispositivo...</span>";
+
+    api("/api/ott/admin/code/activate", "POST", {
+      code: code,
+      userId: userId,
+      note: note,
+      playlistIds: playlistIds
+    }).then(function(res) {
+      btnAct.disabled = false;
+      btnAct.textContent = "⚡ ACTIVAR TV AHORA";
+      if (fb) fb.innerHTML = "<div style='color:#15803d;background:#dcfce7;border:1px solid #86efac;border-radius:4px;padding:10px 14px;font-weight:bold;'>✔ ¡TV activada con éxito! La pantalla del cliente iniciará sesión automáticamente en unos segundos.</div>";
+      document.getElementById("actCode").value = "";
+      document.getElementById("actNote").value = "";
+      refresh();
+      loadRecentCodes();
+    }).catch(function(err) {
+      btnAct.disabled = false;
+      btnAct.textContent = "⚡ ACTIVAR TV AHORA";
+      if (fb) fb.innerHTML = "<div style='color:#b91c1c;background:#fee2e2;border:1px solid #fca5a5;border-radius:4px;padding:10px 14px;font-weight:bold;'>✖ Error: " + esc(err.message || err) + "</div>";
+    });
+  };
+
+  loadRecentCodes();
+}
+
+function loadRecentCodes() {
+  var box = document.getElementById("actRecentList");
+  if (!box) return;
+
+  api("/api/ott/admin/codes", "GET").then(function(res) {
+    var codes = (res && res.codes) ? res.codes : [];
+    if (!codes.length) {
+      box.innerHTML = "<p class='small'>No hay códigos registrados en las últimas 12 horas. Cuando un cliente abra <b>Opciones</b> en su Smart TV, aparecerá aquí automáticamente.</p>";
+      return;
+    }
+
+    var th = "<table><tr><th>Código</th><th>Dispositivo</th><th>Plataforma</th><th>Generado</th><th>Estado</th><th>Acción</th></tr>";
+    codes.forEach(function(c) {
+      var statusBadge = c.activated ?
+        "<span class='on' style='font-size:11px;'>✔ Activado (" + esc((c.user && c.user.login) || "") + ")</span>" :
+        (c.expired ? "<span class='off' style='font-size:11px;'>Expirado</span>" : "<span class='pill' style='background:#ffcc00;color:#000;font-size:11px;'>⏳ Esperando activación</span>");
+
+      var actionBtn = (!c.activated && !c.expired) ?
+        ("<button class='act green small' data-fill-code='" + esc(c.code) + "' data-dev-name='" + esc(c.deviceName || "") + "'>⚡ Activar este TV</button>") :
+        "<span class='small'>-</span>";
+
+      th += "<tr>" +
+        "<td><b style='font-size:16px;letter-spacing:1px;color:#15803d;'>" + esc(c.code) + "</b></td>" +
+        "<td><b>" + esc(c.deviceName || "Smart TV") + "</b><br/><span class='small'>ID: " + esc(c.deviceId) + "</span></td>" +
+        "<td class='small'>" + esc(c.platform || "-") + "</td>" +
+        "<td class='small'>" + esc(c.createdAt ? c.createdAt.replace('T', ' ').slice(0, 19) : "-") + "</td>" +
+        "<td>" + statusBadge + "</td>" +
+        "<td>" + actionBtn + "</td>" +
+      "</tr>";
+    });
+    box.innerHTML = th + "</table>";
+
+    var fillBtns = box.querySelectorAll("[data-fill-code]");
+    for (var i = 0; i < fillBtns.length; i++) {
+      fillBtns[i].onclick = function() {
+        var codeVal = this.getAttribute("data-fill-code");
+        var devName = this.getAttribute("data-dev-name");
+        var inpCode = document.getElementById("actCode");
+        var inpNote = document.getElementById("actNote");
+        if (inpCode) { inpCode.value = codeVal; inpCode.focus(); }
+        if (inpNote && devName) inpNote.value = devName;
+        var actUser = document.getElementById("actUser");
+        if (actUser) actUser.focus();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      };
+    }
+  }).catch(function(err) {
+    if (box) box.innerHTML = "<p class='small' style='color:#e53935;'>No se pudieron cargar códigos: " + esc(err.message || err) + "</p>";
+  });
 }
 
 /* ==================== VISTA: LISTA DE PLAYLISTS ==================== */

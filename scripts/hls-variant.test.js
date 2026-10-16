@@ -17,6 +17,9 @@ assert.equal(v.height,1080);
 assert.equal(v.url,'http://cdn.test/token/bitel/bicolorfree_abr/bitel/bicolorfree_source/chunks.m3u8');
 assert.equal(player.choose('#EXTM3U\n#EXTINF:6\nsegment.ts',url),null);
 assert.equal(player.choose('#EXTM3U\n#EXT-X-STREAM-INF:RESOLUTION=1920x1080,AUDIO="audio"\nvideo.m3u8',url),null);
+assert.equal(player.choose('#EXTM3U\n#EXT-X-STREAM-INF:RESOLUTION=1920x1080,CODECS="avc1.4d0028"\nvideo.m3u8',url),null);
+// A larger video-only rendition must not displace a rendition with audio.
+assert.equal(player.choose('#EXTM3U\n#EXT-X-STREAM-INF:RESOLUTION=1920x1080,CODECS="avc1.4d0028"\nvideo.m3u8\n#EXT-X-STREAM-INF:RESOLUTION=1280x720,CODECS="avc1.4d001f,mp4a.40.2"\nav.m3u8',url).height,720);
 assert.equal(player.choose('#EXTM3U\n#EXT-X-STREAM-INF:RESOLUTION=3840x2160\n4k.m3u8\n'+master,url).height,1080);
 assert.equal(player.choose('#EXTM3U\n#EXT-X-STREAM-INF:RESOLUTION=1920x1080,CODECS="hvc1.1.6"\nhevc.m3u8',url),null);
 assert.equal(player.choose(master.replace('bitel/bicolorfree_source/chunks.m3u8','../source/chunks.m3u8?signature=abc'),url).url,'http://cdn.test/token/bitel/source/chunks.m3u8?signature=abc');

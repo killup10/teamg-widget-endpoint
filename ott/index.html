@@ -537,6 +537,95 @@ body::-webkit-scrollbar {
   padding-bottom: 8px;
 }
 
+.activation-card {
+  background: rgba(8, 22, 38, 0.85);
+  border: 2px solid #2cd66d;
+  border-radius: 8px;
+  padding: 16px 14px;
+  margin-bottom: 16px;
+  box-shadow: 0 0 22px rgba(44, 214, 109, 0.28);
+  -webkit-box-shadow: 0 0 22px rgba(44, 214, 109, 0.28);
+  text-align: center;
+}
+
+.activation-badge {
+  display: inline-block;
+  background: #2cd66d;
+  color: #04140b;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  padding: 4px 12px;
+  border-radius: 4px;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+}
+
+.activation-code-box {
+  background: #000000;
+  background: rgba(0, 0, 0, 0.65);
+  border: 2px dashed rgba(44, 214, 109, 0.9);
+  border-radius: 6px;
+  padding: 12px 6px;
+  margin: 8px 0;
+}
+
+.activation-code-display {
+  font-size: 38px;
+  font-weight: 900;
+  letter-spacing: 6px;
+  color: #2cd66d;
+  text-shadow: 0 0 16px rgba(44, 214, 109, 0.7);
+  font-family: monospace, Courier, sans-serif;
+  line-height: 1.1;
+}
+
+.activation-status {
+  font-size: 13px;
+  color: #a0aec0;
+  margin-top: 8px;
+  min-height: 18px;
+}
+
+.activation-timer {
+  font-size: 13px;
+  color: #ffcc00;
+  font-weight: bold;
+  margin-top: 8px;
+}
+
+.activation-help {
+  font-size: 13px;
+  color: #c0c6d8;
+  margin-top: 10px;
+  line-height: 1.45;
+  text-align: left;
+}
+
+.act-pulse-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  background: #2cd66d;
+  border-radius: 50%;
+  margin-right: 5px;
+  vertical-align: middle;
+  animation: actPulse 1.4s infinite ease-in-out;
+  -webkit-animation: actPulse 1.4s infinite ease-in-out;
+}
+
+@keyframes actPulse {
+  0% { transform: scale(0.85); opacity: 0.5; }
+  50% { transform: scale(1.25); opacity: 1; }
+  100% { transform: scale(0.85); opacity: 0.5; }
+}
+
+@-webkit-keyframes actPulse {
+  0% { -webkit-transform: scale(0.85); opacity: 0.5; }
+  50% { -webkit-transform: scale(1.25); opacity: 1; }
+  100% { -webkit-transform: scale(0.85); opacity: 0.5; }
+}
+
 /* ==================== VISTA: DETALLE DE SERIE / ANIME / NOVELA ==================== */
 #view-series-detail {
   position: absolute;
@@ -1900,10 +1989,26 @@ body.text-large .drawer-num { font-size: 25px !important; }
         </div>
       </div>
       <div class="opt-right" id="optDescription">
+        <div class="activation-card" id="activationCard">
+          <div class="activation-badge">CÓDIGO DE ACTIVACIÓN</div>
+          <div class="activation-code-box">
+            <div class="activation-code-display" id="tvActivationCode">--- ---</div>
+            <div class="activation-status" id="tvActivationStatus">
+              <span class="act-pulse-dot"></span> Solicitando código...
+            </div>
+          </div>
+          <div class="activation-timer" id="tvActivationTimer">
+            ⏱ Validez: <b>12 Horas</b>
+          </div>
+          <p class="activation-help">
+            Proporciona este código a tu administrador para activar esta TV al instante desde el panel de control sin escribir con el control remoto.
+          </p>
+        </div>
+
         <h3>Información</h3>
-        <p id="optDescText">Usa tu usuario y contraseña otorgados por el administrador para vincular este televisor y descargar tus listas.</p>
-        <div style="margin-top:22px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.5.55 — Reproducción directa sin bloqueo de calidad en Smart TVs y WebOS
+        <p id="optDescText">También puedes ingresar manualmente tu usuario y contraseña con el teclado en pantalla.</p>
+        <div style="margin-top:16px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
+          VERSIÓN: v2.5.56 — Activación remota por código TV (12h)
         </div>
       </div>
     </div>
@@ -2935,6 +3040,95 @@ function updateOptionsFocus() {
   }
 }
 
+function requestActivationCode() {
+  if (!state.auth.deviceId) {
+    state.auth.deviceId = 'netcast-' + Math.random().toString(36).substring(2, 10);
+    saveStorage();
+  }
+
+  var codeEl = $('tvActivationCode');
+  var statusEl = $('tvActivationStatus');
+  var timerEl = $('tvActivationTimer');
+
+  if (state.auth.token && state.auth.login) {
+    if (statusEl) statusEl.innerHTML = '<span style="color:#2cd66d;font-weight:bold;">✔ Dispositivo vinculado (' + state.auth.login + ')</span>';
+  } else {
+    if (statusEl) statusEl.innerHTML = '<span class="act-pulse-dot"></span> Solicitando código...';
+  }
+
+  apiCall('POST', '/api/ott/code/generate', {
+    deviceId: state.auth.deviceId,
+    name: state.auth.deviceName || 'Smart TV',
+    platform: detectedPlatform()
+  }, function(st, res) {
+    if (st === 200 && res && res.ok) {
+      state.activationCode = res.code;
+      state.activationExpiresAt = res.expiresAt;
+      if (codeEl) codeEl.textContent = res.code;
+      if (timerEl) timerEl.innerHTML = '⏱ Validez: <b>12 Horas</b>';
+      if (!state.auth.token || !state.auth.login) {
+        if (statusEl) statusEl.innerHTML = '<span class="act-pulse-dot"></span> Esperando activación del administrador...';
+      }
+      startActivationPolling();
+    } else {
+      if (codeEl) codeEl.textContent = '--- ---';
+      if (statusEl) statusEl.textContent = 'No se pudo obtener código. Presiona OK para reintentar.';
+    }
+  });
+}
+
+function startActivationPolling() {
+  stopActivationPolling();
+  state._activationPollTimer = setInterval(function() {
+    if (state.screen !== 'options') {
+      stopActivationPolling();
+      return;
+    }
+    if (!state.activationCode && !state.auth.deviceId) return;
+
+    var statusUrl = '/api/ott/code/status?deviceId=' + encodeURIComponent(state.auth.deviceId) + '&code=' + encodeURIComponent(state.activationCode || '');
+    apiCall('GET', statusUrl, null, function(st, res) {
+      if (st === 200 && res && res.ok && res.activated) {
+        stopActivationPolling();
+        var statusEl = $('tvActivationStatus');
+        if (statusEl) statusEl.innerHTML = '<span style="color:#2cd66d;font-weight:bold;">✔ ¡ACTIVADO POR EL ADMINISTRADOR!</span>';
+        showToast('¡TV activada con éxito por el administrador!');
+
+        if (res.token) state.auth.token = res.token;
+        if (res.user && res.user.login) state.auth.login = res.user.login;
+        saveStorage();
+        updateOptionsDisplay();
+
+        setTimeout(function() {
+          closeOptions();
+          if (res.playlists && res.playlists.length > 0) {
+            state.playlists = res.playlists;
+            if (state.playlists.length === 1) {
+              loadPlaylistContent(state.playlists[0]);
+            } else {
+              renderPlaylistsView();
+              showToast(state.playlists.length + ' listas asignadas.');
+            }
+          } else {
+            fetchFeed();
+          }
+        }, 1200);
+      } else if (res && res.expired) {
+        stopActivationPolling();
+        var statusExpired = $('tvActivationStatus');
+        if (statusExpired) statusExpired.innerHTML = '<span style="color:#ff5555;">Código expirado (12h). Reabre opciones para renovar.</span>';
+      }
+    });
+  }, 3500);
+}
+
+function stopActivationPolling() {
+  if (state._activationPollTimer) {
+    clearInterval(state._activationPollTimer);
+    state._activationPollTimer = null;
+  }
+}
+
 function openOptions() {
   state.optionsReturnNavigation = captureCatalogNavigation();
   state.screen = 'options';
@@ -2950,9 +3144,11 @@ function openOptions() {
   updateTopBar();
   $('groupBtnSearch').style.display = 'none';
   updateOptionsFocus();
+  requestActivationCode();
 }
 
 function closeOptions() {
+  stopActivationPolling();
   $('view-options').style.display = 'none';
   $('view-playlists').style.display = 'block';
   $('screenTitle').textContent = (state.currentPlaylist ? state.currentPlaylist.name : 'Playlists');

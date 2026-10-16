@@ -8,8 +8,12 @@
       if (line.indexOf('#EXT-X-STREAM-INF:') === 0) {
         var size = line.match(/RESOLUTION=(\d+)x(\d+)/i);
         var rate = line.match(/(?:[:,])BANDWIDTH=(\d+)/i);
+        var codecs = line.match(/(?:[:,])CODECS="([^"]*)"/i);
+        // An explicitly video-only rendition loses audio when opened without
+        // its master. Unknown codecs keep the existing legacy fallback.
+        var hasAudio = !codecs || /(?:mp4a\.|ac-3|ec-3|opus|flac)/i.test(codecs[1]);
         // A rendition with external audio must keep its master playlist.
-        pending = size && !/(?:[:,])AUDIO=/i.test(line) &&
+        pending = size && hasAudio && !/(?:[:,])AUDIO=/i.test(line) &&
           (!/CODECS=/i.test(line) || /avc1\./i.test(line)) &&
           Number(size[1]) <= 1920 && Number(size[2]) <= 1080
           ? {width:Number(size[1]), height:Number(size[2]), rate:rate ? Number(rate[1]) : 0} : null;
