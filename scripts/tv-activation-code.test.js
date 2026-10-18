@@ -173,6 +173,24 @@ async function runTests() {
   });
   assert.strictEqual(firstStillWorks.status, 200, 'Activating a second device must preserve the first');
   console.log('✓ 9. Un fake-user activa dos dispositivos sin quitar el primero');
+  const mismatch = await request('GET', '/api/ott/code/status', {code: second.body.code, deviceId: devId});
+  assert.strictEqual(mismatch.status, 404, 'A code must only apply to its own device');
+  const { ObjectId } = require('mongodb');
+  const legacyDeviceId = new ObjectId();
+  await cols.devices.insertOne({_id: legacyDeviceId, userId: 'previous-user', playlists: []});
+  const legacyCode = await request('POST', '/api/ott/code/generate', {}, {deviceId:String(legacyDeviceId),name:'TV antigua'});
+  const legacyActivation = await request('POST', '/api/ott/admin/code/activate', {}, {
+    code:legacyCode.body.code,userId:testUser._id,playlistIds:[testPlaylist._id]
+  }, {'x-admin-key':'test-admin-secret-key'});
+  assert.strictEqual(legacyActivation.status,200);
+  const legacyStatus = await request('GET','/api/ott/code/status',{code:legacyCode.body.code,deviceId:String(legacyDeviceId)});
+  assert.strictEqual(legacyStatus.status,200);
+  const legacyFeed = await request('GET','/api/ott/feed',{token:legacyStatus.body.token,deviceId:String(legacyDeviceId)});
+  assert.strictEqual(legacyFeed.status,200,'Reassignment must update the actual MongoDB device, not silently miss its ObjectId');
+  await cols.devices.deleteOne({_id:legacyDeviceId});
+  const deletedStatus = await request('GET','/api/ott/code/status',{code:legacyCode.body.code,deviceId:String(legacyDeviceId)});
+  assert.strictEqual(deletedStatus.status,401,'Old activated codes cannot restore deleted devices');
+  console.log('✓ 10. Reasignación MongoDB, código vinculado a su TV y baja definitiva verificados');
 
   console.log('\n========================================');
   console.log('TODAS LAS PRUEBAS DE ACTIVACIÓN POR CÓDIGO PASARON EXITOSAMENTE (100% OK)');

@@ -448,7 +448,7 @@ async function handle(req, res, pathname, query, body) {
       const num = Math.floor(100000 + Math.random() * 900000);
       codeRaw = String(num);
       codeStr = codeRaw.slice(0, 3) + '-' + codeRaw.slice(3);
-      const dup = allCodes.find((c) => c && c.codeRaw === codeRaw && !c.activated && c.expiresAt > now);
+      const dup = allCodes.find((c) => c && c.codeRaw === codeRaw && c.expiresAt > now);
       if (!dup) break;
       tries++;
     }
@@ -483,9 +483,12 @@ async function handle(req, res, pathname, query, body) {
     const allCodes = await cols.codes.find({});
     let item = null;
     if (raw) {
-      item = allCodes.find((c) => c && (c.codeRaw === raw || String(c.code).replace(/[\s-]/g, '') === raw));
+      const matches = allCodes.filter((c) => c && (!devId || String(c.deviceId) === devId) &&
+        (c.codeRaw === raw || String(c.code).replace(/[\s-]/g, '') === raw));
+      matches.sort((a, b) => b.expiresAt - a.expiresAt);
+      item = matches[0] || null;
     }
-    if (!item && devId) {
+    if (!raw && devId) {
       const devCodes = allCodes.filter((c) => c && c.deviceId === devId);
       devCodes.sort((a, b) => (b.expiresAt || 0) - (a.expiresAt || 0));
       item = devCodes[0] || null;
@@ -497,13 +500,19 @@ async function handle(req, res, pathname, query, body) {
     }
 
     if (item.activated) {
+      const dev = await findById(cols.devices, item.deviceId);
+      if (!dev || String(dev.userId) !== String(item.userId)) return json(res, 401, { ok: false, error: 'no-device' });
+      const user = await findById(cols.users, item.userId);
+      if (!user || expired(user)) return json(res, 401, { ok: false, error: 'blocked' });
+      const playlists = await cols.playlists.find({}, PLAYLIST_METADATA_PROJECTION);
+      const ids = (dev.playlists || []).map(String);
       return json(res, 200, {
         ok: true,
         activated: true,
         token: item.token,
         user: item.user,
-        playlists: item.playlists || [],
-        paymentDueDate: (await findById(cols.devices, item.deviceId))?.paymentDueDate || '',
+        playlists: playlists.filter(p => ids.includes(String(p._id)) && !playlistExpired(p)).map(pub),
+        paymentDueDate: dev.paymentDueDate || '',
         serverDate: require('./payment-ledger').limaDate()
       });
     }
@@ -979,7 +988,7 @@ function fetchWithRedirects(targetUrl, options, maxRedirects, callback) {
       const platform = record.platform || (prevDev ? prevDev.platform : '');
 
       if (prevDev) {
-        await cols.devices.updateOne({ _id: devId }, {
+        await cols.devices.updateOne({ _id: prevDev._id }, {
           $set: {
             userId: user._id,
             name: devName,

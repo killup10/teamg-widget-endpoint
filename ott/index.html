@@ -3049,6 +3049,15 @@ function requestActivationCode() {
   var codeEl = $('tvActivationCode');
   var statusEl = $('tvActivationStatus');
   var timerEl = $('tvActivationTimer');
+  if (!state.auth.token && state.auth.pendingActivationCode && state.auth.pendingActivationExpires > (new Date()).getTime()) {
+    state.activationCode = state.auth.pendingActivationCode;
+    state.activationExpiresAt = state.auth.pendingActivationExpires;
+    if (codeEl) codeEl.textContent = state.activationCode;
+    if (statusEl) statusEl.textContent = 'Esperando activación del administrador...';
+    if (timerEl) timerEl.textContent = 'Código pendiente de activación';
+    startActivationPolling();
+    return;
+  }
 
   if (state.auth.token && state.auth.login) {
     if (statusEl) statusEl.innerHTML = '<span style="color:#2cd66d;font-weight:bold;">✔ Dispositivo vinculado (' + state.auth.login + ')</span>';
@@ -3064,6 +3073,9 @@ function requestActivationCode() {
     if (st === 200 && res && res.ok) {
       state.activationCode = res.code;
       state.activationExpiresAt = res.expiresAt;
+      state.auth.pendingActivationCode = res.code;
+      state.auth.pendingActivationExpires = res.expiresAt;
+      saveStorage();
       if (codeEl) codeEl.textContent = res.code;
       if (timerEl) timerEl.innerHTML = '⏱ Validez: <b>12 Horas</b>';
       if (!state.auth.token || !state.auth.login) {
@@ -3079,16 +3091,22 @@ function requestActivationCode() {
 
 function startActivationPolling() {
   stopActivationPolling();
+  var pending = false;
   state._activationPollTimer = setInterval(function() {
-    if (state.screen !== 'options') {
+    if (state.screen !== 'options' && state.auth.token) {
       stopActivationPolling();
       return;
     }
     if (!state.activationCode && !state.auth.deviceId) return;
-
-    var statusUrl = '/api/ott/code/status?deviceId=' + encodeURIComponent(state.auth.deviceId) + '&code=' + encodeURIComponent(state.activationCode || '');
+    if (pending) return;
+    var requestedCode = state.activationCode, requestedDevice = state.auth.deviceId;
+    var statusUrl = '/api/ott/code/status?deviceId=' + encodeURIComponent(state.auth.deviceId) + '&code=' + encodeURIComponent(state.activationCode || '') + '&_poll=' + (new Date()).getTime();
+    pending = true;
     apiCall('GET', statusUrl, null, function(st, res) {
+      pending = false;
+      if (state.activationCode !== requestedCode || state.auth.deviceId !== requestedDevice) return;
       if (st === 200 && res && res.ok && res.activated) {
+        if (!res.token || !res.user || !res.user.login) return;
         stopActivationPolling();
         var statusEl = $('tvActivationStatus');
         if (statusEl) statusEl.innerHTML = '<span style="color:#2cd66d;font-weight:bold;">✔ ¡ACTIVADO POR EL ADMINISTRADOR!</span>';
@@ -3098,6 +3116,10 @@ function startActivationPolling() {
         state.paymentDueDate = res.paymentDueDate || '';
         state.paymentServerDate = res.serverDate || '';
         if (res.user && res.user.login) state.auth.login = res.user.login;
+        state.auth.password = '';
+        state.activationCode = '';
+        delete state.auth.pendingActivationCode;
+        delete state.auth.pendingActivationExpires;
         saveStorage();
         updateOptionsDisplay();
 
@@ -3117,6 +3139,9 @@ function startActivationPolling() {
         }, 1200);
       } else if (res && res.expired) {
         stopActivationPolling();
+        delete state.auth.pendingActivationCode;
+        delete state.auth.pendingActivationExpires;
+        saveStorage();
         var statusExpired = $('tvActivationStatus');
         if (statusExpired) statusExpired.innerHTML = '<span style="color:#ff5555;">Código expirado (12h). Reabre opciones para renovar.</span>';
       }
@@ -3150,7 +3175,7 @@ function openOptions() {
 }
 
 function closeOptions() {
-  stopActivationPolling();
+  if (state.auth.token) stopActivationPolling();
   $('view-options').style.display = 'none';
   $('view-playlists').style.display = 'block';
   $('screenTitle').textContent = (state.currentPlaylist ? state.currentPlaylist.name : 'Playlists');
@@ -5903,6 +5928,8 @@ function revokePlayerAccess() {
   state.auth.token = '';
   state.auth.login = '';
   state.auth.password = '';
+  delete state.auth.pendingActivationCode;
+  delete state.auth.pendingActivationExpires;
   saveStorage();
   renderPlaylistsView();
   openOptions();
@@ -6880,6 +6907,11 @@ if (state.auth.token) {
   doSaveAndLogin();
 } else {
   renderPlaylistsView();
+  if (state.auth.pendingActivationCode && state.auth.pendingActivationExpires > (new Date()).getTime()) {
+    state.activationCode = state.auth.pendingActivationCode;
+    state.activationExpiresAt = state.auth.pendingActivationExpires;
+    startActivationPolling();
+  }
 }
 
 function refreshPlaylists() {
