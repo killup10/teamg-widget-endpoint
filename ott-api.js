@@ -502,7 +502,9 @@ async function handle(req, res, pathname, query, body) {
         activated: true,
         token: item.token,
         user: item.user,
-        playlists: item.playlists || []
+        playlists: item.playlists || [],
+        paymentDueDate: (await findById(cols.devices, item.deviceId))?.paymentDueDate || '',
+        serverDate: require('./payment-ledger').limaDate()
       });
     }
 
@@ -545,7 +547,8 @@ async function handle(req, res, pathname, query, body) {
     const pls = await cols.playlists.find({}, PLAYLIST_METADATA_PROJECTION);
     const devPls = (dev && dev.playlists ? dev.playlists : []).map(String);
     const mine = pls.filter((p) => devPls.indexOf(String(p._id)) > -1 && !playlistExpired(p)).map(pub);
-    return json(res, 200, { ok: true, device: { id: dev._id, name: dev.name }, playlists: mine });
+    return json(res, 200, { ok: true, device: { id: dev._id, name: dev.name }, playlists: mine,
+      paymentDueDate: dev.paymentDueDate || '', serverDate: require('./payment-ledger').limaDate() });
   }
 
   // ---- TV: botón rojo = refrescar carpetas asignadas ----
@@ -556,7 +559,8 @@ async function handle(req, res, pathname, query, body) {
     const pls = await a.cols.playlists.find({}, PLAYLIST_METADATA_PROJECTION);
     const devPls = (a.dev.playlists || []).map(String);
     const mine = pls.filter((p) => devPls.indexOf(String(p._id)) > -1 && !playlistExpired(p)).map(pub);
-    return json(res, 200, { ok: true, playlists: mine });
+    return json(res, 200, { ok: true, playlists: mine, paymentDueDate: a.dev.paymentDueDate || '',
+      serverDate: require('./payment-ledger').limaDate() });
   }
 
   // ---- TV: descargar M3U / EPG asignados (proxy, evita CORS) ----
@@ -745,6 +749,38 @@ function fetchWithRedirects(targetUrl, options, maxRedirects, callback) {
       return json(res, 200, { ok: true, token: admSign(u._id), name: u.login });
     }
     if (!(await adminAuthed(cols, req))) return json(res, 403, { ok: false, error: 'admin' });
+    if (sub === 'payments' && req.method === 'GET') {
+      const ledger = require('./payment-ledger');
+      try {
+        return json(res, 200, { ok: true, ...ledger.summary(await cols.payments.find({}), query.month || ledger.limaDate().slice(0, 7)) });
+      } catch (e) { return json(res, 400, { ok: false, error: e.message }); }
+    }
+    if (sub === 'payments' && req.method === 'POST') {
+      let record;
+      try { record = require('./payment-ledger').validate(body); }
+      catch (e) { return json(res, 400, { ok: false, error: e.message }); }
+      if (record.deviceId) {
+        const device = await findById(cols.devices, record.deviceId);
+        if (!device) return json(res, 404, { ok: false, error: 'Dispositivo no encontrado' });
+        record.clientName = device.note || device.name || record.deviceId;
+      }
+      const existing = await cols.payments.findOne({ _id: record._id });
+      if (existing) {
+        if (['date', 'amountCents', 'deviceId', 'description', 'method', 'planId'].some(k => existing[k] !== record[k])) {
+          return json(res, 409, { ok: false, error: 'Esta operación ya se registró con otros datos. Actualiza para registrar un pago nuevo.' });
+        }
+        return json(res, 200, { ok: true, id: existing._id, duplicate: true });
+      }
+      try { await cols.payments.insertOne(record); }
+      catch (e) { if (e.code !== 11000) throw e; }
+      return json(res, 200, { ok: true, id: record._id });
+    }
+    if (sub === 'payments/void' && req.method === 'POST') {
+      const record = await cols.payments.findOne({ _id: String(body.id || '') });
+      if (!record) return json(res, 404, { ok: false, error: 'Movimiento no encontrado' });
+      await cols.payments.updateOne({ _id: record._id }, { $set: { voided: true, voidedAt: store.nowIso() } });
+      return json(res, 200, { ok: true });
+    }
     if (sub === 'overview' && req.method === 'GET') {
       try {
         const readStarted = Date.now();

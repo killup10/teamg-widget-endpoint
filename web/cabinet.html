@@ -240,6 +240,7 @@ h4{font-weight:400;color:#555;margin:18px 0 6px}
   </div>
 </div>
 
+<script src="/web/payments.js?v=1"></script>
 <script>
 var KEY = sessionStorage.getItem("ottkey") || "";
 if (!KEY) location.href = "/web/";
@@ -318,7 +319,7 @@ setInterval(function() {
   try { fetch('/ping').catch(function() {}); } catch (e) {}
 }, 3 * 60 * 1000);
 
-var TABS = ["Home", "Activar TV", "Playlists", "Devices", "Cabinet", "Fake-users", "Logout"];
+var TABS = ["Home", "Activar TV", "Playlists", "Devices", "Dinero", "Cabinet", "Fake-users", "Logout"];
 
 function render() {
   var t = document.getElementById("tabs");
@@ -339,6 +340,7 @@ function render() {
 
   var a = document.getElementById("app"), un = {};
   DATA.users.forEach(function(u) { un[u.id] = u.login; });
+  if (TAB === "Dinero") { renderPayments(a); }
 
   if (TAB === "Home") {
     a.innerHTML = "<div class='card'><h2>Home</h2><p>Fake-users: <b>" + DATA.users.length + "</b> · Devices: <b>" + DATA.devices.length + "</b> · Playlists: <b>" + DATA.playlists.length + "</b> <span class='small'>(store: " + esc(DATA.mode) + ")</span></p><p class='small'>1. Crea fake-users · 2. Agrega M3U en Playlists · 3. Edita canales/logos · 4. Activa y asigna en Devices o por Código TV.</p></div>";
@@ -372,6 +374,7 @@ function render() {
       h += "<div class='dev'><b>" + esc(d.note || d.name) + "</b> <span class='small'>TV: " + esc(d.name) + " · fake-user: " + esc(un[d.userId] || d.userId) + " · " + esc(d.platform || "") + " · visto: " + esc(d.lastSeen || "-") + "</span> <button class='danger' data-dd='" + d.id + "'>Borrar</button><br/>";
       h += "<span class='small'>Nombre/nota:</span> <input data-note='" + d.id + "' value='" + esc(d.note || "") + "' placeholder='Ej. TV Sala' style='width:320px'/>";
       h += "<label class='small'>Fecha de vencimiento: <input type='date' min='0001-01-01' max='9999-12-31' data-due='" + d.id + "' value='" + esc(d.paymentDueDate || "") + "'/></label> <span class='small'>Opcional · para recordatorios, sin bloqueo automático.</span><br/>";
+      h += "<button class='act green' data-payment='" + d.id + "'>Registrar pago</button><br/>";
       h += "<span class='small'>Fake-user:</span> <select data-fu='" + d.id + "'>" + DATA.users.map(function(u) { return "<option value='" + u.id + "'" + (u.id === d.userId ? " selected" : "") + ">" + esc(u.login) + "</option>"; }).join("") + "</select><br/>";
       h += "<span class='small'>connected playlists:</span><br/>";
       DATA.playlists.forEach(function(p) {
@@ -385,6 +388,9 @@ function render() {
     var bGo = document.getElementById("btnGoToActivarTv");
     if (bGo) bGo.onclick = function() { TAB = "Activar TV"; render(); };
     var s = document.querySelectorAll("[data-save]");
+    Array.from(document.querySelectorAll('[data-payment]')).forEach(function(button) {
+      button.onclick = function() { paymentDevice = this.getAttribute('data-payment'); TAB = 'Dinero'; render(); };
+    });
     for (var i = 0; i < s.length; i++) s[i].onclick = function() {
       var button = this;
       if (button.disabled) return;

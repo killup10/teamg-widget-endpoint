@@ -1,0 +1,10 @@
+[
+  {"id":"standard-1","name":"Estándar","months":1,"amountCents":1490},
+  {"id":"standard-3","name":"Estándar","months":3,"amountCents":3990},
+  {"id":"cine-1","name":"Cinéfilo","months":1,"amountCents":1890},
+  {"id":"cine-3","name":"Cinéfilo","months":3,"amountCents":4990},
+  {"id":"sports-1","name":"Sports","months":1,"amountCents":2090},
+  {"id":"sports-3","name":"Sports","months":3,"amountCents":5490},
+  {"id":"vip-1","name":"Premium VIP","months":1,"amountCents":2490},
+  {"id":"vip-3","name":"Premium VIP","months":3,"amountCents":6490}
+]

@@ -1,0 +1,18 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const html=fs.readFileSync('ott/index.html','utf8');
+const source=html.slice(html.indexOf('function homeRenewalNotice()'),html.indexOf('function restorePlaylistSurface()'));
+let now=Date.parse('2026-10-18T12:00:00Z'), timer, delay;
+function Clock(){return new Date(now);} Clock.parse=Date.parse;
+const notice={style:{}};
+const state={auth:{deviceId:'tv'},paymentDueDate:'2026-10-21',paymentServerDate:'2026-10-18'};
+const env={state,Date:Clock,escapeHtml:s=>s,$:()=>notice,clearTimeout(){},setTimeout(fn,ms){timer=fn;delay=ms;return 1;}};
+vm.createContext(env);vm.runInContext(source,env);
+assert.ok(env.homeRenewalNotice().includes('21/10/2026'));env.armHomeRenewalNotice();assert.equal(delay,20000);
+now+=5000;assert.ok(env.homeRenewalNotice());env.armHomeRenewalNotice();assert.equal(delay,15000,'Returning home must not restart the 20 seconds');
+now+=15000;timer();assert.equal(notice.style.visibility,'hidden');assert.equal(env.homeRenewalNotice(),'','Only once per session');
+state.paymentDueDate='2026-10-25';assert.equal(env.homeRenewalNotice(),'','More than 3 days has no notice');
+state.paymentDueDate='';assert.equal(env.homeRenewalNotice(),'');
+state.paymentDueDate='2026-10-17';assert.ok(env.homeRenewalNotice().includes('venció'));
+state.paymentDueDate='2026-10-18';assert.ok(env.homeRenewalNotice().includes('vence el'));
+state.paymentDueDate='bad';assert.equal(env.homeRenewalNotice(),'');
+console.log('Home reminder: 3-day window, due/overdue, no date, 20 seconds and once per session pass.');

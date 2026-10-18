@@ -3095,6 +3095,8 @@ function startActivationPolling() {
         showToast('¡TV activada con éxito por el administrador!');
 
         if (res.token) state.auth.token = res.token;
+        state.paymentDueDate = res.paymentDueDate || '';
+        state.paymentServerDate = res.serverDate || '';
         if (res.user && res.user.login) state.auth.login = res.user.login;
         saveStorage();
         updateOptionsDisplay();
@@ -3237,6 +3239,8 @@ function doSaveAndLogin() {
         return;
       }
       if (res2 && res2.playlists && res2.playlists.length > 0) {
+        state.paymentDueDate = res2.paymentDueDate || '';
+        state.paymentServerDate = res2.serverDate || '';
         state.playlists = res2.playlists;
         closeOptions();
         if (state.playlists.length === 1) {
@@ -3269,6 +3273,8 @@ function fetchFeed() {
     if (state.feedLoadId !== feedId) return;
     if (st === 200 && res && res.ok) {
       state._feedRetries = 0;
+      state.paymentDueDate = res.paymentDueDate || '';
+      state.paymentServerDate = res.serverDate || '';
       state.playlists = res.playlists || [];
       state._playlistCache = {};
       refreshRecentCoversFromFeed();
@@ -4571,13 +4577,39 @@ function renderHomeOverview(area) {
     }
   } catch (eSp) {}
   area.innerHTML = '<div class="home-overview"><div class="home-eyebrow">TEAMG PLAY</div>' +
-    '<h1>Tu próximo contenido empieza aquí</h1><p>Elige un playlist abajo o vuelve a tu último contenido.</p>' + specialHtml +
+    '<h1>Tu próximo contenido empieza aquí</h1><p>Elige un playlist abajo o vuelve a tu último contenido.</p>' + homeRenewalNotice() + specialHtml +
     (cards ? '<h2>Último contenido abierto</h2><div class="home-preview-row">' + cards + '</div>' :
     '<div class="home-welcome">Cine · Series · TV en vivo</div>') + '</div>';
   for (var j = 0; j < items.length && j < 6; j++) {
     $('recentContent' + j).onclick = (function(idx) { return function() { openRecentContent(idx); }; })(j);
   }
   var track = $('grid-scrollbar'); if (track) track.style.display = 'none';
+  armHomeRenewalNotice();
+}
+
+function homeRenewalNotice() {
+  var due = state.paymentDueDate || '', today = state.paymentServerDate || '';
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(due) || !/^\d{4}-\d{2}-\d{2}$/.test(today)) return '';
+  var days = Math.round((Date.parse(due + 'T00:00:00Z') - Date.parse(today + 'T00:00:00Z')) / 86400000);
+  if (!isFinite(days) || days > 3) return '';
+  var key = ((state.auth && state.auth.deviceId) || '') + ':' + due;
+  if (state.renewalShownKey === key && (new Date()).getTime() >= state.renewalHideAt) return '';
+  if (state.renewalShownKey !== key) {
+    state.renewalShownKey = key;
+    state.renewalHideAt = (new Date()).getTime() + 20000;
+  }
+  var date = due.slice(8, 10) + '/' + due.slice(5, 7) + '/' + due.slice(0, 4);
+  var text = 'Tu plan ' + (days < 0 ? 'venció el ' : 'vence el ') + date + '. Recuerda renovar con nosotros para seguir disfrutando de la magia de TeamG Play.';
+  return '<div id="home-renewal-notice" style="margin:0.8vh 0;padding:0.8vh 1.2vw;border:2px solid #e6b75a;border-radius:6px;background:#241116;color:#fff0c9;font-size:2.4vh;line-height:1.35;">' + escapeHtml(text) + '</div>';
+}
+
+function armHomeRenewalNotice() {
+  if (!state.renewalHideAt) return;
+  clearTimeout(state.renewalTimer);
+  state.renewalTimer = setTimeout(function() {
+    var notice = $('home-renewal-notice');
+    if (notice) notice.style.visibility = 'hidden';
+  }, Math.max(0, state.renewalHideAt - (new Date()).getTime()));
 }
 
 function restorePlaylistSurface() {

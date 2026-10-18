@@ -103,6 +103,9 @@ async function call(path, method = 'GET', body = {}, query = {}, admin = false, 
   assert.equal(result.data.devices.find(d => String(d.id) === String(deviceId)).paymentDueDate, '2000-01-01');
   result = await call('/api/ott/feed', 'GET', {}, { token, deviceId: String(deviceId) });
   assert.equal(result.status, 200, 'Past reminder dates must not block playback');
+  assert.equal(result.data.paymentDueDate, '2000-01-01', 'Feed must provide the device reminder date');
+  assert.match(result.data.serverDate, /^\d{4}-\d{2}-\d{2}$/);
+  assert.equal(result.data.records, undefined, 'Financial history must never be exposed in the TV feed');
   for (const value of ['2026-02-30', '2026-13-01', '18/10/2026', null, 123, '0000-01-01']) {
     result = await admin('device', 'PUT', { id: String(deviceId), paymentDueDate: value, note: 'Must not save' });
     assert.equal(result.status, 400);

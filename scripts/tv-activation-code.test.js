@@ -161,6 +161,18 @@ async function runTests() {
   assert(foundCode, 'El código debe aparecer en la lista del panel admin');
   assert.strictEqual(foundCode.activated, true, 'El código debe figurar como activado');
   console.log('✓ 8. Admin puede auditar y visualizar códigos en Cabinet');
+  const second = await request('POST', '/api/ott/code/generate', {}, {
+    deviceId: 'tv-second', name: 'Segunda TV', platform: 'LG NetCast'
+  });
+  const secondActivation = await request('POST', '/api/ott/admin/code/activate', {}, {
+    code: second.body.code, userId: testUser._id, playlistIds: [testPlaylist._id]
+  }, { 'x-admin-key': 'test-admin-secret-key' });
+  assert.strictEqual(secondActivation.status, 200, 'The same fake-user can activate a second device');
+  const firstStillWorks = await request('GET', '/api/ott/feed', {
+    token: statusRes2.body.token, deviceId: devId
+  });
+  assert.strictEqual(firstStillWorks.status, 200, 'Activating a second device must preserve the first');
+  console.log('✓ 9. Un fake-user activa dos dispositivos sin quitar el primero');
 
   console.log('\n========================================');
   console.log('TODAS LAS PRUEBAS DE ACTIVACIÓN POR CÓDIGO PASARON EXITOSAMENTE (100% OK)');
