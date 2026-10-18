@@ -89,11 +89,22 @@ async function json(res, code, obj) {
   res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8' });
   res.end(JSON.stringify(obj));
 }
-async function fetchText(url) {
+async function fetchText(url, forceFresh = false) {
   const ctl = new AbortController();
   const t = setTimeout(() => ctl.abort(), 20000);
   try {
-    const r = await fetch(url, { signal: ctl.signal, headers: { 'User-Agent': 'OTT-TV/1.0' } });
+    const fetchUrl = (forceFresh && /^https?:\/\//i.test(url))
+      ? url + (url.includes('?') ? '&' : '?') + '_cb=' + Date.now()
+      : url;
+    const headers = { 'User-Agent': 'OTT-TV/1.0' };
+    if (forceFresh) {
+      headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
+      headers['Pragma'] = 'no-cache';
+    }
+    let r = await fetch(fetchUrl, { signal: ctl.signal, headers });
+    if (!r.ok && fetchUrl !== url) {
+      r = await fetch(url, { signal: ctl.signal, headers });
+    }
     if (!r.ok) throw new Error('HTTP ' + r.status);
     return await r.text();
   } finally { clearTimeout(t); }
@@ -110,7 +121,7 @@ async function getCachedOrFetchText(url, forceFresh = false) {
       return entry.text;
     }
   }
-  const text = await fetchText(url);
+  const text = await fetchText(url, forceFresh);
   m3uCache.set(url, { text, ts: now });
   return text;
 }
@@ -146,14 +157,12 @@ function parseM3uText(text) {
       const mPoster = ln.match(/(?:series-poster|tvg-poster|poster|tvg-cover)="([^"]*)"/i);
       const seriesPoster = mPoster ? mPoster[1] : '';
       current = { id: 'c_' + (chId++), name, logo, seriesLogo, seriesPoster, group, adult, subs };
-      groupsSet.add(group);
     } else if (ln.indexOf('#EXTGRP:') === 0) {
       if (current) {
         const grp = ln.replace('#EXTGRP:', '').trim();
         if (grp) {
           current.extgrp = grp;
           current.group = grp;
-          groupsSet.add(grp);
         }
       }
     } else if (ln.indexOf('#EXTIMG:') === 0) {
@@ -170,6 +179,7 @@ function parseM3uText(text) {
       if (current) {
         current.url = ln;
         channels.push(current);
+        if (current.group) groupsSet.add(current.group);
         current = null;
       }
     }
@@ -195,20 +205,36 @@ function mergePlaylistSource(existing, incoming) {
     const old = byUrl.get(source.url) || byName.get(key(source));
     const cover = covers.get(source.group) || {};
     if (old) {
-      if (old.url !== source.url) { old.url = source.url; updated++; }
-      if (!old.logo) old.logo = source.logo || '';
+      let changed = false;
+      if (old.url !== source.url) { old.url = source.url; changed = true; }
+      if (source.name && old.name !== source.name) { old.name = source.name; changed = true; }
+      if (source.group && old.group !== source.group) {
+        old.group = source.group;
+        old.extgrp = source.extgrp || source.group;
+        changed = true;
+      }
+      if (!old.logo && source.logo) { old.logo = source.logo; changed = true; }
+      if (source.subs && old.subs !== source.subs) { old.subs = source.subs; changed = true; }
       if (!old.seriesLogo) old.seriesLogo = cover.seriesLogo || source.seriesLogo || '';
       if (!old.seriesPoster) old.seriesPoster = cover.seriesPoster || source.seriesPoster || '';
+      if (changed) updated++;
     } else {
       const c = { ...source, seriesLogo:cover.seriesLogo || source.seriesLogo || '', seriesPoster:cover.seriesPoster || source.seriesPoster || '' };
       fresh.push(c); if (c.url) byUrl.set(c.url, c); byName.set(key(c), c); added++;
     }
   }
+
+  const allGroups = [...new Set(fresh.map(c => c.group).concat(result.map(c => c.group)))].filter(Boolean);
   const existingGroups = [...new Set(existing.map(c => c.group))];
-  const groups = [...new Set(fresh.map(c => c.group).filter(group => !existingGroups.includes(group)))].concat(existingGroups);
+  const newGroups = allGroups.filter(g => !existingGroups.includes(g));
+  const groups = newGroups.concat(existingGroups.filter(g => allGroups.includes(g)));
+
   const buckets = new Map(groups.map(group => [group, []]));
-  for (const c of fresh.concat(result)) buckets.get(c.group).push(c);
-  return { channels: groups.flatMap(group => buckets.get(group)), added, updated };
+  for (const c of fresh.concat(result)) {
+    if (buckets.has(c.group)) buckets.get(c.group).push(c);
+  }
+  const activeGroups = groups.filter(g => (buckets.get(g) || []).length > 0);
+  return { channels: activeGroups.flatMap(group => buckets.get(group)), groups: activeGroups, added, updated };
 }
 
 function serializeChannelsToM3u(channels) {
