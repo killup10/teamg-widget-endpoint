@@ -371,6 +371,7 @@ function render() {
     DATA.devices.forEach(function(d) {
       h += "<div class='dev'><b>" + esc(d.note || d.name) + "</b> <span class='small'>TV: " + esc(d.name) + " · fake-user: " + esc(un[d.userId] || d.userId) + " · " + esc(d.platform || "") + " · visto: " + esc(d.lastSeen || "-") + "</span> <button class='danger' data-dd='" + d.id + "'>Borrar</button><br/>";
       h += "<span class='small'>Nombre/nota:</span> <input data-note='" + d.id + "' value='" + esc(d.note || "") + "' placeholder='Ej. TV Sala' style='width:320px'/>";
+      h += "<label class='small'>Fecha de vencimiento: <input type='date' min='0001-01-01' max='9999-12-31' data-due='" + d.id + "' value='" + esc(d.paymentDueDate || "") + "'/></label> <span class='small'>Opcional · para recordatorios, sin bloqueo automático.</span><br/>";
       h += "<span class='small'>Fake-user:</span> <select data-fu='" + d.id + "'>" + DATA.users.map(function(u) { return "<option value='" + u.id + "'" + (u.id === d.userId ? " selected" : "") + ">" + esc(u.login) + "</option>"; }).join("") + "</select><br/>";
       h += "<span class='small'>connected playlists:</span><br/>";
       DATA.playlists.forEach(function(p) {
@@ -390,10 +391,13 @@ function render() {
       var dev = this.getAttribute("data-save"), ids = [], c = document.querySelectorAll("input[data-dev='" + dev + "']");
       for (var j = 0; j < c.length; j++) if (c[j].checked) ids.push(c[j].value);
       var note = document.querySelector("input[data-note='" + dev + "']").value;
+      var dueInput = document.querySelector("input[data-due='" + dev + "']");
+      if (!dueInput.checkValidity()) { dueInput.reportValidity(); return; }
+      var paymentDueDate = dueInput.value;
       var fu = document.querySelector("select[data-fu='" + dev + "']").value;
       button.disabled = true;
       button.textContent = "Guardando...";
-      api("/api/ott/admin/device", "PUT", { id: dev, note: note, userId: fu }).then(function() {
+      api("/api/ott/admin/device", "PUT", { id: dev, note: note, paymentDueDate: paymentDueDate, userId: fu }).then(function() {
         return api("/api/ott/admin/assign", "POST", { deviceId: dev, playlistIds: ids });
       }).then(function() { alert("Guardado. Las listas estarán disponibles al abrir la app o actualizarla."); refresh(); }).catch(function(err) {
         button.disabled = false;

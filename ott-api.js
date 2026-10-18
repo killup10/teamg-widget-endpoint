@@ -757,7 +757,7 @@ function fetchWithRedirects(targetUrl, options, maxRedirects, callback) {
         }
         const [users, devices, playlists] = await Promise.all([
           readOverview('users', cols.users, { _id: 1, role: 1, login: 1, active: 1, expires: 1, created: 1 }),
-          readOverview('devices', cols.devices, { _id: 1, userId: 1, name: 1, note: 1, platform: 1, playlists: 1, lastSeen: 1 }),
+          readOverview('devices', cols.devices, { _id: 1, userId: 1, name: 1, note: 1, paymentDueDate: 1, platform: 1, playlists: 1, lastSeen: 1 }),
           readOverview('playlists', cols.playlists, { _id: 1, name: 1, url: 1, epgUrl: 1, color: 1, badge: 1, expiresAt: 1 }),
         ]);
         const userList = Array.isArray(users) ? users : [];
@@ -767,7 +767,7 @@ function fetchWithRedirects(targetUrl, options, maxRedirects, callback) {
         return json(res, 200, {
           ok: true, mode: cols.mode,
           users: userList.filter((u) => u && u.role !== 'admin').map((u) => ({ id: u._id, login: u.login, active: u.active !== false, expires: u.expires || '', created: u.created })),
-          devices: deviceList.filter(Boolean).map((d) => ({ id: d._id, userId: d.userId, name: d.name, note: d.note || '', platform: d.platform, playlists: d.playlists || [], lastSeen: d.lastSeen })),
+          devices: deviceList.filter(Boolean).map((d) => ({ id: d._id, userId: d.userId, name: d.name, note: d.note || '', paymentDueDate: d.paymentDueDate || '', platform: d.platform, playlists: d.playlists || [], lastSeen: d.lastSeen })),
           playlists: playlistList.filter(Boolean).map((p) => {
             const isHw = isHalloween(p);
             let color = normalizeColor(p && p.color);
@@ -879,7 +879,9 @@ function fetchWithRedirects(targetUrl, options, maxRedirects, callback) {
       return json(res, 200, { ok: true });
     }
     if (sub === 'device' && req.method === 'DELETE') {
-      await cols.devices.deleteOne({ _id: String(query.id || '') });
+      const dev = await findById(cols.devices, String(query.id || ''));
+      if (!dev) return json(res, 404, { ok: false, error: 'Dispositivo no encontrado' });
+      await cols.devices.deleteOne({ _id: dev._id });
       return json(res, 200, { ok: true });
     }
     if (sub === 'device' && req.method === 'PUT') {
@@ -889,6 +891,17 @@ function fetchWithRedirects(targetUrl, options, maxRedirects, callback) {
       if (!dev) return json(res, 404, { ok: false, error: 'Dispositivo no encontrado' });
       const upd = {};
       if (typeof body.note === 'string') upd.note = body.note.slice(0, 120);
+      // Reminder metadata only; account access remains independent.
+      if (body.paymentDueDate !== undefined) {
+        const value = body.paymentDueDate;
+        if (typeof value !== 'string' || (value !== '' &&
+          (!/^\d{4}-\d{2}-\d{2}$/.test(value) || value.slice(0, 4) === '0000' ||
+           !Number.isFinite(Date.parse(value + 'T00:00:00Z')) ||
+           new Date(value + 'T00:00:00Z').toISOString().slice(0, 10) !== value))) {
+          return json(res, 400, { ok: false, error: 'Fecha de vencimiento inválida. Usa AAAA-MM-DD o déjala vacía.' });
+        }
+        upd.paymentDueDate = value;
+      }
       if (typeof body.name === 'string' && body.name.trim()) upd.name = body.name.trim().slice(0, 60);
       if (typeof body.userId === 'string') {
         const nu = await findById(cols.users, body.userId);

@@ -96,9 +96,41 @@ async function call(path, method = 'GET', body = {}, query = {}, admin = false, 
   result = await admin('assign', 'POST', { deviceId: String(deviceId), playlistIds: ['missing'] });
   assert.equal(result.status, 404);
   assert.equal((await cols.devices.findOne({ _id: deviceId })).playlists[0], String(playlistId));
+  // Payment reminder date is optional, persists, and never blocks access.
+  result = await admin('device', 'PUT', { id: String(deviceId), paymentDueDate: '2000-01-01', note: 'Cliente de prueba' });
+  assert.equal(result.status, 200);
+  result = await call('/api/ott/admin/overview', 'GET', {}, {}, true);
+  assert.equal(result.data.devices.find(d => String(d.id) === String(deviceId)).paymentDueDate, '2000-01-01');
+  result = await call('/api/ott/feed', 'GET', {}, { token, deviceId: String(deviceId) });
+  assert.equal(result.status, 200, 'Past reminder dates must not block playback');
+  for (const value of ['2026-02-30', '2026-13-01', '18/10/2026', null, 123, '0000-01-01']) {
+    result = await admin('device', 'PUT', { id: String(deviceId), paymentDueDate: value, note: 'Must not save' });
+    assert.equal(result.status, 400);
+  }
+  result = await admin('device', 'PUT', { id: String(deviceId), name: 'TV Sala' });
+  assert.equal(result.status, 200);
+  let savedDevice = await cols.devices.findOne({ _id: deviceId });
+  assert.equal(savedDevice.paymentDueDate, '2000-01-01', 'Other edits must preserve the date');
+  assert.equal(savedDevice.note, 'Cliente de prueba', 'Invalid dates must not partially save');
+  result = await admin('device', 'PUT', { id: String(deviceId), paymentDueDate: '2028-02-29' });
+  assert.equal(result.status, 200, 'Leap days are valid');
+  result = await admin('device', 'PUT', { id: String(deviceId), paymentDueDate: '' });
+  assert.equal(result.status, 200);
+  savedDevice = await cols.devices.findOne({ _id: deviceId });
+  assert.equal(savedDevice.paymentDueDate, '', 'The reminder date can be cleared');
   await admin('user', 'POST', { id: String(userId), active: false });
   result = await call('/api/ott/device', 'POST', { token, deviceId: String(deviceId) });
   assert.equal(result.status, 403, 'Deactivated accounts cannot register with an older token');
+  result = await call('/api/ott/feed', 'GET', {}, { token, deviceId: String(deviceId) });
+  assert.equal(result.status, 401, 'Deactivation must reject the playback heartbeat');
+  assert.equal(result.data.error, 'blocked');
+  await admin('user', 'POST', { id: String(userId), active: true });
+  // Delete through the same query parameter used by Cabinet.
+  result = await call('/api/ott/admin/device', 'DELETE', {}, { id: String(deviceId) }, true);
+  assert.equal(result.status, 200);
+  result = await call('/api/ott/feed', 'GET', {}, { token, deviceId: String(deviceId) });
+  assert.equal(result.status, 401, 'Deleting a device must reject the playback heartbeat');
+  assert.equal(result.data.error, 'no-device');
   const find = cols.playlists.find;
   cols.playlists.find = async () => { throw new Error('Database unavailable'); };
   const originalError = console.error;

@@ -5831,14 +5831,50 @@ function probeSubtitles(rawUrl, channelSubs) {
 
 function startPlayerHeartbeat() {
   stopPlayerHeartbeat();
+  var generation = state.playerGeneration;
+  var token = (state.auth && state.auth.token) || '';
+  var deviceId = (state.auth && state.auth.deviceId) || '';
+  var pending = false;
   state.playerHeartbeat = setInterval(function() {
     try {
       if (state.screen !== 'player') { stopPlayerHeartbeat(); return; }
-      var xhr = new XMLHttpRequest();
-      xhr.open('GET', (API_BASE || '') + '/api/ott/feed?token=' + encodeURIComponent((state.auth && state.auth.token) || '') + '&deviceId=' + encodeURIComponent((state.auth && state.auth.deviceId) || '') + '&_hb=' + (new Date()).getTime(), true);
-      xhr.send();
+      if (pending) return;
+      pending = true;
+      apiCall('GET', '/api/ott/feed?token=' + encodeURIComponent(token) + '&deviceId=' + encodeURIComponent(deviceId) + '&_hb=' + (new Date()).getTime(), null, function(status, result) {
+        pending = false;
+        if (state.screen !== 'player' || state.playerGeneration !== generation ||
+          state.auth.token !== token || state.auth.deviceId !== deviceId) return;
+        // Only a confirmed authorization rejection cuts playback. Network
+        // failures and server errors must not interrupt a working stream.
+        if (status !== 401 || !result || result.ok !== false ||
+          !/^(no-device|blocked|no-user|no-auth)$/.test(result.error || '')) return;
+        revokePlayerAccess();
+      });
     } catch (eHb) {}
   }, 120000);
+}
+
+function revokePlayerAccess() {
+  state.feedLoadId = (state.feedLoadId || 0) + 1;
+  state.playlistLoadId = (state.playlistLoadId || 0) + 1;
+  state.currentSeries = null;
+  state.activeSeriesEpisodes = null;
+  state.playerReturnNavigation = null;
+  stopPlayer();
+  state.playlists = [];
+  state.channels = [];
+  state.groups = [];
+  state._playlistCache = {};
+  state.currentPlaylist = null;
+  state.homeLastPlaylist = null;
+  state.pendingRecentContent = null;
+  state.auth.token = '';
+  state.auth.login = '';
+  state.auth.password = '';
+  saveStorage();
+  renderPlaylistsView();
+  openOptions();
+  showToast('Este dispositivo ya no tiene acceso. Contacta con nosotros.');
 }
 
 function stopPlayerHeartbeat() {
