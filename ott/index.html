@@ -6267,7 +6267,32 @@ function startSamsungPlayer(v, netcastObj, playUrl, streamUrl, c) {
   });
 }
 
-function startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c) {
+function startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c, forceProxy) {
+  var generation = state.playerGeneration;
+  var selectedUrl = playUrl;
+  // Native NetCast live TS playback can use the original HTTP transport.
+  // Keep the proxy URL available as a second attempt, and leave VOD/HLS alone.
+  if (!forceProxy && !state.recoveryVod && /^http:\/\//i.test(streamUrl) &&
+      !/(?:\.m3u8|\/chunks|\/playlist|\.(?:mp4|mkv|webm|avi|mov)(?:[?#]|$))/i.test(streamUrl)) {
+    selectedUrl = streamUrl;
+  }
+  var failed = false, startedAt = new Date().getTime();
+  function current() { return state.screen === 'player' && state.playerGeneration === generation; }
+  function fail() {
+    if (failed || !current()) return;
+    failed = true;
+    if (state.tuningWatchdog) clearInterval(state.tuningWatchdog);
+    state.tuningWatchdog = null;
+    try { netcastObj.onPlayStateChange = null; netcastObj.stop(); } catch (stopError) {}
+    if (selectedUrl !== playUrl) {
+      startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c, true);
+    } else if (!c._triedHtml5) {
+      playHtml5(v, netcastObj, playUrl, streamUrl, c);
+    } else {
+      hideTuning();
+      showToast('NetCast no pudo abrir la señal (directo/proxy).');
+    }
+  }
   c._triedNetcast = true;
   if (v) {
     v.onloadeddata = null;
@@ -6279,21 +6304,8 @@ function startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c) {
     v.style.display = 'none';
   }
   netcastObj.style.display = 'block';
-  netcastObj.data = playUrl;
-  try {
-    netcastObj.play(1);
-  } catch (errNetcast) {
-    if (!c._triedHtml5) {
-      playHtml5(v, netcastObj, playUrl, streamUrl, c);
-    } else {
-      hideTuning();
-      showToast('La señal se interrumpió.');
-      recoverPlayback();
-    }
-    return;
-  }
-
   netcastObj.onPlayStateChange = function() {
+    if (!current() || failed) return;
     try {
       var ps = netcastObj.playState;
       if (ps === 1 || ps === 4) { // Reproduciendo o Buffering
@@ -6306,14 +6318,7 @@ function startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c) {
       } else if (ps === 2) {
         $('btnPlayPause').textContent = '▶';
       } else if (ps === 6) { // Error
-        console.log('NetCast playState error (6)');
-        if (!c._triedHtml5) {
-          console.log('Probando fallback a HTML5...');
-          playHtml5(v, netcastObj, playUrl, streamUrl, c);
-        } else {
-          hideTuning();
-          showToast('Error cargando señal.');
-        }
+        fail();
       }
     } catch (e) {}
   };
@@ -6321,14 +6326,19 @@ function startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c) {
   // Watchdog de seguridad para NetCast
   if (state.tuningWatchdog) clearInterval(state.tuningWatchdog);
   state.tuningWatchdog = setInterval(function() {
-    if (netcastObj && (netcastObj.playState === 1 || netcastObj.playState === 4)) {
+    if (!current() || failed) return;
+    if (netcastObj && netcastObj.playState === 1) {
       hideTuning();
       clearInterval(state.tuningWatchdog);
       state.tuningWatchdog = null;
+    } else if (new Date().getTime() - startedAt >= 15000) {
+      fail();
     }
   }, 400);
-
-  setTimeout(function() { hideTuning(); }, 4000);
+  try {
+    netcastObj.data = selectedUrl;
+    netcastObj.play(1);
+  } catch (errNetcast) { fail(); }
 }
 
 function playHtml5(v, netcastObj, playUrl, streamUrl, c, androidFallbackEngine) {
