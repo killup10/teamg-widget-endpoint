@@ -4783,13 +4783,24 @@ function moveTabEdge(dir) {
   var bar = $('bottom-tabs-bar');
   if (!bar || bar.style.display === 'none' || !bar.children.length) { stopTabEdgeScroll(); return; }
   var count = bar.children.length;
-  var step = bar._tabStep || bar.children[0].offsetWidth;
-  var first = Math.round(bar.scrollLeft / step);
-  var next = dir > 0 ? first + 5 : first - 1;
-  if (next < 0 || next >= count) { stopTabEdgeScroll(); return; }
+  var next = -1;
+  var edge = 16;
+  // Read the original CSS sizes; the scrolling feature must not resize tabs.
+  for (var i = 0; i < count; i++) {
+    var tab = bar.children[i];
+    if (dir > 0 && tab.offsetLeft + tab.offsetWidth > bar.scrollLeft + bar.clientWidth - edge + 1) {
+      next = i; break;
+    }
+    if (dir < 0 && tab.offsetLeft < bar.scrollLeft + edge - 1) next = i;
+  }
+  if (next < 0) { stopTabEdgeScroll(); return; }
+  var target = bar.children[next];
+  var scroll = dir > 0 ? target.offsetLeft + target.offsetWidth - bar.clientWidth + edge : target.offsetLeft - edge;
+  var nextScroll = Math.max(0, Math.min(bar.scrollWidth - bar.clientWidth, scroll));
+  if (Math.abs(nextScroll - bar.scrollLeft) < 1) { stopTabEdgeScroll(); return; }
   state.currentFocusArea = 'tabs';
   switchCategoryTab(next - state.tabIdx);
-  bar.scrollLeft = Math.max(0, Math.min((count - 5) * step, (first + dir) * step));
+  bar.scrollLeft = nextScroll;
   updateMainFocus(false);
   syncTabEdges();
 }
@@ -4810,30 +4821,8 @@ function syncTabEdges() {
   var left = $('tabs-edge-left'), right = $('tabs-edge-right');
   if (!bar || !left || !right) return;
   var visible = bar.style.display !== 'none';
-  // Five complete tabs and narrow blank scrolling areas, as in OTT.
-  var step = (bar.clientWidth - 32) / 5;
-  if (step > 0 && bar._tabStep !== step) {
-    var first = bar._tabStep ? Math.round(bar.scrollLeft / bar._tabStep) : 0;
-    bar._tabStep = step;
-    bar.style.paddingLeft = '16px';
-    bar.style.paddingRight = '16px';
-    bar.style.boxSizing = 'border-box';
-    for (var i = 0; i < bar.children.length; i++) {
-      var style = bar.children[i].style;
-      style.width = step + 'px'; style.minWidth = '0'; style.maxWidth = 'none';
-      style.marginRight = '0'; style.boxSizing = 'border-box';
-    }
-    bar.scrollLeft = first * step;
-  } else if (step > 0) {
-    // renderTabs can replace the children without changing the viewport width.
-    for (var j = 0; j < bar.children.length; j++) {
-      var childStyle = bar.children[j].style;
-      childStyle.width = step + 'px'; childStyle.minWidth = '0'; childStyle.maxWidth = 'none';
-      childStyle.marginRight = '0'; childStyle.boxSizing = 'border-box';
-    }
-  }
   left.style.display = visible && bar.scrollLeft > 1 ? 'block' : 'none';
-  right.style.display = visible && bar.scrollLeft < (bar.children.length - 5) * step - 1 ? 'block' : 'none';
+  right.style.display = visible && bar.scrollLeft + bar.clientWidth < bar.scrollWidth - 1 ? 'block' : 'none';
   if (!visible || (state._tabEdgeDirection < 0 && left.style.display === 'none') ||
       (state._tabEdgeDirection > 0 && right.style.display === 'none')) stopTabEdgeScroll();
   bar.onscroll = syncTabEdges;
