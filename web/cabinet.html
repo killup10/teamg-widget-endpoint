@@ -79,6 +79,11 @@ h4{font-weight:400;color:#555;margin:18px 0 6px}
 /* Filas de Canales Verde Estilo Foto 2 con Drag and Drop */
 .channel-row{background:#22c55e;color:#fff;border-radius:4px;display:flex;align-items:center;padding:6px 12px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,0.15);cursor:grab;user-select:none;transition:transform 0.1s ease;box-sizing:border-box;width:100%;min-width:0}
 .channel-row:active{cursor:grabbing}
+.channel-select{width:18px;height:18px;flex-shrink:0;cursor:pointer;margin:0 10px 0 0;accent-color:#166534}
+.bulk-channel-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.bulk-channel-actions button:disabled{opacity:0.5;cursor:default}
+.channels-container.grid-view .channel-row{position:relative}
+.channels-container.grid-view .channel-select{position:absolute;top:8px;left:8px}
 .channel-row.dragging{opacity:0.35;transform:scale(0.98);outline:2px dashed #ffffff}
 .channel-row.drag-over-top{border-top:3px solid #ffcc00 !important}
 .channel-row.drag-over-bottom{border-bottom:3px solid #ffcc00 !important}
@@ -701,6 +706,8 @@ function isSeriesGroup(channels) {
 }
 
 function renderPlaylistEditor(a) {
+  // Selection belongs to this render and group; reordering/navigation clears it.
+  var selectedChannels = [];
   var groupCounts = {};
   CURRENT_PL.groups.forEach(function(g) { groupCounts[g] = 0; });
   CURRENT_PL.channels.forEach(function(c) {
@@ -779,6 +786,7 @@ function renderPlaylistEditor(a) {
       var thumbUrl = c.logo || c.seriesLogo || c.seriesPoster;
       var thumb = thumbUrl ? "<img class='channel-thumb' src='" + esc(thumbUrl) + "' onerror=\"this.style.display='none'\" />" : "<div class='channel-thumb' style='color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;'>SIN LOGO</div>";
       h += "<div class='channel-row' draggable='true' data-ch-row='" + globalIdx + "'>" +
+        "<input type='checkbox' class='channel-select' data-ch-select='" + globalIdx + "' aria-label='Seleccionar " + esc(c.name) + "' />" +
         "<span class='drag-handle' title='Arrastrar para reordenar'>☰</span>" +
         "<span class='channel-num'>#" + (idx + 1) + "</span>" +
         thumb +
@@ -794,6 +802,71 @@ function renderPlaylistEditor(a) {
   h += "</div></div></div>";
 
   a.innerHTML = h;
+
+  var bulkBar = document.createElement("div");
+  bulkBar.className = "bulk-channel-actions";
+  bulkBar.innerHTML = "<label><input type='checkbox' id='chSelectVisible' /> Seleccionar visibles</label>" +
+    "<span id='chSelectedCount' class='small' role='status'>0 seleccionados</span>" +
+    "<button class='plain' id='chClearSelection' disabled>Limpiar selección</button>" +
+    "<button class='danger' id='chDeleteSelected' disabled>Eliminar seleccionados</button>";
+  var channelContainer = a.querySelector(".channels-container");
+  channelContainer.parentNode.insertBefore(bulkBar, channelContainer);
+
+  function updateChannelSelection() {
+    var boxes = a.querySelectorAll("[data-ch-select]");
+    var visible = 0, checkedVisible = 0;
+    for (var n = 0; n < boxes.length; n++) {
+      var channel = CURRENT_PL.channels[Number(boxes[n].getAttribute("data-ch-select"))];
+      boxes[n].checked = selectedChannels.indexOf(channel) !== -1;
+      if (boxes[n].parentNode.style.display !== "none") {
+        visible++;
+        if (boxes[n].checked) checkedVisible++;
+      }
+    }
+    var selectVisible = document.getElementById("chSelectVisible");
+    selectVisible.checked = visible > 0 && checkedVisible === visible;
+    selectVisible.indeterminate = checkedVisible > 0 && checkedVisible < visible;
+    selectVisible.disabled = visible === 0;
+    document.getElementById("chSelectedCount").textContent = selectedChannels.length + " seleccionados en este grupo (incluye ocultos por búsqueda)";
+    document.getElementById("chDeleteSelected").disabled = !selectedChannels.length;
+    document.getElementById("chClearSelection").disabled = !selectedChannels.length;
+  }
+  var selectionBoxes = a.querySelectorAll("[data-ch-select]");
+  for (var s = 0; s < selectionBoxes.length; s++) {
+    selectionBoxes[s].onclick = function(e) { e.stopPropagation(); };
+    selectionBoxes[s].onmousedown = function(e) { e.stopPropagation(); };
+    selectionBoxes[s].onchange = function() {
+      var channel = CURRENT_PL.channels[Number(this.getAttribute("data-ch-select"))];
+      var pos = selectedChannels.indexOf(channel);
+      if (this.checked && pos < 0) selectedChannels.push(channel);
+      else if (!this.checked && pos >= 0) selectedChannels.splice(pos, 1);
+      updateChannelSelection();
+    };
+  }
+  document.getElementById("chSelectVisible").onchange = function() {
+    var checked = this.checked;
+    for (var n = 0; n < selectionBoxes.length; n++) {
+      if (selectionBoxes[n].parentNode.style.display === "none") continue;
+      selectionBoxes[n].checked = checked;
+      selectionBoxes[n].onchange();
+    }
+    updateChannelSelection();
+  };
+  document.getElementById("chClearSelection").onclick = function() {
+    selectedChannels = [];
+    updateChannelSelection();
+  };
+  document.getElementById("chDeleteSelected").onclick = function() {
+    if (!selectedChannels.length) return;
+    if (!confirm("¿Eliminar " + selectedChannels.length + " elementos del grupo «" + CURRENT_GROUP + "»? Incluye los seleccionados ocultos por la búsqueda. Se guardará en el servidor.")) return;
+    CURRENT_PL.channels = CURRENT_PL.channels.filter(function(channel) {
+      return selectedChannels.indexOf(channel) < 0;
+    });
+    selectedChannels = [];
+    updateChannelSelection();
+    savePlaylistToServer();
+  };
+  updateChannelSelection();
 
   // Eventos de Navegación y Grupos
   document.getElementById("btnBackToPlaylists").onclick = function(e) {
@@ -1271,6 +1344,7 @@ function renderPlaylistEditor(a) {
     }
     var countEl = document.getElementById("chCountText");
     if (countEl) countEl.textContent = visibleCount + " canales";
+    updateChannelSelection();
   };
 }
 
