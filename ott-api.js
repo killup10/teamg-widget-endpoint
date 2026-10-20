@@ -208,7 +208,8 @@ function mergePlaylistSource(existing, incoming) {
   const existingGroups = [...new Set(existing.map(c => c.group))];
   const groups = [...new Set(fresh.map(c => c.group).filter(group => !existingGroups.includes(group)))].concat(existingGroups);
   const buckets = new Map(groups.map(group => [group, []]));
-  for (const c of fresh.concat(result)) buckets.get(c.group).push(c);
+  // Keep each title's existing episodes first; movie recency is a catalog view.
+  for (const c of result.concat(fresh)) buckets.get(c.group).push(c);
   return { channels: groups.flatMap(group => buckets.get(group)), added, updated };
 }
 

@@ -22,4 +22,9 @@ assert.equal(parsed.channels[0].addedAt,'2026-10-19T18:00:00Z');
 const merged=ctx.mergePlaylistSource(parsed.channels,[{name:'Otro',url:'http://test/other',group:'Drama'}]);
 assert.ok(merged.channels.find(c=>c.name==='Otro').addedAt);
 assert.equal(merged.channels.find(c=>c.name==='Nuevo').addedAt,'2026-10-19T18:00:00Z');
+ctx.state.channels=merged.channels;ctx.state.currentGroup='__all';
+for (const name of ['Cine 2026','Cine 4K','Cine por generos']) {
+  ctx.state.currentPlaylist.name=name;ctx.state._filteredChannels=null;
+  assert.equal(ctx.getFilteredChannels()[0].name,'Otro','New movies still lead Todos after source sync');
+}
 console.log('Movie recency: all three catalogs, genre order, live TV, M3U dates and sync preservation pass.');

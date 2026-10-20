@@ -1615,7 +1615,7 @@ document.getElementById("btnSaveChModal").onclick = async function() {
   }
 
   if (EDITING_CH_IDX === -1) {
-    CURRENT_PL.channels.unshift({
+    var newChannel = {
       id: "c_" + (CURRENT_PL.channels.length + 1),
       name: name,
       url: url,
@@ -1625,7 +1625,10 @@ document.getElementById("btnSaveChModal").onclick = async function() {
       seriesPoster: getGroupSeriesPoster(group),
       subs: subs,
       adult: adult
-    });
+    };
+    var movieCatalog = /^cine\s*(2026|4\s*k|por\s+g[eé]neros?)\b/i.test(CURRENT_PL.name || "");
+    if (movieCatalog) CURRENT_PL.channels.unshift(newChannel);
+    else CURRENT_PL.channels.push(newChannel);
   } else {
     CURRENT_PL.channels[EDITING_CH_IDX].name = name;
     CURRENT_PL.channels[EDITING_CH_IDX].url = url;

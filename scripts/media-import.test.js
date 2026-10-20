@@ -14,7 +14,7 @@ assert.equal(merged.channels[1].seriesLogo,'https://example/h.jpg');
 assert.equal(merged.channels[2].seriesLogo,'https://example/h.jpg');
 assert.equal(merged.channels[2].seriesPoster,'https://example/v.jpg');
 assert.equal(merged.added,1);
-assert.equal(merged.channels[0].name,'T1 E3', 'New episodes must precede existing entries in the source order');
+assert.deepEqual(Array.from(merged.channels,c=>c.name),['T1 E1','T1 E2','T1 E3'], 'New episodes must follow existing episodes of their title');
 const ordered=context.mergePlaylistSource([
   {name:'Old drama',group:'Drama',url:'https://example/old-drama'},
   {name:'Old comedy',group:'Comedia',url:'https://example/old-comedy'}
@@ -24,12 +24,17 @@ const ordered=context.mergePlaylistSource([
   {name:'New series E1',group:'New series',url:'https://example/series-1'},
   {name:'New series E2',group:'New series',url:'https://example/series-2'}
 ]);
-assert.deepEqual(Array.from(ordered.channels,c=>c.name),['New series E1','New series E2','Premiere 1','Premiere 2','Old drama','Old comedy']);
+assert.deepEqual(Array.from(ordered.channels,c=>c.name),['New series E1','New series E2','Old drama','Premiere 1','Premiere 2','Old comedy']);
 const repeated=context.mergePlaylistSource(ordered.channels,ordered.channels);
 assert.equal(repeated.added,0);
 assert.deepEqual(Array.from(repeated.channels,c=>c.name),Array.from(ordered.channels,c=>c.name),'Resync must preserve the saved order without duplicates');
 const cabinet=fs.readFileSync('web/cabinet.html','utf8');
-assert.ok(cabinet.includes('CURRENT_PL.channels.unshift({'), 'Manual additions must appear first in their group');
+const addSource=cabinet.slice(cabinet.indexOf('    var newChannel = {'),cabinet.indexOf('  } else {\n    CURRENT_PL.channels[EDITING_CH_IDX].name'));
+for (const name of ['Series','Documentales','Animes','Kdramas','Cine 2026','Cine 4K','Cine por género']) {
+  const ctx={CURRENT_PL:{name,channels:[{name:'Anterior'}]},name:'Nuevo',url:'https://example/new',group:'Título',logo:'',subs:'',adult:false,getGroupSeriesCover:()=>'',getGroupSeriesPoster:()=>''};
+  vm.runInNewContext(addSource,ctx);
+  assert.equal(ctx.CURRENT_PL.channels[0].name,name.startsWith('Cine')?'Nuevo':'Anterior',name);
+}
 assert.ok(cabinet.includes('CURRENT_PL.groups.unshift(ng)'), 'New series folders must appear first');
 const sourceOnly=context.mergePlaylistSource([], [{name:'E1',group:'Nueva',url:'https://example/new',seriesLogo:'https://example/source.jpg'}]);
 assert.equal(sourceOnly.channels[0].seriesLogo,'https://example/source.jpg');
