@@ -9,7 +9,7 @@ const ctx = {state: {currentPlaylist: {name: 'Cine 2026'}, currentGroup: '__all'
 vm.createContext(ctx);
 vm.runInContext(api.slice(api.indexOf('function parseM3uText('),api.indexOf('function serializeChannelsToM3u(')),ctx);
 vm.runInContext(html.slice(html.indexOf('function getFilteredChannels('),html.indexOf('function getTileDimensions(')),ctx);
-for (const name of ['Cine 2026','Cine 4K','Cine por generos']) {
+for (const name of ['Cine 2026','Cine 4K','Cine por generos','Cine por Genero','Cine 4K UHD']) {
   ctx.state.currentPlaylist.name=name; ctx.state._filteredChannels=null;
   assert.equal(ctx.getFilteredChannels()[0].name,'Drama nuevo');
 }

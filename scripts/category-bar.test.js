@@ -6,7 +6,7 @@ const source = html.slice(html.indexOf('function syncCategoryBar()'),html.indexO
 const classes = new Set();
 const bar = {style:{display:''}};
 const view = {classList:{contains:n=>classes.has(n),add:n=>classes.add(n),remove:n=>classes.delete(n)}};
-const ctx = {state:{screen:'playlists',currentPlaylist:{id:'same-playlist'},channels:[{}],categoryConfirmed:false},$:id=>id==='bottom-tabs-bar'?bar:view};
+const ctx = {setTimeout:()=>{},syncTabEdges:()=>{},state:{screen:'playlists',currentPlaylist:{id:'same-playlist'},channels:[{}],categoryConfirmed:false},$:id=>id==='bottom-tabs-bar'?bar:view};
 vm.createContext(ctx); vm.runInContext(source,ctx);
 ctx.syncCategoryBar(); assert.equal(bar.style.display,'');
 ctx.state.categoryConfirmed = true; ctx.syncCategoryBar();

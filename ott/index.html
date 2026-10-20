@@ -1833,6 +1833,10 @@ video::cue {
 .tab-skew { min-width: 19vw; max-width: 24vw; height: 9vh; line-height: 6.4vh; padding: 0 2vw; font-size: 3.4vh; font-weight: normal; color: white; border-right: 4px solid black; overflow: hidden; text-overflow: ellipsis; background: #241116; }
 .tab-skew span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; vertical-align: top; }
 .tab-skew.active { font-weight: normal; }
+.tabs-edge { display:none; position:absolute; bottom:0; height:9vh; width:3vw; min-width:24px; padding:0; border:0; z-index:17; background:#241116; color:white; font-size:4vh; cursor:pointer; }
+#tabs-edge-left { left:0; }
+#tabs-edge-right { right:0; }
+.tabs-edge:hover, .tabs-edge:focus { background:#9b225c; color:#ffcc00; }
 body.theme-wine, body.theme-wine #app { background: #1c0b0b; }
 body.theme-wine #topbar { background: #1c0b0b; }
 #grid-scrollbar { top: 1vh !important; bottom: 9vh !important; }
@@ -1943,6 +1947,8 @@ body.text-large .drawer-num { font-size: 25px !important; }
       <div id="grid-scrollbar-thumb" style="position:absolute; width:100%; border-radius:2px; background:#ff7700; top:0; height:20%;"></div>
     </div>
     <div id="bottom-tabs-bar"></div>
+    <button id="tabs-edge-left" class="tabs-edge" aria-label="Categorías anteriores">&#8249;</button>
+    <button id="tabs-edge-right" class="tabs-edge" aria-label="Más categorías">&#8250;</button>
   </div>
 
   <!-- PANTALLA: OPTIONS (Fotos 2 y 5) -->
@@ -4443,7 +4449,7 @@ function getFilteredChannels() {
     res.push(c);
   }
   var playlistName = normalizePlaylistSearch(state.currentPlaylist && state.currentPlaylist.name || '');
-  if (state.currentGroup === '__all' && /^cine\s*(2026|4\s*k|por\s+generos)\b/.test(playlistName)) {
+  if (state.currentGroup === '__all' && /^cine\s*(2026|4\s*k|por\s+generos?)\b/.test(playlistName)) {
     // Explicit indices keep equal/unknown dates stable on legacy NetCast engines.
     var ranked = [];
     for (var r = 0; r < res.length; r++) ranked.push({item: res[r], index: r, time: Date.parse(res[r].addedAt || '') || 0});
@@ -4766,7 +4772,27 @@ function getTabsList() {
 }
 
 /* Barra de pestañas trapezoidales (Fotos 1 y 2) */
+function syncTabEdges() {
+  var bar = $('bottom-tabs-bar');
+  var left = $('tabs-edge-left'), right = $('tabs-edge-right');
+  if (!bar || !left || !right) return;
+  var visible = bar.style.display !== 'none';
+  left.style.display = visible && bar.scrollLeft > 1 ? 'block' : 'none';
+  right.style.display = visible && bar.scrollLeft + bar.clientWidth < bar.scrollWidth - 1 ? 'block' : 'none';
+  bar.onscroll = syncTabEdges;
+  function move(dir) {
+    var step = bar.children.length ? bar.children[0].offsetWidth + 3 : bar.clientWidth / 5;
+    bar.scrollLeft = Math.max(0, Math.min(bar.scrollWidth - bar.clientWidth, bar.scrollLeft + dir * step));
+    syncTabEdges();
+  }
+  left.onmouseenter = function() { move(-1); };
+  right.onmouseenter = function() { move(1); };
+  left.onclick = left.onmouseenter;
+  right.onclick = right.onmouseenter;
+}
+
 function renderTabs() {
+  setTimeout(syncTabEdges, 0);
   var bar = $('bottom-tabs-bar');
   if (!bar) return;
   syncCategoryBar();
@@ -4983,6 +5009,7 @@ function restoreCatalogNavigation(saved) {
 function syncCategoryBar() {
   if (state.screen !== 'playlists') return;
   var inside = !!(state.currentPlaylist || (state.channels && state.channels.length));
+  setTimeout(syncTabEdges, 0);
   var hide = inside && state.categoryConfirmed;
   var bar = $('bottom-tabs-bar');
   if (bar && bar.style.display !== (hide ? 'none' : '')) bar.style.display = hide ? 'none' : '';
