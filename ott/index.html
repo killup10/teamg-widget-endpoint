@@ -1729,7 +1729,7 @@ video::cue {
 }
 
 /* Proporciones del HUD de referencia, escaladas a la pantalla del televisor. */
-#topbar { height: 16.2vh; background: #1c0b0b; }
+#topbar { height: 14.8vh; background: #1c0b0b; }
 .topbar-title { left: 2.5vw; top: 4vh; font-size: 3.4vh; font-weight: normal; letter-spacing: 0; }
 .topbar-right { right: 0.8vw; top: 1.7vh; }
 #topbar .round-icon-btn,
@@ -1804,8 +1804,8 @@ video::cue {
   width: 4.4vw !important;
 }
 .top-clock-text { font-size: 3vh; border-top: 2px solid #eee; margin-top: 0.6vh; padding: 0.5vh 2vw 0 6vw; letter-spacing: 0; }
-#view-playlists { top: 16.2vh; }
-#content-area { bottom: 9vh; padding: 1vh 0.5vw 0; font-size: 0; }
+#view-playlists { top: 14.8vh; }
+#content-area { bottom: 6.4vh; padding: 1vh 0.5vw 0; font-size: 0; }
 .tile-item { width: calc(16.666% - 0.4vw); height: 26.5vh; margin: 0 0.2vw 0.5vh; background: #241116; border-radius: 0; overflow: hidden; }
 .tile-thumb { height: 17.5vh; border-radius: 0; }
 .tile-thumb img { border-radius: 0; }
@@ -1829,17 +1829,17 @@ video::cue {
 .tile-item.focused { background: #8a2542 !important; border: 3.5px solid #ffcc00 !important; outline: 2px solid #ffffff !important; outline-offset: -2px !important; box-shadow: none !important; -webkit-box-shadow: none !important; z-index: 10; }
 .tile-item.focused .tile-thumb { border: 2px solid #ffcc00 !important; outline: none !important; }
 .tile-item.focused .tile-title { color: #ffcc00 !important; font-weight: bold !important; background: #731e36 !important; }
-#bottom-tabs-bar { height: 9vh; padding-left: 0; border-top: 0; background: #1c0b0b; scrollbar-width: none !important; -ms-overflow-style: none !important; }
-.tab-skew { min-width: 19vw; max-width: 24vw; height: 9vh; line-height: 6.4vh; padding: 0 2vw; font-size: 3.4vh; font-weight: normal; color: white; border-right: 4px solid black; overflow: hidden; text-overflow: ellipsis; background: #241116; }
+#bottom-tabs-bar { height: 6.4vh; padding-left: 0; border-top: 0; background: #1c0b0b; scrollbar-width: none !important; -ms-overflow-style: none !important; }
+.tab-skew { min-width: 19vw; max-width: 24vw; height: 6.4vh; line-height: 6.4vh; padding: 0 2vw; font-size: 3.4vh; font-weight: normal; color: white; border-right: 4px solid black; overflow: hidden; text-overflow: ellipsis; background: #241116; }
 .tab-skew span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; vertical-align: top; }
 .tab-skew.active { font-weight: normal; }
-.tabs-edge { display:none; position:absolute; bottom:0; height:9vh; width:16px; padding:0; border:0; z-index:17; background:#241116; color:white; font-size:4vh; cursor:pointer; }
+.tabs-edge { display:none; position:absolute; bottom:0; height:6.4vh; width:16px; padding:0; border:0; z-index:17; background:#241116; color:white; font-size:4vh; cursor:pointer; }
 #tabs-edge-left { left:0; }
 #tabs-edge-right { right:0; }
 .tabs-edge:hover, .tabs-edge:focus { background:#241116; outline:0; }
 body.theme-wine, body.theme-wine #app { background: #1c0b0b; }
 body.theme-wine #topbar { background: #1c0b0b; }
-#grid-scrollbar { top: 1vh !important; bottom: 9vh !important; }
+#grid-scrollbar { top: 1vh !important; bottom: 6.4vh !important; }
 #view-playlists.category-immersive #content-area,
 #view-playlists.category-immersive #grid-scrollbar { bottom: 0 !important; }
 
@@ -4464,17 +4464,67 @@ function getFilteredChannels() {
 
 function getTileDimensions() {
   var area = $('content-area');
-  var areaH = 0;
-  if (area && area.clientHeight > 200) {
-    areaH = area.clientHeight;
-  } else {
-    var winH = window.innerHeight || 720;
-    areaH = winH - 124;
+  var height = area && area.clientHeight || 540;
+  var width = area && area.clientWidth || 1280;
+  var gap = Math.max(3, Math.round(Math.min(width / 1280, height / 540) * 4));
+  var tileW = Math.max(1, Math.floor((width - gap * 8) / 6));
+  var tileH = Math.max(1, Math.floor((height - gap * 5) / 3));
+  // Reserve room for the title and focus border on all three rows.
+  var titleMin = Math.max(20, Math.round(tileH * 0.24));
+  var thumbH = Math.max(1, Math.min(Math.round(tileW * 9 / 16), tileH - titleMin - 8));
+  return { tileW: tileW, tileH: tileH, thumbH: thumbH,
+    titleH: Math.max(1, tileH - thumbH - 8), gap: gap };
+}
+
+function layoutCatalogTiles() {
+  var area = $('content-area');
+  if (!area || !area.children || !area.clientHeight) return;
+  var dims = getTileDimensions();
+  area.style.padding = dims.gap + 'px';
+  for (var i = 0; i < area.children.length; i++) {
+    var tile = area.children[i];
+    if ((' ' + tile.className + ' ').indexOf(' tile-item ') === -1) continue;
+    tile.style.width = dims.tileW + 'px';
+    tile.style.height = dims.tileH + 'px';
+    tile.style.margin = '0 ' + (dims.gap / 2) + 'px ' + dims.gap + 'px';
+    // Identical border space in both states prevents focus from clipping content.
+    tile.style.border = '4px solid transparent';
+    var thumb = tile.querySelector('.tile-thumb');
+    var title = tile.querySelector('.tile-title');
+    if (thumb) thumb.style.height = dims.thumbH + 'px';
+    if (title) {
+      title.style.height = dims.titleH + 'px';
+      title.style.lineHeight = dims.titleH + 'px';
+      title.style.fontSize = Math.max(12, Math.round(dims.tileW * (state.auth.textSize === 'large' ? 0.10 : 0.08))) + 'px';
+    }
   }
-  var exactTileH = Math.floor((areaH - 24) / 3);
-  if (exactTileH < 120) exactTileH = 175;
-  var exactThumbH = Math.max(55, Math.floor(exactTileH * 0.55));
-  return { tileH: exactTileH, thumbH: exactThumbH };
+}
+
+function layoutCatalogViewport() {
+  var width = document.documentElement.clientWidth || window.innerWidth || 1280;
+  var height = document.documentElement.clientHeight || window.innerHeight || 720;
+  var unit = Math.min(height, width * 9 / 16) / 100;
+  var header = Math.round(unit * 14.8), footer = Math.round(unit * 6.4);
+  var style = $('catalog-viewport-style');
+  if (!style) {
+    style = document.createElement('style'); style.id = 'catalog-viewport-style';
+    document.getElementsByTagName('head')[0].appendChild(style);
+  }
+  var css = '#topbar{height:' + header + 'px;}#view-playlists{top:' + header + 'px;}' +
+    '#bottom-tabs-bar,.tabs-edge{height:' + footer + 'px;line-height:' + footer + 'px;}' +
+    '.tab-skew{height:' + footer + 'px;line-height:' + footer + 'px;font-size:' + Math.round(unit * 3.4) + 'px;}' +
+    '#content-area{bottom:' + footer + 'px;}#grid-scrollbar{bottom:' + footer + 'px!important;}' +
+    '#view-playlists.category-immersive #grid-scrollbar{bottom:0!important;}' +
+    '.topbar-title{font-size:' + Math.round(unit * 3.4) + 'px;}' +
+    '#topbar .topbar-right{top:' + Math.round(unit * 0.8) + 'px;}' +
+    '#topbar .btn-color-accent{margin-top:' + Math.round(unit * 0.8) + 'px!important;}' +
+    '.top-clock-text{font-size:' + Math.round(unit * 2.8) + 'px;line-height:1.1;margin-top:' + Math.round(unit * 0.4) + 'px;padding-top:' + Math.round(unit * 0.2) + 'px;}' +
+    '#topbar .round-icon-btn{width:' + Math.round(unit * 7.5) + 'px!important;height:' + Math.round(unit * 7.5) + 'px!important;line-height:' + Math.round(unit * 7) + 'px!important;}' +
+    '#topbar .round-icon-btn svg{width:' + Math.round(unit * 4.7) + 'px!important;height:' + Math.round(unit * 4.7) + 'px!important;}';
+  if (style.styleSheet) style.styleSheet.cssText = css;
+  else style.textContent = css;
+  layoutCatalogTiles();
+  syncTabEdges();
 }
 
 function refreshRecentCoversFromFeed() {
@@ -5023,6 +5073,7 @@ function renderChannels() {
     frag.appendChild(tile);
   }
   area.appendChild(frag);
+  layoutCatalogTiles();
 
   // Barra vertical de progreso de páginas en el extremo derecho (Foto 2)
   var sbTrack = $('grid-scrollbar');
@@ -5080,6 +5131,7 @@ function syncCategoryBar() {
     if (hide && !active) view.classList.add('category-immersive');
     else if (!hide && active) view.classList.remove('category-immersive');
   }
+  if (typeof layoutCatalogTiles === 'function') layoutCatalogTiles();
 }
 
 function updateMainFocus(shouldScroll) {
@@ -7099,6 +7151,8 @@ $('kbBtnBack').onclick = function() { closeKeyboard(false); };
 $('kbKeyCaps').onclick = function() { state.kbCaps = !state.kbCaps; renderKeyboard(); layoutSettings(); };
 $('kbKeyLang').onclick = toggleKeyboardLayout;
 window.addEventListener('resize', layoutSettings, false);
+window.addEventListener('resize', layoutCatalogViewport, false);
+layoutCatalogViewport();
 $('kbKeySpace').onclick = function() { handleKeyClick(' '); };
 $('kbKeyBack').onclick = function() { kbInputText = kbInputText.slice(0, -1); updateKeyboardDisplay(); };
 $('kbKeyOk').onclick = function() { closeKeyboard(true); };
