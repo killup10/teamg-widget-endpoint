@@ -1833,10 +1833,10 @@ video::cue {
 .tab-skew { min-width: 19vw; max-width: 24vw; height: 9vh; line-height: 6.4vh; padding: 0 2vw; font-size: 3.4vh; font-weight: normal; color: white; border-right: 4px solid black; overflow: hidden; text-overflow: ellipsis; background: #241116; }
 .tab-skew span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; vertical-align: top; }
 .tab-skew.active { font-weight: normal; }
-.tabs-edge { display:none; position:absolute; bottom:0; height:9vh; width:3vw; min-width:24px; padding:0; border:0; z-index:17; background:#241116; color:white; font-size:4vh; cursor:pointer; }
+.tabs-edge { display:none; position:absolute; bottom:0; height:9vh; width:16px; padding:0; border:0; z-index:17; background:#241116; color:white; font-size:4vh; cursor:pointer; }
 #tabs-edge-left { left:0; }
 #tabs-edge-right { right:0; }
-.tabs-edge:hover, .tabs-edge:focus { background:#9b225c; color:#ffcc00; }
+.tabs-edge:hover, .tabs-edge:focus { background:#241116; outline:0; }
 body.theme-wine, body.theme-wine #app { background: #1c0b0b; }
 body.theme-wine #topbar { background: #1c0b0b; }
 #grid-scrollbar { top: 1vh !important; bottom: 9vh !important; }
@@ -1947,8 +1947,8 @@ body.text-large .drawer-num { font-size: 25px !important; }
       <div id="grid-scrollbar-thumb" style="position:absolute; width:100%; border-radius:2px; background:#ff7700; top:0; height:20%;"></div>
     </div>
     <div id="bottom-tabs-bar"></div>
-    <button id="tabs-edge-left" class="tabs-edge" aria-label="Categorías anteriores">&#8249;</button>
-    <button id="tabs-edge-right" class="tabs-edge" aria-label="Más categorías">&#8250;</button>
+    <button id="tabs-edge-left" class="tabs-edge" aria-label="Categorías anteriores"></button>
+    <button id="tabs-edge-right" class="tabs-edge" aria-label="Más categorías"></button>
   </div>
 
   <!-- PANTALLA: OPTIONS (Fotos 2 y 5) -->
@@ -2318,12 +2318,13 @@ function safeScrollIntoView(el) {
   if (bar && bar.contains(el)) {
     var bLeft = bar.scrollLeft;
     var bWidth = bar.clientWidth;
+    var edgeSpace = 16;
     var elLeft = el.offsetLeft;
     var elWidth = el.offsetWidth;
-    if (elLeft < bLeft) {
-      bar.scrollLeft = elLeft;
-    } else if (elLeft + elWidth > bLeft + bWidth) {
-      bar.scrollLeft = elLeft + elWidth - bWidth;
+    if (elLeft < bLeft + edgeSpace) {
+      bar.scrollLeft = Math.max(0, elLeft - edgeSpace);
+    } else if (elLeft + elWidth > bLeft + bWidth - edgeSpace) {
+      bar.scrollLeft = elLeft + elWidth - bWidth + edgeSpace;
     }
     return;
   }
@@ -4772,23 +4773,83 @@ function getTabsList() {
 }
 
 /* Barra de pestañas trapezoidales (Fotos 1 y 2) */
+function stopTabEdgeScroll() {
+  clearTimeout(state._tabEdgeTimer);
+  state._tabEdgeTimer = null;
+  state._tabEdgeDirection = 0;
+}
+
+function moveTabEdge(dir) {
+  var bar = $('bottom-tabs-bar');
+  if (!bar || bar.style.display === 'none' || !bar.children.length) { stopTabEdgeScroll(); return; }
+  var count = bar.children.length;
+  var step = bar._tabStep || bar.children[0].offsetWidth;
+  var first = Math.round(bar.scrollLeft / step);
+  var next = dir > 0 ? first + 5 : first - 1;
+  if (next < 0 || next >= count) { stopTabEdgeScroll(); return; }
+  state.currentFocusArea = 'tabs';
+  switchCategoryTab(next - state.tabIdx);
+  bar.scrollLeft = Math.max(0, Math.min((count - 5) * step, (first + dir) * step));
+  updateMainFocus(false);
+  syncTabEdges();
+}
+
+function startTabEdgeScroll(dir) {
+  stopTabEdgeScroll();
+  state._tabEdgeDirection = dir;
+  function tick() {
+    if (state._tabEdgeDirection !== dir) return;
+    moveTabEdge(dir);
+    if (state._tabEdgeDirection === dir) state._tabEdgeTimer = setTimeout(tick, 240);
+  }
+  tick();
+}
+
 function syncTabEdges() {
   var bar = $('bottom-tabs-bar');
   var left = $('tabs-edge-left'), right = $('tabs-edge-right');
   if (!bar || !left || !right) return;
   var visible = bar.style.display !== 'none';
-  left.style.display = visible && bar.scrollLeft > 1 ? 'block' : 'none';
-  right.style.display = visible && bar.scrollLeft + bar.clientWidth < bar.scrollWidth - 1 ? 'block' : 'none';
-  bar.onscroll = syncTabEdges;
-  function move(dir) {
-    var step = bar.children.length ? bar.children[0].offsetWidth + 3 : bar.clientWidth / 5;
-    bar.scrollLeft = Math.max(0, Math.min(bar.scrollWidth - bar.clientWidth, bar.scrollLeft + dir * step));
-    syncTabEdges();
+  // Five complete tabs and narrow blank scrolling areas, as in OTT.
+  var step = (bar.clientWidth - 32) / 5;
+  if (step > 0 && bar._tabStep !== step) {
+    var first = bar._tabStep ? Math.round(bar.scrollLeft / bar._tabStep) : 0;
+    bar._tabStep = step;
+    bar.style.paddingLeft = '16px';
+    bar.style.paddingRight = '16px';
+    bar.style.boxSizing = 'border-box';
+    for (var i = 0; i < bar.children.length; i++) {
+      var style = bar.children[i].style;
+      style.width = step + 'px'; style.minWidth = '0'; style.maxWidth = 'none';
+      style.marginRight = '0'; style.boxSizing = 'border-box';
+    }
+    bar.scrollLeft = first * step;
+  } else if (step > 0) {
+    // renderTabs can replace the children without changing the viewport width.
+    for (var j = 0; j < bar.children.length; j++) {
+      var childStyle = bar.children[j].style;
+      childStyle.width = step + 'px'; childStyle.minWidth = '0'; childStyle.maxWidth = 'none';
+      childStyle.marginRight = '0'; childStyle.boxSizing = 'border-box';
+    }
   }
-  left.onmouseenter = function() { move(-1); };
-  right.onmouseenter = function() { move(1); };
-  left.onclick = left.onmouseenter;
-  right.onclick = right.onmouseenter;
+  left.style.display = visible && bar.scrollLeft > 1 ? 'block' : 'none';
+  right.style.display = visible && bar.scrollLeft < (bar.children.length - 5) * step - 1 ? 'block' : 'none';
+  if (!visible || (state._tabEdgeDirection < 0 && left.style.display === 'none') ||
+      (state._tabEdgeDirection > 0 && right.style.display === 'none')) stopTabEdgeScroll();
+  bar.onscroll = syncTabEdges;
+  left.onmouseenter = function() { startTabEdgeScroll(-1); };
+  right.onmouseenter = function() { startTabEdgeScroll(1); };
+  left.onmouseleave = right.onmouseleave = stopTabEdgeScroll;
+  for (var k = 0; k < bar.children.length; k++) {
+    bar.children[k].onmouseenter = (function(index) { return function() {
+      stopTabEdgeScroll();
+      if (state.tabIdx !== index) {
+        state.currentFocusArea = 'tabs';
+        switchCategoryTab(index - state.tabIdx);
+        updateMainFocus(false);
+      }
+    }; })(k);
+  }
 }
 
 function renderTabs() {
