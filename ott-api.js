@@ -145,7 +145,8 @@ function parseM3uText(text) {
       const seriesLogo = mSeriesLogo ? mSeriesLogo[1] : '';
       const mPoster = ln.match(/(?:series-poster|tvg-poster|poster|tvg-cover)="([^"]*)"/i);
       const seriesPoster = mPoster ? mPoster[1] : '';
-      current = { id: 'c_' + (chId++), name, logo, seriesLogo, seriesPoster, group, adult, subs };
+      const mAdded = ln.match(/added-at="([^"]*)"/i);
+      current = { addedAt: mAdded ? mAdded[1] : '', id: 'c_' + (chId++), name, logo, seriesLogo, seriesPoster, group, adult, subs };
       groupsSet.add(group);
     } else if (ln.indexOf('#EXTGRP:') === 0) {
       if (current) {
@@ -200,7 +201,7 @@ function mergePlaylistSource(existing, incoming) {
       if (!old.seriesLogo) old.seriesLogo = cover.seriesLogo || source.seriesLogo || '';
       if (!old.seriesPoster) old.seriesPoster = cover.seriesPoster || source.seriesPoster || '';
     } else {
-      const c = { ...source, seriesLogo:cover.seriesLogo || source.seriesLogo || '', seriesPoster:cover.seriesPoster || source.seriesPoster || '' };
+      const c = { ...source, addedAt: new Date().toISOString(), seriesLogo:cover.seriesLogo || source.seriesLogo || '', seriesPoster:cover.seriesPoster || source.seriesPoster || '' };
       fresh.push(c); if (c.url) byUrl.set(c.url, c); byName.set(key(c), c); added++;
     }
   }
@@ -214,13 +215,14 @@ function mergePlaylistSource(existing, incoming) {
 function serializeChannelsToM3u(channels) {
   let m3u = '#EXTM3U\n';
   for (const c of (channels || [])) {
+    const addedAttr = c.addedAt && Number.isFinite(Date.parse(c.addedAt)) ? ` added-at="${new Date(c.addedAt).toISOString()}"` : '';
     const logoAttr = c.logo ? ` tvg-logo="${c.logo}"` : '';
     const seriesLogoAttr = c.seriesLogo ? ` series-logo="${String(c.seriesLogo).replace(/"/g, '%22').replace(/[\r\n]/g, '')}"` : '';
     const seriesPosterAttr = c.seriesPoster ? ` series-poster="${String(c.seriesPoster).replace(/"/g, '%22').replace(/[\r\n]/g, '')}"` : '';
     const groupAttr = c.group ? ` group-title="${c.group}"` : '';
     const adultAttr = c.adult ? ' adult="1"' : '';
     const subAttr = c.subs ? ` sub-tracks="${c.subs}"` : '';
-    m3u += `#EXTINF:-1${logoAttr}${seriesLogoAttr}${seriesPosterAttr}${groupAttr}${adultAttr}${subAttr},${c.name}\n`;
+    m3u += `#EXTINF:-1${addedAttr}${logoAttr}${seriesLogoAttr}${seriesPosterAttr}${groupAttr}${adultAttr}${subAttr},${c.name}\n`;
     if (c.group) m3u += `#EXTGRP:${c.group}\n`;
     if (c.logo) m3u += `#EXTIMG:${c.logo}\n`;
     if (c.subs) m3u += `#EXTSUB:${c.subs}\n`;
@@ -1180,6 +1182,20 @@ function fetchWithRedirects(targetUrl, options, maxRedirects, callback) {
             ch.seriesPoster = ch.seriesPoster.replace('https://teamg-widget-endpoint.onrender.com', 'https://' + host);
           }
         }
+      }
+      // Preserve original addition dates on edits; stamp only genuinely new entries.
+      let previousText = prevPl && prevPl.customM3u || '';
+      if (prevPl && !prevPl.customM3u && prevPl.url) {
+        try { previousText = await getCachedOrFetchText(prevPl.url); }
+        catch (e) { return json(res, 502, { ok: false, error: 'No se pudo leer la lista anterior para conservar las fechas de incorporación' }); }
+      }
+      const previousChannels = parseM3uText(previousText).channels;
+      const previousByUrl = new Map(previousChannels.map(c => [c.url, c]));
+      const previousByName = new Map(previousChannels.map(c => [String(c.group) + '\n' + c.name, c]));
+      const addedNow = store.nowIso();
+      for (const ch of body.channels) {
+        const old = previousByUrl.get(ch.url) || previousByName.get(String(ch.group) + '\n' + ch.name);
+        ch.addedAt = old ? old.addedAt || '' : addedNow;
       }
       const m3uText = serializeChannelsToM3u(body.channels);
       await cols.playlists.updateOne({ _id: String(body.id) }, { $set: { customM3u: m3uText, count: body.channels.length, updatedAt: store.nowIso() } });

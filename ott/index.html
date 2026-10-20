@@ -4220,7 +4220,8 @@ function parseM3U(text) {
       var seriesLogo = mSeriesLogo ? resolveIconUrl(mSeriesLogo[1]) : '';
       var mPoster = ln.match(/(?:series-poster|tvg-poster|poster|tvg-cover)="([^"]*)"/i);
       var seriesPoster = mPoster ? resolveIconUrl(mPoster[1]) : '';
-      meta = { name: name, seriesPoster: seriesPoster, seriesLogo: seriesLogo, logo: logo, group: group, subs: subs, extgrp: '', id: 'ch-' + i };
+      var mAdded = ln.match(/added-at="([^"]*)"/i);
+      meta = { addedAt: mAdded ? mAdded[1] : '', name: name, seriesPoster: seriesPoster, seriesLogo: seriesLogo, logo: logo, group: group, subs: subs, extgrp: '', id: 'ch-' + i };
     } else if (ln.indexOf('#EXTGRP:') === 0) {
       if (meta) {
         var grp = ln.replace('#EXTGRP:', '').trim();
@@ -4440,6 +4441,15 @@ function getFilteredChannels() {
       if (!nMatch && !gMatch) continue;
     }
     res.push(c);
+  }
+  var playlistName = normalizePlaylistSearch(state.currentPlaylist && state.currentPlaylist.name || '');
+  if (state.currentGroup === '__all' && /^cine\s*(2026|4\s*k|por\s+generos)\b/.test(playlistName)) {
+    // Explicit indices keep equal/unknown dates stable on legacy NetCast engines.
+    var ranked = [];
+    for (var r = 0; r < res.length; r++) ranked.push({item: res[r], index: r, time: Date.parse(res[r].addedAt || '') || 0});
+    ranked.sort(function(a, b) { return b.time - a.time || a.index - b.index; });
+    res = [];
+    for (var r2 = 0; r2 < ranked.length; r2++) res.push(ranked[r2].item);
   }
   state._filteredChannels = {channels: state.channels, group: state.currentGroup, query: q, items: res};
   return res;
