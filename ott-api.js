@@ -1385,11 +1385,43 @@ function handleStream(req, res, query) {
         outHeaders['Accept-Ranges'] = upRes.headers['accept-ranges'];
       }
 
-      res.writeHead(upRes.statusCode || 200, outHeaders);
       if (req.method === 'HEAD') {
+        res.writeHead(upRes.statusCode || 200, outHeaders);
         upRes.resume();
         return res.end();
       }
+      // Extensionless IPTV feeds may advertise octet-stream but carry MPEG-TS.
+      // Inspect sync bytes before committing headers instead of labelling them MP4.
+      if (outContentType === 'video/mp4' && (!contentType || contentType.indexOf('octet-stream') !== -1) &&
+          !/\.(mp4|m4v)(?:[?#]|$)/i.test(targetUrl)) {
+        let pending = [], pendingSize = 0, started = false;
+        const start = () => {
+          if (started) return;
+          started = true;
+          const bytes = Buffer.concat(pending, pendingSize);
+          for (let offset = 0; offset < 188 && offset + 376 < bytes.length; offset++) {
+            if (bytes[offset] === 0x47 && bytes[offset + 188] === 0x47 && bytes[offset + 376] === 0x47) {
+              outHeaders['Content-Type'] = 'video/mp2t';
+              break;
+            }
+          }
+          res.writeHead(upRes.statusCode || 200, outHeaders);
+          upRes.removeListener('data', inspect);
+          if (!res.write(bytes)) {
+            upRes.pause();
+            res.once('drain', () => { upRes.pipe(res); });
+          } else upRes.pipe(res);
+          pending = [];
+        };
+        const inspect = chunk => {
+          pending.push(chunk); pendingSize += chunk.length;
+          if (pendingSize >= 564) start();
+        };
+        upRes.on('data', inspect);
+        upRes.once('end', () => { if (!started) { start(); res.end(); } });
+        return;
+      }
+      res.writeHead(upRes.statusCode || 200, outHeaders);
       upRes.pipe(res);
     }
   });
