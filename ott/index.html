@@ -6196,13 +6196,17 @@ function playItem(c, recovering) {
     }
   }
   var androidLiveAudio = /Android/i.test(ua) && !/NetCast|webOS|Web0S|Tizen/i.test(ua) && !state.recoveryVod && !isDirectCdn;
-  if (androidLiveAudio && state.currentPlaylist && state.auth.token) {
+  // A continuous TS response is not an HLS manifest. Package it for HTML5/TV
+  // playback and convert unsupported broadcast audio (such as MP2) to AAC.
+  var rawLiveTransport = !state.recoveryVod && !isHls && !isDirectCdn &&
+    !/\.(?:mp4|m4v|mkv|webm|avi|mov|mp3|aac)(?:[?#]|$)/i.test(streamUrl);
+  if ((androidLiveAudio || rawLiveTransport) && state.currentPlaylist && state.auth.token) {
     var audioGeneration = state.playerGeneration;
-    // La comprobación no retrasa señales compatibles ni pierde el gesto inicial.
-    startSelectedPlayer(playUrl);
+    // HLS can start while checking audio; raw TS must wait for packaging.
+    if (!rawLiveTransport) startSelectedPlayer(playUrl);
     apiCall('POST', '/api/ott/android-audio/prepare', {
       token: state.auth.token, deviceId: state.auth.deviceId,
-      playlistId: state.currentPlaylist.id, url: streamUrl
+      playlistId: state.currentPlaylist.id, url: streamUrl, forceHls: rawLiveTransport
     }, function(status, result) {
       if (state.screen !== 'player' || state.playerGeneration !== audioGeneration) {
         if (result && result.sessionId) apiCall('POST', '/api/ott/android-audio/stop', { token: state.auth.token, deviceId: state.auth.deviceId, sessionId: result.sessionId }, function() {});
@@ -6215,9 +6219,11 @@ function playItem(c, recovering) {
           if (state.hlsInstance) { try { state.hlsInstance.destroy(); } catch (audioDestroyError) {} state.hlsInstance = null; }
           try { v.pause(); v.removeAttribute('src'); v.load(); } catch (audioResetError) {}
           startSelectedPlayer((API_BASE || '') + result.url);
-        }
+        } else if (rawLiveTransport) startSelectedPlayer(playUrl);
       } else {
-        showToast((result && result.error) || 'No se pudo comprobar el audio. Intentando señal original.');
+        if (rawLiveTransport) startSelectedPlayer(playUrl);
+        hideTuning();
+        showToast((result && result.error) || 'No se pudo preparar la señal compatible. Intentando señal original.');
       }
     });
     return;
@@ -6272,7 +6278,7 @@ function startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c, forceProxy) {
   var selectedUrl = playUrl;
   // Native NetCast live TS playback can use the original HTTP transport.
   // Keep the proxy URL available as a second attempt, and leave VOD/HLS alone.
-  if (!forceProxy && !state.recoveryVod && /^http:\/\//i.test(streamUrl) &&
+  if (!forceProxy && !state.recoveryVod && !/\.m3u8(?:[?#]|$)/i.test(playUrl) && /^http:\/\//i.test(streamUrl) &&
       !/(?:\.m3u8|\/chunks|\/playlist|\.(?:mp4|mkv|webm|avi|mov)(?:[?#]|$))/i.test(streamUrl)) {
     selectedUrl = streamUrl;
   }
@@ -6400,7 +6406,7 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c, androidFallbackEngine) 
     return true;
   }
   function androidPlayError(err) {
-    if (androidHls && err && err.name === 'NotAllowedError') {
+    if (err && err.name === 'NotAllowedError') {
       hideTuning();
       showToast('Pulsa OK / Play para iniciar el canal.');
     }

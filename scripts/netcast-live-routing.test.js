@@ -27,6 +27,9 @@ const normal=setup();normal.start();assert.deepEqual(normal.calls,[direct]);
 normal.native.playState=4;normal.advance(15001);assert.deepEqual(normal.calls,[direct,proxy],'Buffering must not suppress the startup timeout');
 normal.advance(15001);assert.deepEqual(normal.calls,[direct,proxy,'html5']);
 const immediate=setup({failDirect:true});immediate.start();assert.deepEqual(immediate.calls,[direct,proxy],'Handle synchronous native errors');
+const converted=setup();
+converted.ctx.startNetcastPlayer(null,converted.native,'https://app.test/api/ott/android-audio/session/index.m3u8',direct,{});
+assert.deepEqual(converted.calls,['https://app.test/api/ott/android-audio/session/index.m3u8'],'Keep prepared HLS instead of reopening original TS');
 assert.equal(immediate.timers.size,1,'Keep only the retry watchdog');
 const stale=setup();stale.start();stale.ctx.state.playerGeneration++;stale.advance(16000);assert.deepEqual(stale.calls,[direct]);
 for(const options of [{vod:true},{}]) {

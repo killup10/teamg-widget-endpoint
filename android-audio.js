@@ -46,15 +46,16 @@ async function dispose(id) {
   if (session.child.exitCode === null) session.child.kill('SIGKILL');
   await fs.promises.rm(session.dir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 }).catch(() => {});
 }
-async function prepare(owner, url) {
+async function prepare(owner, url, forceHls = false) {
   const codec = await probe(url);
-  if (!['mp2', 'aac_latm', 'ac3', 'eac3'].includes(codec)) return { transcoded: false, codec };
+  const convertAudio = ['mp2', 'aac_latm', 'ac3', 'eac3'].includes(codec);
+  if (!convertAudio && !forceHls) return { transcoded: false, codec };
   for (const session of sessions.values()) if (session.owner === owner) await dispose(session.id);
   if (sessions.size >= MAX_SESSIONS) throw new Error('Conversión de audio ocupada. Intenta nuevamente.');
   const id = crypto.randomBytes(24).toString('hex');
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'teamg-audio-'));
   const child = spawn(bin(), inputArgs(url).concat(['-map', '0:v:0', '-map', '0:a:0', '-c:v', 'copy',
-    '-c:a', 'aac', '-profile:a', 'aac_low', '-b:a', '128k', '-ac', '2', '-ar', '48000',
+    ...(convertAudio ? ['-c:a', 'aac', '-profile:a', 'aac_low', '-b:a', '128k', '-ac', '2', '-ar', '48000'] : ['-c:a', 'copy']),
     '-max_muxing_queue_size', '1024', '-f', 'hls', '-hls_time', '2', '-hls_list_size', '5',
     '-hls_flags', 'delete_segments+omit_endlist', '-hls_delete_threshold', '2',
     '-hls_segment_filename', path.join(dir, 'segment-%06d.ts'), path.join(dir, 'index.m3u8')]),
@@ -74,7 +75,7 @@ async function prepare(owner, url) {
       await new Promise(resolve => setTimeout(resolve, 200));
     }
     await dispose(id);
-    throw new Error('La fuente no pudo iniciar el audio compatible con Android');
+    throw new Error('La fuente no pudo iniciar la señal HLS compatible');
   })();
   await session.ready;
   return { transcoded: true, codec, sessionId: id, url: '/api/ott/android-audio/' + id + '/index.m3u8' };
