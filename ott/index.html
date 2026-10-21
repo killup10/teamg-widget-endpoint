@@ -2683,11 +2683,11 @@ function loadStorage() {
   state.auth.platform = detectedPlatform();
   state.auth.deviceName = state.auth.platform;
   if (!state.auth.theme) state.auth.theme = 'wine';
-  if (state.auth.engineOptionsVersion !== 2) {
+  if (state.auth.engineOptionsVersion !== 1) {
     state.auth.playerEngine = 'auto';
     state.auth.iptvPlayer = 'Automático';
     state.auth.hlsPlayer = 'Automático';
-    state.auth.engineOptionsVersion = 2;
+    state.auth.engineOptionsVersion = 1;
   }
 
   applyTheme(state.auth.theme);
@@ -6140,10 +6140,9 @@ function playItem(c, recovering) {
 
   // Proxy solo cuando es estrictamente indispensable:
   // Flujo HTTP dentro de página HTTPS (Mixed Content bloqueado por el navegador)
-  // o URL de respaldo con Content-Type video/mp2t en puerto 80 para LG NetCast.
   var needsProxy = false;
   if (!isDirectCdn) {
-    if ((isPageHttps || isLegacyNetcast) && streamUrl.indexOf('http://') === 0) {
+    if (isPageHttps && streamUrl.indexOf('http://') === 0) {
       needsProxy = true;
     }
   }
@@ -6164,7 +6163,7 @@ function playItem(c, recovering) {
     } else if (lowerUrl.indexOf('.mov') !== -1) {
       ext = '.mov';
     }
-    var proto = (isPageHttps && !isLegacyNetcast) ? 'https:' : 'http:';
+    var proto = isPageHttps ? 'https:' : 'http:';
     var httpHost = (window.location && window.location.host && window.location.host.indexOf('teamg.store') !== -1)
       ? window.location.host
       : 'ott.teamg.store';
@@ -6184,11 +6183,12 @@ function playItem(c, recovering) {
   if (engine === 'mediaplayer') {
     preferNetcast = true;
   } else if (engine === 'auto') {
-    if (isLegacyNetcast && netcastObj) {
+    if (isLegacyNetcast && netcastObj && (typeof netcastObj.play === 'function' || !isHls)) {
       preferNetcast = true;
     }
   }
   if (!state.recoveryVod && state.auth.iptvPlayer === 'Native TV player' && isLegacyNetcast && netcastObj) preferNetcast = true;
+  if (!state.recoveryVod && state.auth.iptvPlayer === 'HTML5 player' && isLegacyNetcast && netcastObj && !isHls) preferNetcast = true;
 
   probeSubtitles(c.url || playUrl, c.subs);
 
@@ -6254,20 +6254,29 @@ function playItem(c, recovering) {
   }
 }
 
-function startSamsungPlayer(v, netcastObj, playUrl, streamUrl, c) {
+function startSamsungPlayer(v, netcastObj, playUrl, streamUrl, c, forceProxy) {
   var generation = state.playerGeneration;
   var surface = $('samsung-player');
+  var selectedUrl = playUrl;
+  if (!forceProxy && !state.recoveryVod && !/\.m3u8(?:[?#]|$)/i.test(playUrl) && /^http:\/\//i.test(streamUrl) &&
+      !/(?:\.m3u8|\/chunks|\/playlist|\.(?:mp4|mkv|webm|avi|mov)(?:[?#]|$))/i.test(streamUrl)) {
+    selectedUrl = streamUrl;
+  }
   if (v) v.style.display = 'none';
   if (netcastObj) netcastObj.style.display = 'none';
   if (surface) surface.style.display = 'block';
   function current() { return state.screen === 'player' && state.playerGeneration === generation; }
-  TeamGNative.start(playUrl, {
+  TeamGNative.start(selectedUrl, {
     ready: function() { if (current()) { hideTuning(); $('btnPlayPause').textContent = '▶❚❚'; } },
     buffer: function(waiting) { if (current()) setBuffering(waiting); },
     error: function() { if (current()) { hideTuning(); recoverPlayback(); } },
     ended: function() { if (current()) { hideTuning(); if (!state.recoveryVod) recoverPlayback(); } },
     failed: function() {
       if (!current()) return;
+      if (selectedUrl !== playUrl) {
+        startSamsungPlayer(v, netcastObj, playUrl, streamUrl, c, true);
+        return;
+      }
       if (surface) surface.style.display = 'none';
       showToast('AVPlay no pudo iniciar. Usando HTML5.');
       playHtml5(v, netcastObj, playUrl, streamUrl, c);
@@ -6288,6 +6297,8 @@ function startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c, forceProxy) {
   // Keep the proxy URL available as a second attempt, and leave VOD/HLS alone.
   if (!forceProxy && !state.recoveryVod && !/\.m3u8(?:[?#]|$)/i.test(playUrl) && /^http:\/\//i.test(streamUrl) &&
       !/(?:\.m3u8|\/chunks|\/playlist|\.(?:mp4|mkv|webm|avi|mov)(?:[?#]|$))/i.test(streamUrl)) {
+    selectedUrl = streamUrl;
+  } else if (!forceProxy && !state.recoveryVod && /^https:\/\/[^\/]*teamg\.store\/api\/ott\/stream\.m3u8\?url=/i.test(playUrl) && /^http:\/\//i.test(streamUrl)) {
     selectedUrl = streamUrl;
   }
   var failed = false, startedAt = new Date().getTime();
@@ -6503,8 +6514,6 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c, androidFallbackEngine) 
     if (isLegacyNetcastHtml5 && !state.recoveryVod && !isHlsStream && /^http:\/\//i.test(streamUrl) && c && !c._triedHtml5Direct) {
       c._triedHtml5Direct = true;
       html5Url = streamUrl;
-    } else if (isLegacyNetcastHtml5 && /^https:\/\/[^\/]*teamg\.store\//i.test(html5Url)) {
-      html5Url = 'http://' + html5Url.substring(8);
     }
     v.src = html5Url;
     try {

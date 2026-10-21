@@ -15,12 +15,49 @@ for(const engine of ['auto','mediaplayer']){
   assert.deepEqual(calls,[url],engine+': full startup path opens original HTTP URL immediately even before NPAPI layout');
  }
 }
-const proxyBegin=html.indexOf('  // 1. Resolver URL de reproducción');
-const proxySource=html.slice(proxyBegin,begin).trim();
-for(const protocol of ['https:','http:']){
- const url='http://186.148.196.100:8000/play/a013';
- const ctx={c:{url},$(){return{};},window:{location:{protocol,host:'ott.teamg.store'}},navigator:{userAgent:'Mozilla/5.0 (DirectFB; Linux; NetCast.TV-2013)'}};
- vm.runInNewContext('(function(){'+proxySource+';this.resolvedPlayUrl=playUrl;})()',ctx);
- assert.equal(ctx.resolvedPlayUrl,'http://ott.teamg.store/api/ott/stream.ts?url='+encodeURIComponent(url),'NetCast proxy fallback must use plain HTTP port 80');
+{
+ const hlsUrl='http://38.199.5.160:8000/play/a0bi/index.m3u8';
+ const proxyUrl='https://ott.teamg.store/api/ott/stream.m3u8?url='+encodeURIComponent(hlsUrl);
+ const html5Calls=[];
+ const ctx={state:{auth:{playerEngine:'auto',token:'test'},currentPlaylist:{id:'list'},recoveryVod:false},
+ window:{},netcastObj:{},v:{},isLegacyNetcast:true,isHls:true,isDirectCdn:false,ua:'Mozilla/5.0 NetCast/4.0',
+ c:{url:hlsUrl},streamUrl:hlsUrl,playUrl:proxyUrl,probeSubtitles(){},
+ startNetcastPlayer:()=>{throw Error('Uninstantiated NPAPI must not intercept HLS')},
+ playHtml5:(v,obj,play)=>html5Calls.push(play),
+ apiCall:()=>{throw Error('Unexpected apiCall')}
+ };
+ vm.runInNewContext('(function(){'+source+')()',ctx);
+ assert.deepEqual(html5Calls,[proxyUrl],'HLS stream on uninstantiated NetCast uses HTML5 with HTTPS proxy');
 }
-console.log('NetCast live startup: Auto and MediaPlayer open Astra HTTP directly without preparing HLS.');
+{
+ const hlsUrl='http://38.199.5.160:8000/play/a0bi/index.m3u8';
+ const proxyUrl='https://ott.teamg.store/api/ott/stream.m3u8?url='+encodeURIComponent(hlsUrl);
+ const netcastSource=html.slice(html.indexOf('function startNetcastPlayer('),html.indexOf('function playHtml5('));
+ const opened=[];
+ const native={style:{},playState:0,stop(){},play(){opened.push(this.data);}};
+ const ctx={
+  state:{screen:'player',playerGeneration:1,recoveryVod:false},
+  Date:class{getTime(){return 0;}},setInterval(){return 1;},clearInterval(){},hideTuning(){},showToast(){},
+  $(){return{};},playHtml5(){opened.push('html5');}
+ };
+ vm.runInNewContext(netcastSource,ctx);
+ ctx.startNetcastPlayer(null,native,proxyUrl,hlsUrl,{});
+ assert.deepEqual(opened,[hlsUrl],'Active NetCast opens HTTP HLS directly instead of HTTPS proxy');
+}
+const samsungSource=html.slice(html.indexOf('function startSamsungPlayer('),html.indexOf('function startNetcastPlayer('));
+{
+ const direct='http://186.148.196.100:8000/play/a013';
+ const proxy='https://ott.teamg.store/api/ott/stream.ts?url='+encodeURIComponent(direct);
+ const calls=[];
+ const ctx={
+  state:{screen:'player',playerGeneration:1,recoveryVod:false},
+  $(){return{style:{}};},
+  hideTuning(){},showToast(){},setBuffering(){},recoverPlayback(){},
+  TeamGNative:{start(url,cb){calls.push(url);cb.failed();}},
+  playHtml5(){calls.push('html5');}
+ };
+ vm.runInNewContext(samsungSource,ctx);
+ ctx.startSamsungPlayer({style:{}},{style:{}},proxy,direct,{});
+ assert.deepEqual(calls,[direct,proxy,'html5'],'Samsung AVPlay must try direct HTTP first, then proxy, then HTML5');
+}
+console.log('NetCast and Samsung AVPlay live startup: both raw HTTP MPEG-TS (a013) and HTTP HLS (a0bi/index.m3u8) pass.');
