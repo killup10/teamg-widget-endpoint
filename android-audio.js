@@ -128,7 +128,7 @@ async function serve(req, res, pathname) {
       try { runtimeReady = require('node:child_process').spawnSync(bin(), ['-version'], { windowsHide: true, timeout: 3000, stdio: 'ignore' }).status === 0; } catch {}
     }
     res.writeHead(runtimeReady ? 200 : 503, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
-    res.end(JSON.stringify({ ok: runtimeReady })); return;
+    res.end(JSON.stringify({ ok: runtimeReady, rawTsMode: 'http-relay-aac' })); return;
   }
   const match = pathname.match(/^\/api\/ott\/android-audio\/([a-f0-9]{48})\/(index\.m3u8|segment-\d{6,}\.ts)$/);
   const session = match && sessions.get(match[1]);
