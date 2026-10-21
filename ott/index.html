@@ -1885,10 +1885,11 @@ body.theme-wine #topbar { background: #1c0b0b; }
 .opt-label { max-width: 58%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .opt-value { max-width: 40%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 #view-keyboard { box-sizing: border-box; overflow-y: auto; }
-.kb-key { width: 6.6%; margin: 0 0.25%; box-sizing: border-box; }
-.kb-spec-key, .kb-spec-key.space, .kb-spec-key.ok { width: 18%; padding: 0; margin: 0 0.5%; box-sizing: border-box; }
-.kb-key.focused, .kb-spec-key.focused, .kb-btn-back.focused { box-shadow: none; -webkit-box-shadow: none; transform: none; -webkit-transform: none; }
-.kb-input-box { white-space: nowrap; overflow: hidden; text-align: right; }
+.kb-key { width: 7.1%; margin: 0 0.28%; box-sizing: border-box; border-radius: 6px; font-weight: bold; }
+.kb-spec-key, .kb-spec-key.space, .kb-spec-key.ok { width: 18.5%; padding: 0; margin: 0 0.5%; box-sizing: border-box; border-radius: 6px; font-weight: bold; }
+.kb-key.focused { background: #ffcc00 !important; color: #000000 !important; border-color: #ffffff !important; box-shadow: 0 0 16px #ffcc00; -webkit-box-shadow: 0 0 16px #ffcc00; font-weight: bold; }
+.kb-spec-key.focused, .kb-btn-back.focused { border-color: #ffffff !important; box-shadow: 0 0 16px #ffffff; -webkit-box-shadow: 0 0 16px #ffffff; }
+.kb-input-box { white-space: nowrap; overflow: hidden; text-align: left; padding: 12px 24px; font-weight: 500; }
 body.text-large .opt-label, body.text-large .opt-value { font-size: 20px; }
 body.text-large .tile-title { font-size: 3.4vh; }
 body.text-large .series-ep-name { font-size: 18px; }
@@ -2845,8 +2846,11 @@ function layoutSettings() {
   for (var i = 0; i < keys.length; i++) {
     keys[i].style.height = keyHeight + 'px';
     keys[i].style.lineHeight = (keyHeight - 4) + 'px';
-    keys[i].style.fontSize = Math.max(16, Math.round(height * 0.034)) + 'px';
+    keys[i].style.fontSize = Math.max(22, Math.round(height * 0.046)) + 'px';
+    keys[i].style.fontWeight = 'bold';
   }
+  var ib = (typeof document !== 'undefined' && document.querySelector) ? document.querySelector('.kb-input-box') : null;
+  if (ib) ib.style.fontSize = Math.max(28, Math.round(height * 0.052)) + 'px';
   $('view-keyboard').style.padding = Math.round(height * 0.035) + 'px 4%';
 }
 
@@ -5162,7 +5166,7 @@ function updateMainFocus(shouldScroll) {
   var targetEl = null;
   if (state.currentFocusArea === 'top') {
     if (isInside) {
-      targetEl = state.topIconIdx === 1 ? $('btnPlaylistSearch') : $('btnBackInside');
+      targetEl = state.topIconIdx === 1 ? $('btnBackInside') : $('btnPlaylistSearch');
     } else {
       var topBtns = [$('btnRefresh'), $('btnEdit'), $('btnSettings'), $('btnClose')];
       if (state.topIconIdx >= topBtns.length) state.topIconIdx = topBtns.length - 1;
@@ -5380,7 +5384,7 @@ function handleMainNav(kc, eObj) {
         state.tileIdx = 0;
         updateMainFocus(true);
       } else if (kc === KEY.ENTER) {
-        if (state.topIconIdx === 1) openSearch();
+        if (state.topIconIdx === 0) openSearch();
         else goBackAction();
         return;
       }
@@ -5458,6 +5462,13 @@ function handleMainNav(kc, eObj) {
         renderChannels();
         state.tileIdx = PAGE_SIZE - 1;
         updateMainFocus(false);
+        return;
+      }
+      if (isInside) {
+        state.currentFocusArea = 'top';
+        state.topIconIdx = 0;
+        updateMainFocus(true);
+        return;
       }
       return;
     } else if (kc === KEY.RIGHT) {
