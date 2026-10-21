@@ -1517,11 +1517,13 @@ video::cue {
 /* Drawer Lateral de Canales durante reproducción (Foto 3 / OTTPlayer) */
 #player-drawer {
   position: absolute;
-  top: 0;
+  /* Keep the channel list between the persistent player header and controls. */
+  top: 16.2vh;
   left: 0;
-  bottom: 0;
-  width: 440px;
-  max-width: 44vw;
+  bottom: 58px;
+  width: 39vw;
+  min-width: 300px;
+  max-width: 740px;
   background: #14050d;
   background: rgba(20, 5, 13, 0.98);
   border-right: 3px solid #ffcc00;
@@ -1532,10 +1534,6 @@ video::cue {
   -webkit-box-shadow: 6px 0 25px rgba(0, 0, 0, 0.85);
   scrollbar-width: none !important;
   -ms-overflow-style: none !important;
-}
-
-#player-container.drawer-open .player-top-left {
-  display: none !important;
 }
 
 #player-drawer.open { display: block; }
@@ -2114,6 +2112,14 @@ body.text-large .drawer-num { font-size: 25px !important; }
     <object id="samsung-player" type="application/avplayer" style="display:none;" tabindex="-1"></object>
     <!-- Renderizado Universal de Subtítulos en Pantalla -->
     <div id="player-subtitles-overlay"></div>
+    <div id="player-music-stage" style="display:none;position:absolute;top:0;left:0;width:100%;height:100%;background:#120710;z-index:2;text-align:center;padding-top:16vh;">
+      <div style="display:inline-block;width:28vh;height:28vh;border:3px solid #e6b75a;border-radius:12px;overflow:hidden;background:#241116;vertical-align:middle;">
+        <img id="player-music-cover" src="" style="width:100%;height:100%;display:none;" />
+      </div>
+      <div id="player-music-badge" style="margin-top:2.2vh;font-size:2vh;color:#e6b75a;font-weight:bold;letter-spacing:2px;">🎵 TEAMG MUSIC</div>
+      <div id="player-music-title" style="margin:1vh auto 0 auto;max-width:76vw;font-size:3.6vh;color:#ffffff;font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
+      <div id="player-music-sub" style="margin-top:0.8vh;font-size:2.4vh;color:#cbb8c3;"></div>
+    </div>
     
     <!-- Capa de captura de clics y toques para Magic Remote sobre el video -->
     <div id="player-click-catcher"></div>
@@ -2858,6 +2864,9 @@ function openSearch() {
 
 function updateSearchBanner() {
   var b = $('search-banner');
+  if ((!state.searchQuery || state.searchQuery.length === 0) && typeof restoreTeamGMusicCatalog === 'function') {
+    restoreTeamGMusicCatalog();
+  }
   if (!b) return;
   if (state.searchQuery && state.searchQuery.length > 0) {
     b.style.display = 'flex';
@@ -2880,10 +2889,62 @@ function updateSearchVisibility() {
   g.style.display = show ? '' : 'none';
 }
 
+function restoreTeamGMusicCatalog() {
+  if (state._musicSearchActive && state._playlistCache && state._playlistCache['__music']) {
+    state.channels = state._playlistCache['__music'].channels;
+    state.groups = state._playlistCache['__music'].groups;
+    state._musicSearchActive = false;
+    state._filteredChannels = null;
+  }
+}
+
+function searchTeamGMusic(q) {
+  var query = String(q || '').trim();
+  if (!query) {
+    restoreTeamGMusicCatalog();
+    updateSearchBanner();
+    renderChannels();
+    renderTabs();
+    updateMainFocus(true);
+    return;
+  }
+  showToast('🔍 Buscando "' + query + '" en TeamG Music...');
+  var url = (API_BASE || '') + '/api/ott/music/m3u?token=' + encodeURIComponent(state.auth.token || '') +
+    '&deviceId=' + encodeURIComponent(state.auth.deviceId || '') + '&q=' + encodeURIComponent(query);
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', url, true);
+  xhr.onreadystatechange = function() {
+    if (xhr.readyState === 4 && xhr.status === 200 && xhr.responseText) {
+      if (!state.currentPlaylist || state.currentPlaylist.id !== '__music' || state.searchQuery !== query) return;
+      try {
+        var found = parseM3U(xhr.responseText);
+        if (found && found.length > 0) {
+          state.channels = found;
+          state._musicSearchActive = true;
+          state._filteredChannels = null;
+          state.currentPage = 0;
+          state.tileIdx = 0;
+          updateSearchBanner();
+          renderChannels();
+          renderTabs();
+          updateMainFocus(true);
+          showToast('🎵 ' + found.length + ' pistas encontradas para "' + query + '"');
+        }
+      } catch (eM) {}
+    }
+  };
+  try { xhr.send(); } catch (eS) {}
+}
+
 function closeKeyboard(commit) {
   if (state.kbTargetField === 'search') {
     if (commit) {
       state.searchQuery = (kbInputText || '').trim();
+      state.currentGroup = '__all';
+      state.categoryConfirmed = true;
+      if (state.currentPlaylist && state.currentPlaylist.id === '__music' && typeof searchTeamGMusic === 'function') {
+        searchTeamGMusic(state.searchQuery);
+      }
       state.currentGroup = '__all';
       state.categoryConfirmed = true;
     }
@@ -4449,7 +4510,7 @@ function getFilteredChannels() {
       if (typeof c._searchName !== 'string') c._searchName = normalizePlaylistSearch(c.name);
       var nMatch = c._searchName.indexOf(q) !== -1;
       var gMatch = normalizePlaylistSearch(c.group).indexOf(q) !== -1;
-      if (!nMatch && !gMatch) continue;
+      if (!nMatch && !gMatch && c.group !== '🔍 Resultados de Búsqueda') continue;
     }
     res.push(c);
   }
@@ -4548,6 +4609,11 @@ function rememberRecentContent(c) {
 
 function openRecentContent(idx) {
   var entry = (state.recentContent || [])[idx];
+  if (entry && entry.playlistId === '__music') {
+    state.pendingRecentContent = entry;
+    loadPlaylistContent({ id: '__music', name: '🎵 TeamG Music', isMusic: true });
+    return;
+  }
   if (!entry) return;
   for (var i = 0; i < state.playlists.length; i++) {
     if (state.playlists[i].id === entry.playlistId) {
@@ -4748,6 +4814,8 @@ function getHomeTabsList() {
   for (var p = 0; p < pls.length; p++) {
     homeTabs.push({ id: pls[p].id, name: pls[p].name, pl: pls[p] });
   }
+  var musicPl = { id: '__music', name: '🎵 TeamG Music', isMusic: true };
+  homeTabs.push({ id: musicPl.id, name: musicPl.name, pl: musicPl });
   homeTabs.push({ id: '__fav', name: 'Favoritos' });
   return homeTabs;
 }
@@ -5678,6 +5746,9 @@ function cleanPlayerEngines() {
     v.onwaiting = null;
     v.oncanplay = null;
     v.onpause = null;
+    v.onended = null;
+    var ms = $('player-music-stage');
+    if (ms) ms.style.display = 'none';
     try { v.pause(); } catch (e1) {}
     if (v._splitter && v._merger) {
       try {
@@ -6128,7 +6199,24 @@ function playItem(c, recovering) {
   var isBitel = (streamUrl.indexOf('bitel.com.pe') !== -1 || streamUrl.indexOf('tv360') !== -1);
   var isCablered = (streamUrl.indexOf('cablered') !== -1 || streamUrl.indexOf('iptvperu.tv') !== -1);
   var isCloudfront = (streamUrl.indexOf('cloudfront.net') !== -1);
-  var isDirectCdn = (isBitel || isCablered || isCloudfront);
+  var isMusicStream = (streamUrl.indexOf('/api/ott/music/') !== -1);
+  var isDirectCdn = (isBitel || isCablered || isCloudfront || isMusicStream);
+  if (isMusicStream) {
+    $('player-res').textContent = (streamUrl.indexOf('/api/ott/music/radio') !== -1) ? 'RADIO 24/7' : 'AUDIO HD';
+    var mStage = $('player-music-stage');
+    if (mStage) {
+      var mCov = $('player-music-cover');
+      if (mCov) {
+        if (resLogo) { mCov.src = resLogo; mCov.style.display = 'block'; }
+        else { mCov.style.display = 'none'; }
+      }
+      var mTit = $('player-music-title');
+      if (mTit) mTit.textContent = c.name || '';
+      var mSub = $('player-music-sub');
+      if (mSub) mSub.textContent = c.group || '🎵 TeamG Music';
+      mStage.style.display = 'block';
+    }
+  }
 
   if ((isBitel || isCloudfront) && (!isPageHttps || isLegacyNetcast)) {
     // Bitel y CloudFront soportan HTTP nativo en puerto 80 sin TLS; para NetCast antiguo y páginas HTTP
@@ -6342,6 +6430,9 @@ function startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c, forceProxy) {
         }
       } else if (ps === 2) {
         $('btnPlayPause').textContent = '▶';
+      } else if (ps === 5 && c && c.url && c.url.indexOf('/api/ott/music/stream') !== -1) {
+        var mList = getFilteredChannels();
+        if (mList && mList.length > 0) playChannelAt((state.currentChannelIdx + 1) % mList.length);
       } else if (ps === 6) { // Error
         fail();
       }
@@ -6400,6 +6491,14 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c, androidFallbackEngine) 
   v.oncanplay = function() { setBuffering(false); hideTuning(); };
   v.onplaying = function() { setBuffering(false); hideTuning(); $('btnPlayPause').textContent = '▶❚❚'; };
   v.onpause = function() { $('btnPlayPause').textContent = '▶'; };
+  v.onended = function() {
+    if (c && c.url && c.url.indexOf('/api/ott/music/stream') !== -1) {
+      var mList = getFilteredChannels();
+      if (mList && mList.length > 0) {
+        playChannelAt((state.currentChannelIdx + 1) % mList.length);
+      }
+    }
+  };
   v.onloadedmetadata = function() {
     hideTuning();
     if (v.videoWidth && v.videoHeight) {
@@ -6681,11 +6780,6 @@ function handlePlayerNav(kc, eObj) {
       stopPlayer();
       return;
     }
-    // Tecla Azul o ENTER: En TV en vivo, abre el selector de canales directamente (como OTTPlayer)
-    if (isBlueKey(kc, eObj) || kc === KEY.ENTER) {
-      openChannelDrawer();
-      return;
-    }
     // Tecla Amarilla: Pantalla (Aspect Ratio)
     if (isYellowKey(kc, eObj)) {
       $('btnPlayerRatio').click();
@@ -6759,12 +6853,6 @@ function handlePlayerNav(kc, eObj) {
     showPlayerOverlay();
     return;
   }
-  // Tecla Azul: Selector de canales
-  if (isBlueKey(kc, eObj)) {
-    openChannelDrawer();
-    return;
-  }
-
   // 6. Navegación con control tradicional (D-PAD) cuando el HUD está visible
   showPlayerOverlay(); // renueva temporizador de ocultación
 

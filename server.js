@@ -167,6 +167,9 @@ const server = http.createServer((req, res) => {
   if (pathname.indexOf('/api/ott/android-audio/') === 0 && (req.method === 'GET' || req.method === 'HEAD')) {
     return require('./android-audio').serve(req, res, pathname);
   }
+  if (pathname.indexOf('/api/ott/music/stream') === 0 || pathname.indexOf('/api/ott/music/radio') === 0) {
+    return require('./ott-music').handleMusicStream(req, res, pathname, query);
+  }
   if (pathname.indexOf('/api/ott/stream') === 0) {
     return ottApi.handleStream(req, res, query);
   }

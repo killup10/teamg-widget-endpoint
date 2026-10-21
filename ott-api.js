@@ -576,6 +576,24 @@ async function handle(req, res, pathname, query, body) {
   }
 
   // ---- TV: descargar M3U / EPG asignados (proxy, evita CORS) ----
+  if ((pathname.indexOf('/api/ott/music/stream') === 0 || pathname.indexOf('/api/ott/music/radio') === 0) && (req.method === 'GET' || req.method === 'HEAD')) {
+    return require('./ott-music').handleMusicStream(req, res, pathname, query);
+  }
+  if ((pathname === '/api/ott/music/m3u' || (pathname === '/api/ott/m3u' && query.pid === '__music')) && req.method === 'GET') {
+    const a = await authedDevice(body, query);
+    if (a.err) return json(res, 401, { ok: false, error: a.err });
+    const ottMusic = require('./ott-music');
+    const fwdProto = (req.headers && req.headers['x-forwarded-proto']) ? String(req.headers['x-forwarded-proto']).split(',')[0].trim() : ((req.connection && req.connection.encrypted) ? 'https' : 'http');
+    const fwdHost = (req.headers && (req.headers['x-forwarded-host'] || req.headers.host)) ? String(req.headers['x-forwarded-host'] || req.headers.host).split(',')[0].trim() : 'ott.teamg.store';
+    const baseUrl = fwdProto + '://' + fwdHost;
+    const isFresh = (query.refresh === '1' || !!query._cb);
+    const m3uText = await ottMusic.buildMusicM3u(baseUrl, query.q || '', isFresh);
+    res.writeHead(200, {
+      'Content-Type': 'text/plain; charset=utf-8',
+      'Cache-Control': 'no-cache, no-store, must-revalidate'
+    });
+    return res.end(m3uText);
+  }
   if ((pathname === '/api/ott/m3u' || pathname === '/api/ott/epg') && req.method === 'GET') {
     const a = await authedDevice(body, query);
     if (a.err) return json(res, 401, { ok: false, error: a.err });
