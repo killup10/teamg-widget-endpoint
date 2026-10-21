@@ -6344,6 +6344,10 @@ function playItem(c, recovering) {
 }
 
 function startSamsungPlayer(v, netcastObj, playUrl, streamUrl, c, forceProxy) {
+  if (streamUrl && streamUrl.indexOf('/api/ott/music/') !== -1 && v && (!c || !c._triedHtml5)) {
+    playHtml5(v, netcastObj, playUrl, streamUrl, c);
+    return;
+  }
   var generation = state.playerGeneration;
   var surface = $('samsung-player');
   var selectedUrl = playUrl;
@@ -6380,6 +6384,10 @@ function startSamsungPlayer(v, netcastObj, playUrl, streamUrl, c, forceProxy) {
 }
 
 function startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c, forceProxy) {
+  if (streamUrl && streamUrl.indexOf('/api/ott/music/') !== -1 && v && (!c || !c._triedHtml5)) {
+    playHtml5(v, netcastObj, playUrl, streamUrl, c);
+    return;
+  }
   var generation = state.playerGeneration;
   var selectedUrl = playUrl;
   // Native NetCast live TS playback can use the original HTTP transport.

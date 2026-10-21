@@ -207,6 +207,318 @@ const audioUrlCache = new Map(); // key: youtubeId -> { url, mimeType, contentLe
 const AUDIO_URL_TTL_MS = 20 * 60 * 1000; // 20 min (googlevideo expira en ~6h)
 const MAX_CACHE_ENTRIES = 400; // Límite estricto de RAM para Render Free (512 MB)
 
+// Caché acotada de buffers M4A/MP3 ensamblados (máximo 4 pistas en RAM ~12 MB) para soporte Range instantáneo
+const audioBufferCache = new Map(); // key: trackKey -> { buffer, mimeType, ts }
+const MAX_BUFFER_CACHE = 4;
+const BUFFER_CACHE_TTL_MS = 15 * 60 * 1000;
+
+function setBoundedBufferCache(key, value) {
+  if (audioBufferCache.size >= MAX_BUFFER_CACHE && !audioBufferCache.has(key)) {
+    const oldest = audioBufferCache.keys().next().value;
+    if (oldest !== undefined) audioBufferCache.delete(oldest);
+  }
+  audioBufferCache.set(key, value);
+}
+
+// ── Extractor de Canciones Completas vía SoundCloud API v2 + Remuxer M4A Clásico ──
+let cachedScClientId = '';
+let cachedScClientTs = 0;
+const SC_CLIENT_TTL_MS = 6 * 60 * 60 * 1000;
+
+async function getSoundCloudClientId(forceRefresh = false) {
+  if (!forceRefresh && cachedScClientId && Date.now() - cachedScClientTs < SC_CLIENT_TTL_MS) {
+    return cachedScClientId;
+  }
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 6000);
+  try {
+    const pageRes = await fetch('https://soundcloud.com/discover', {
+      signal: ctl.signal,
+      headers: { 'User-Agent': UA_BROWSER }
+    });
+    if (!pageRes.ok) return cachedScClientId || '';
+    const html = await pageRes.text();
+    const scripts = [...html.matchAll(/src="(https:\/\/a-v2\.sndcdn\.com\/assets\/[^"]+\.js)"/g)].map((m) => m[1]);
+    for (const scriptUrl of scripts.slice(-5)) {
+      const jsRes = await fetch(scriptUrl, { signal: ctl.signal, headers: { 'User-Agent': UA_BROWSER } });
+      if (!jsRes.ok) continue;
+      const js = await jsRes.text();
+      const m = js.match(/client_id:"([a-zA-Z0-9]{32})"/);
+      if (m && m[1]) {
+        cachedScClientId = m[1];
+        cachedScClientTs = Date.now();
+        return cachedScClientId;
+      }
+    }
+  } catch (e) {
+  } finally {
+    clearTimeout(timer);
+  }
+  return cachedScClientId || '';
+}
+
+function findMp4Box(buf, target, start = 0, end = buf.length) {
+  let off = start;
+  while (off + 8 <= end) {
+    const sz = buf.readUInt32BE(off);
+    const tp = buf.slice(off + 4, off + 8).toString('ascii');
+    if (sz < 8 || off + sz > end) break;
+    if (tp === target) return { offset: off, size: sz, dataStart: off + 8, end: off + sz };
+    if (['moov', 'trak', 'mdia', 'minf', 'stbl', 'moof', 'traf'].includes(tp)) {
+      const sub = findMp4Box(buf, target, off + 8, off + sz);
+      if (sub) return sub;
+    }
+    off += sz;
+  }
+  return null;
+}
+
+function makeMp4Box(type, payload) {
+  const b = Buffer.allocUnsafe(8 + payload.length);
+  b.writeUInt32BE(b.length, 0);
+  b.write(type, 4, 4, 'ascii');
+  payload.copy(b, 8);
+  return b;
+}
+
+function fmp4ToClassicM4a(initBuf, segBufs) {
+  const sampleSizes = [];
+  const mdatChunks = [];
+  let totalMdatPayload = 0;
+
+  for (const seg of segBufs) {
+    const trun = findMp4Box(seg, 'trun');
+    const mdat = findMp4Box(seg, 'mdat');
+    if (!trun || !mdat) continue;
+    const flags = seg.readUInt32BE(trun.dataStart) & 0xffffff;
+    const count = seg.readUInt32BE(trun.dataStart + 4);
+    let ptr = trun.dataStart + 8;
+    if (flags & 0x001) ptr += 4;
+    if (flags & 0x004) ptr += 4;
+    for (let i = 0; i < count; i++) {
+      if (flags & 0x100) ptr += 4;
+      const sz = (flags & 0x200) ? seg.readUInt32BE(ptr) : 0;
+      if (flags & 0x200) ptr += 4;
+      if (flags & 0x400) ptr += 4;
+      if (flags & 0x800) ptr += 4;
+      if (sz > 0) sampleSizes.push(sz);
+    }
+    const raw = seg.subarray(mdat.dataStart, mdat.end);
+    mdatChunks.push(raw);
+    totalMdatPayload += raw.length;
+  }
+
+  const totalSamples = sampleSizes.length;
+  const stsdBox = findMp4Box(initBuf, 'stsd');
+  const mdhdBox = findMp4Box(initBuf, 'mdhd');
+  const hdlrBox = findMp4Box(initBuf, 'hdlr');
+  const smhdBox = findMp4Box(initBuf, 'smhd');
+  const dinfBox = findMp4Box(initBuf, 'dinf');
+  const tkhdBox = findMp4Box(initBuf, 'tkhd');
+  const mvhdBox = findMp4Box(initBuf, 'mvhd');
+
+  const mdhdVer = initBuf[mdhdBox.dataStart];
+  const timescale = initBuf.readUInt32BE(mdhdBox.dataStart + (mdhdVer === 1 ? 20 : 12)) || 44100;
+  const totalDuration = totalSamples * 1024;
+
+  const mvhd = Buffer.from(initBuf.subarray(mvhdBox.offset, mvhdBox.end));
+  const mvhdVer = mvhd[8];
+  const mvhdScale = mvhd.readUInt32BE(8 + (mvhdVer === 1 ? 20 : 12)) || 1000;
+  const mvhdDur = Math.round((totalDuration / timescale) * mvhdScale);
+  if (mvhdVer === 0) mvhd.writeUInt32BE(mvhdDur, 8 + 16);
+
+  const tkhd = Buffer.from(initBuf.subarray(tkhdBox.offset, tkhdBox.end));
+  if (tkhd[8] === 0) tkhd.writeUInt32BE(mvhdDur, 8 + 20);
+
+  const mdhd = Buffer.from(initBuf.subarray(mdhdBox.offset, mdhdBox.end));
+  if (mdhd[8] === 0) mdhd.writeUInt32BE(totalDuration, 8 + 16);
+
+  const sttsPayload = Buffer.alloc(16);
+  sttsPayload.writeUInt32BE(1, 4);
+  sttsPayload.writeUInt32BE(totalSamples, 8);
+  sttsPayload.writeUInt32BE(1024, 12);
+  const stts = makeMp4Box('stts', sttsPayload);
+
+  const stscPayload = Buffer.alloc(20);
+  stscPayload.writeUInt32BE(1, 4);
+  stscPayload.writeUInt32BE(1, 8);
+  stscPayload.writeUInt32BE(totalSamples, 12);
+  stscPayload.writeUInt32BE(1, 16);
+  const stsc = makeMp4Box('stsc', stscPayload);
+
+  const stszPayload = Buffer.alloc(12 + totalSamples * 4);
+  stszPayload.writeUInt32BE(totalSamples, 8);
+  for (let i = 0; i < totalSamples; i++) {
+    stszPayload.writeUInt32BE(sampleSizes[i], 12 + i * 4);
+  }
+  const stsz = makeMp4Box('stsz', stszPayload);
+
+  const stcoPayload = Buffer.alloc(12);
+  stcoPayload.writeUInt32BE(1, 4);
+  const stco = makeMp4Box('stco', stcoPayload);
+
+  const stsd = initBuf.subarray(stsdBox.offset, stsdBox.end);
+  const stbl = makeMp4Box('stbl', Buffer.concat([stsd, stts, stsc, stsz, stco]));
+  const minf = makeMp4Box('minf', Buffer.concat([
+    initBuf.subarray(smhdBox.offset, smhdBox.end),
+    initBuf.subarray(dinfBox.offset, dinfBox.end),
+    stbl
+  ]));
+  const mdia = makeMp4Box('mdia', Buffer.concat([
+    mdhd,
+    initBuf.subarray(hdlrBox.offset, hdlrBox.end),
+    minf
+  ]));
+  const trak = makeMp4Box('trak', Buffer.concat([tkhd, mdia]));
+  const moov = makeMp4Box('moov', Buffer.concat([mvhd, trak]));
+
+  // ftyp estándar M4A/isom/mp42 compatible con Smart TVs desde 2011 hasta hoy
+  const ftypPayload = Buffer.alloc(20);
+  ftypPayload.write('M4A ', 0, 4, 'ascii');
+  ftypPayload.writeUInt32BE(512, 4);
+  ftypPayload.write('M4A ', 8, 4, 'ascii');
+  ftypPayload.write('isom', 12, 4, 'ascii');
+  ftypPayload.write('mp42', 16, 4, 'ascii');
+  const ftyp = makeMp4Box('ftyp', ftypPayload);
+
+  const mdatDataOffset = ftyp.length + moov.length + 8;
+  const stcoInMoov = findMp4Box(moov, 'stco');
+  moov.writeUInt32BE(mdatDataOffset, stcoInMoov.dataStart + 8);
+
+  const mdatHeader = Buffer.alloc(8);
+  mdatHeader.writeUInt32BE(8 + totalMdatPayload, 0);
+  mdatHeader.write('mdat', 4, 4, 'ascii');
+
+  return Buffer.concat([ftyp, moov, mdatHeader, ...mdatChunks]);
+}
+
+async function resolveViaSoundCloudBuffer(artist, title) {
+  const q = [artist, title].filter(Boolean).join(' - ').trim();
+  if (!q) return null;
+  let clientId = await getSoundCloudClientId(false);
+  if (!clientId) return null;
+
+  try {
+    let searchUrl = 'https://api-v2.soundcloud.com/search/tracks?q=' + encodeURIComponent(q) + '&client_id=' + clientId + '&limit=20';
+    let srRes = await fetch(searchUrl, { headers: { 'User-Agent': UA_BROWSER } });
+    if (srRes.status === 401 || srRes.status === 403) {
+      clientId = await getSoundCloudClientId(true);
+      if (!clientId) return null;
+      searchUrl = 'https://api-v2.soundcloud.com/search/tracks?q=' + encodeURIComponent(q) + '&client_id=' + clientId + '&limit=20';
+      srRes = await fetch(searchUrl, { headers: { 'User-Agent': UA_BROWSER } });
+    }
+    if (!srRes.ok) return null;
+    const sr = await srRes.json();
+
+    const candidates = (sr.collection || []).filter((t) =>
+      t &&
+      t.duration >= 90000 &&
+      t.duration <= 600000 &&
+      (t.media?.transcodings || []).some((tr) => !tr.snipped && (
+        tr.format?.protocol === 'progressive' ||
+        (tr.format?.protocol === 'hls' && (
+          tr.preset === 'aac_160k' ||
+          tr.preset === 'aac_96k' ||
+          tr.preset === 'mp3_1_0' ||
+          (tr.format?.mime_type || '').includes('mp4') ||
+          (tr.format?.mime_type || '').includes('mpeg')
+        ))
+      ))
+    );
+    if (candidates.length === 0) return null;
+
+    const wantsRemix = /(remix|live|en vivo|cover|instrumental|karaoke)/i.test(q);
+    const cleanOrig = wantsRemix
+      ? candidates
+      : candidates.filter((t) => !/(remix|mashup|edit|cover|karaoke|instrumental|slowed|reverb|tributo|remake|bootleg|sped|en vivo|live|circuit|dj )/i.test(t.title || ''));
+    const best = cleanOrig[0] || candidates[0];
+
+    const tr = best.media.transcodings.find((x) => !x.snipped && x.preset === 'aac_160k') ||
+               best.media.transcodings.find((x) => !x.snipped && x.preset === 'aac_96k') ||
+               best.media.transcodings.find((x) => !x.snipped && x.format?.protocol === 'progressive') ||
+               best.media.transcodings.find((x) => !x.snipped && x.format?.protocol === 'hls' && (x.format?.mime_type || '').includes('mpeg')) ||
+               best.media.transcodings.find((x) => !x.snipped);
+    if (!tr || !tr.url) return null;
+
+    const sep = tr.url.includes('?') ? '&' : '?';
+    const authUrl = tr.url + sep + 'client_id=' + clientId +
+      (best.track_authorization ? '&track_authorization=' + encodeURIComponent(best.track_authorization) : '');
+    const mediaInfo = await fetchJsonWithTimeout(authUrl, {}, 6000);
+    if (!mediaInfo || !mediaInfo.url) return null;
+
+    if (tr.format?.protocol === 'progressive') {
+      const mp3Res = await fetch(mediaInfo.url, { headers: { 'User-Agent': UA_BROWSER } });
+      if (!mp3Res.ok) return null;
+      const buf = Buffer.from(await mp3Res.arrayBuffer());
+      return { buffer: buf, mimeType: 'audio/mpeg', durationMs: best.duration };
+    }
+
+    const m3u8Res = await fetch(mediaInfo.url, { headers: { 'User-Agent': UA_BROWSER } });
+    if (!m3u8Res.ok) return null;
+    const m3u8 = await m3u8Res.text();
+    const initMatch = m3u8.match(/#EXT-X-MAP:URI="([^"]+)"/);
+    const segUrls = m3u8.split(/\r?\n/).map((s) => s.trim()).filter((s) => /^https?:\/\//.test(s));
+    if (segUrls.length === 0) return null;
+
+    const segBufs = await Promise.all(
+      segUrls.map(async (u) => Buffer.from(await (await fetch(u, { headers: { 'User-Agent': UA_BROWSER } })).arrayBuffer()))
+    );
+
+    if (initMatch && initMatch[1]) {
+      const initBuf = Buffer.from(await (await fetch(initMatch[1], { headers: { 'User-Agent': UA_BROWSER } })).arrayBuffer());
+      const m4aBuf = fmp4ToClassicM4a(initBuf, segBufs);
+      return { buffer: m4aBuf, mimeType: 'audio/mp4', durationMs: best.duration };
+    }
+
+    return { buffer: Buffer.concat(segBufs), mimeType: 'audio/mpeg', durationMs: best.duration };
+  } catch (e) {
+    return null;
+  }
+}
+
+function serveAudioBufferWithRange(req, res, buffer, mimeType = 'audio/mp4') {
+  const total = buffer.length;
+  const range = req.headers && req.headers.range;
+  const baseHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+    'Access-Control-Allow-Headers': 'Range, Origin, Content-Type, Accept, User-Agent',
+    'Access-Control-Expose-Headers': 'Content-Length, Content-Range, Accept-Ranges',
+    'Content-Type': mimeType,
+    'Accept-Ranges': 'bytes',
+    'Cache-Control': 'public, max-age=900'
+  };
+
+  if (range) {
+    const m = /^bytes=(\d*)-(\d*)$/.exec(String(range).trim());
+    if (m) {
+      let start = m[1] ? parseInt(m[1], 10) : 0;
+      let end = m[2] ? parseInt(m[2], 10) : total - 1;
+      if (isNaN(start) || start < 0) start = 0;
+      if (isNaN(end) || end >= total) end = total - 1;
+      if (start > end || start >= total) {
+        res.writeHead(416, { ...baseHeaders, 'Content-Range': 'bytes */' + total });
+        return res.end();
+      }
+      const chunk = buffer.subarray(start, end + 1);
+      res.writeHead(206, {
+        ...baseHeaders,
+        'Content-Range': 'bytes ' + start + '-' + end + '/' + total,
+        'Content-Length': String(chunk.length)
+      });
+      if (req.method === 'HEAD') return res.end();
+      return res.end(chunk);
+    }
+  }
+
+  res.writeHead(200, {
+    ...baseHeaders,
+    'Content-Length': String(total)
+  });
+  if (req.method === 'HEAD') return res.end();
+  return res.end(buffer);
+}
+
 function setBoundedCache(map, key, value) {
   if (map.size >= MAX_CACHE_ENTRIES && !map.has(key)) {
     const oldestKey = map.keys().next().value;
@@ -921,15 +1233,37 @@ async function handleMusicStream(req, res, pathname, query) {
   const youtubeId = String(query.v || query.youtubeId || '').trim();
   const artist = String(query.artist || '').trim();
   const title = String(query.title || '').trim();
-  const previewUrl = String(query.preview || '').trim();
+  const trackKey = (artist + '|' + title + '|' + youtubeId).toLowerCase();
 
   try {
-    const stream = await resolveAudioStream({ youtubeId, artist, title, previewUrl });
+    // 2a. Caché en RAM de pista completa ensamblada (respuesta Range en <1ms)
+    if (audioBufferCache.has(trackKey)) {
+      const cachedBuf = audioBufferCache.get(trackKey);
+      if (Date.now() - cachedBuf.ts < BUFFER_CACHE_TTL_MS) {
+        return serveAudioBufferWithRange(req, res, cachedBuf.buffer, cachedBuf.mimeType);
+      }
+      audioBufferCache.delete(trackKey);
+    }
+
+    // 2b. Fuente primaria (100% inmune a bloqueo de IP de Render/AWS): SoundCloud Full Track -> M4A Clásico Fast-Start
+    if (artist || title) {
+      const scTrack = await resolveViaSoundCloudBuffer(artist, title);
+      if (scTrack && scTrack.buffer && scTrack.buffer.length > 0) {
+        setBoundedBufferCache(trackKey, {
+          buffer: scTrack.buffer,
+          mimeType: scTrack.mimeType || 'audio/mp4',
+          ts: Date.now()
+        });
+        return serveAudioBufferWithRange(req, res, scTrack.buffer, scTrack.mimeType || 'audio/mp4');
+      }
+    }
+
+    // 2c. Fuente secundaria de respaldo: YouTube / Piped / Invidious
+    const stream = await resolveAudioStream({ youtubeId, artist, title });
     if (!stream || !stream.url) {
       res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
       return res.end(JSON.stringify({ ok: false, error: 'Audio no disponible para esta pista' }));
     }
-    // Escudo Render Free: si el stream no está bloqueado por IP de googlevideo, redirigir 302 directo al CDN (0 MB en Render)
     if (!forceProxy && !legacyNetcast && !isIpBoundUrl(stream.url)) {
       return redirectDirectStream(res, stream.url);
     }
