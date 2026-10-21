@@ -205,6 +205,15 @@ const RESOLVE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 días
 
 const audioUrlCache = new Map(); // key: youtubeId -> { url, mimeType, contentLength, ts }
 const AUDIO_URL_TTL_MS = 20 * 60 * 1000; // 20 min (googlevideo expira en ~6h)
+const MAX_CACHE_ENTRIES = 400; // Límite estricto de RAM para Render Free (512 MB)
+
+function setBoundedCache(map, key, value) {
+  if (map.size >= MAX_CACHE_ENTRIES && !map.has(key)) {
+    const oldestKey = map.keys().next().value;
+    if (oldestKey !== undefined) map.delete(oldestKey);
+  }
+  map.set(key, value);
+}
 
 let dynamicTopTracks = [];
 let lastCatalogRefresh = 0;
@@ -543,7 +552,7 @@ async function resolveYouTubeId(artist, title) {
                   (await searchViaPiped(q)) ||
                   (await searchViaInvidious(q));
   if (videoId) {
-    resolveCache.set(key, { youtubeId: videoId, ts: Date.now() });
+    setBoundedCache(resolveCache, key, { youtubeId: videoId, ts: Date.now() });
   }
   return videoId;
 }
@@ -648,12 +657,14 @@ async function resolveAudioStream( { youtubeId, artist, title, previewUrl }) {
         return cached;
       }
     }
-    const resolved = (await audioViaYouTubeI(vid)) ||
-                     (await audioViaPiped(vid)) ||
-                     (await audioViaInvidious(vid));
+    // Priorizar Piped / Invidious primero: entregan streams que NO están atados a la IP de Render,
+    // permitiendo redirección 302 directa (0 MB de ancho de banda consumido en Render Free).
+    const resolved = (await audioViaPiped(vid)) ||
+                     (await audioViaInvidious(vid)) ||
+                     (await audioViaYouTubeI(vid));
     if (resolved && resolved.url) {
       const entry = { ...resolved, youtubeId: vid, ts: Date.now() };
-      audioUrlCache.set(vid, entry);
+      setBoundedCache(audioUrlCache, vid, entry);
       return entry;
     }
   }
@@ -786,11 +797,42 @@ function proxyUpstreamAudio(targetUrl, req, res, defaultMime = 'audio/mp4', tota
   upReq.end();
 }
 
+function isLegacyNetcastReq(req) {
+  const ua = String((req && req.headers && req.headers['user-agent']) || '');
+  return ua.indexOf('NetCast') !== -1 && ua.indexOf('Web0S') === -1 && ua.indexOf('webOS') === -1;
+}
+
+function isIpBoundUrl(targetUrl) {
+  try {
+    const u = new URL(targetUrl);
+    return u.hostname.indexOf('googlevideo.com') !== -1;
+  } catch (e) {
+    return false;
+  }
+}
+
+function redirectDirectStream(res, targetUrl) {
+  res.writeHead(302, {
+    Location: targetUrl,
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Expose-Headers': 'Location, Content-Length, Content-Range, Accept-Ranges',
+    'Cache-Control': 'no-cache'
+  });
+  res.end();
+}
+
 async function handleMusicStream(req, res, pathname, query) {
+  const forceProxy = String(query.proxy || '') === '1';
+  const legacyNetcast = isLegacyNetcastReq(req);
+
   // 1. Emisora de radio en vivo (/api/ott/music/radio.mp3?id=...)
   if (pathname.indexOf('/api/ott/music/radio') === 0) {
     const id = String(query.id || '').trim();
     const radio = LIVE_RADIOS.find((r) => r.id === id) || LIVE_RADIOS[0];
+    // Escudo Render Free: en TVs modernas (webOS, Tizen, Android TV, PC) redirigir 302 directo a la emisora (0 MB en Render)
+    if (!forceProxy && !legacyNetcast) {
+      return redirectDirectStream(res, radio.streamUrl);
+    }
     return proxyUpstreamAudio(radio.streamUrl, req, res, radio.mime || 'audio/mpeg', null);
   }
 
@@ -805,6 +847,10 @@ async function handleMusicStream(req, res, pathname, query) {
     if (!stream || !stream.url) {
       res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
       return res.end(JSON.stringify({ ok: false, error: 'Audio no disponible para esta pista' }));
+    }
+    // Escudo Render Free: si el stream no está bloqueado por IP de googlevideo, redirigir 302 directo al CDN (0 MB en Render)
+    if (!forceProxy && !legacyNetcast && !isIpBoundUrl(stream.url)) {
+      return redirectDirectStream(res, stream.url);
     }
     return proxyUpstreamAudio(stream.url, req, res, stream.mimeType || 'audio/mp4', stream.contentLength || null);
   } catch (err) {
@@ -822,5 +868,6 @@ module.exports = {
   searchItunesTracks,
   resolveYouTubeId,
   resolveAudioStream,
-  handleMusicStream
+  handleMusicStream,
+  isIpBoundUrl
 };

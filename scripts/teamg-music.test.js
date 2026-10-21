@@ -75,6 +75,19 @@ const ottMusic = require('../ott-music');
   assert.equal(tabs[1].name, '🎵 TeamG Music');
   assert.equal(tabs[2].id, '__fav');
 
+  // 4. Validar Escudo Render Free (Redirección 302 directa sin gastar ancho de banda en TVs modernas)
+  let radioStatus = 0, radioHeaders = {};
+  await ottMusic.handleMusicStream(
+    { method: 'GET', headers: { 'user-agent': 'Mozilla/5.0 (Web0S; Linux/SmartTV) AppleWebKit/537.36' } },
+    { writeHead(s, h) { radioStatus = s; radioHeaders = h || {}; }, end() {} },
+    '/api/ott/music/radio.mp3',
+    { id: 'la-zona' }
+  );
+  assert.equal(radioStatus, 302, 'En TVs modernas la radio debe redirigir 302 directo sin consumir ancho de banda de Render');
+  assert.ok(radioHeaders.Location && radioHeaders.Location.includes('mdstrm.com'));
+  assert.equal(ottMusic.isIpBoundUrl('https://rr1---sn-abc.googlevideo.com/videoplayback?itag=140'), true);
+  assert.equal(ottMusic.isIpBoundUrl('https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview.m4a'), false);
+
   console.log('TeamG Music OTT integration unit tests pass.');
 })().catch((err) => {
   console.error(err);

@@ -6181,6 +6181,7 @@ function playItem(c, recovering) {
   c._triedHtml5 = false;
   c._triedHtml5Direct = false;
   c._triedHtml5Proxy = false;
+  c._triedMusicProxy = false;
 
   // 1. Resolver URL de reproducción
   var streamUrl = c.url || '';
@@ -6513,6 +6514,12 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c, androidFallbackEngine) 
   v.onerror = function() {
     if (!v.src || v.src === '' || v.src === window.location.href) return;
     if (tryAndroidHlsFallback()) return;
+    if (c && c.url && c.url.indexOf('/api/ott/music/') !== -1 && !c._triedMusicProxy) {
+      c._triedMusicProxy = true;
+      v.src = playUrl + (playUrl.indexOf('?') !== -1 ? '&proxy=1' : '?proxy=1');
+      try { v.load(); v.play(); } catch (eRetryMusic) {}
+      return;
+    }
     var ua = (typeof navigator !== 'undefined' && navigator.userAgent) || '';
     var isLegacyNetcast = (ua.indexOf('NetCast') !== -1 && ua.indexOf('Web0S') === -1 && ua.indexOf('webOS') === -1);
     if (isLegacyNetcast && c && c._triedHtml5Direct && !c._triedHtml5Proxy && playUrl && playUrl !== streamUrl) {
@@ -6593,6 +6600,12 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c, androidFallbackEngine) 
     state.hlsInstance.on(Hls.Events.ERROR, function(evt, data) {
       if (data.fatal) {
         if (tryAndroidHlsFallback()) return;
+    if (c && c.url && c.url.indexOf('/api/ott/music/') !== -1 && !c._triedMusicProxy) {
+      c._triedMusicProxy = true;
+      v.src = playUrl + (playUrl.indexOf('?') !== -1 ? '&proxy=1' : '?proxy=1');
+      try { v.load(); v.play(); } catch (eRetryMusic) {}
+      return;
+    }
         var ua = (typeof navigator !== 'undefined' && navigator.userAgent) || '';
         var isLegacyNetcast = (ua.indexOf('NetCast') !== -1 && ua.indexOf('Web0S') === -1 && ua.indexOf('webOS') === -1);
         if (isLegacyNetcast && netcastObj && (!c || !c._triedNetcast)) {
