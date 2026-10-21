@@ -11,12 +11,16 @@ const ottMusic = require('../ott-music');
   assert.ok(Array.isArray(ottMusic.LIVE_RADIOS) && ottMusic.LIVE_RADIOS.length >= 10, 'Debe incluir las 10 radios en vivo verificadas');
   assert.ok(Array.isArray(ottMusic.CURATED_TRACKS) && ottMusic.CURATED_TRACKS.length >= 40, 'Debe incluir el catálogo musical curado por géneros');
 
+  const bbyWowTrack = ottMusic.CURATED_TRACKS.find((t) => t.title && t.title.toLowerCase().includes('bby wow'));
+  assert.ok(bbyWowTrack, 'Debe incluir "BbY WOW" de KAROL G en el catálogo curado para Smart TV');
+
   const m3u = await ottMusic.buildMusicM3u('https://ott.teamg.store', '', false);
   assert.ok(m3u.startsWith('#EXTM3U\n'), 'El catálogo de TeamG Music debe ser un M3U válido');
   assert.ok(m3u.includes('group-title="🔥 Más Escuchado"'), 'Debe incluir categoría Más Escuchado');
   assert.ok(m3u.includes('group-title="📻 Radios en Vivo 24/7"'), 'Debe incluir categoría Radios en Vivo 24/7');
   assert.ok(m3u.includes('group-title="💃 Reggaetón & Urbano"'), 'Debe incluir categoría Reggaetón & Urbano');
   assert.ok(m3u.includes('group-title="🎺 Salsa, Cumbia & Tropical"'), 'Debe incluir categoría Salsa, Cumbia & Tropical');
+  assert.ok(m3u.includes('BbY WOW'), 'El M3U debe incluir "BbY WOW" en el catálogo');
   assert.ok(m3u.includes('/api/ott/music/stream.mp4?'), 'Las canciones deben apuntar al endpoint /api/ott/music/stream.mp4');
   assert.ok(m3u.includes('/api/ott/music/radio.mp3?id=la-zona'), 'Las radios deben apuntar al endpoint /api/ott/music/radio');
 

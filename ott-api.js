@@ -583,7 +583,8 @@ async function handle(req, res, pathname, query, body) {
     const a = await authedDevice(body, query);
     if (a.err) return json(res, 401, { ok: false, error: a.err });
     const ottMusic = require('./ott-music');
-    const fwdProto = (req.headers && req.headers['x-forwarded-proto']) ? String(req.headers['x-forwarded-proto']).split(',')[0].trim() : ((req.connection && req.connection.encrypted) ? 'https' : 'http');
+    const isNetcast = (req.headers && req.headers['user-agent'] && req.headers['user-agent'].indexOf('NetCast') !== -1 && req.headers['user-agent'].indexOf('Web0S') === -1);
+    const fwdProto = isNetcast ? 'http' : ((req.headers && req.headers['x-forwarded-proto']) ? String(req.headers['x-forwarded-proto']).split(',')[0].trim() : ((req.connection && req.connection.encrypted) ? 'https' : 'http'));
     const fwdHost = (req.headers && (req.headers['x-forwarded-host'] || req.headers.host)) ? String(req.headers['x-forwarded-host'] || req.headers.host).split(',')[0].trim() : 'ott.teamg.store';
     const baseUrl = fwdProto + '://' + fwdHost;
     const isFresh = (query.refresh === '1' || !!query._cb);
