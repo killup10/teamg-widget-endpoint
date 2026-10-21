@@ -1582,12 +1582,12 @@ video::cue {
   display: table !important;
   width: 100% !important;
   table-layout: fixed !important;
-  height: 11.8vh !important;
-  height: calc((100% - 28px) / 8) !important;
+  /* La lista pagina 8 canales; el porcentaje evita calc(/8), que WebKit NetCast no interpreta. */
+  height: 12.5% !important;
   min-height: 0 !important;
-  max-height: calc((100% - 28px) / 8) !important;
+  max-height: 12.5% !important;
   padding: 0 8px !important;
-  margin-bottom: 4px !important;
+  margin-bottom: 0 !important;
   cursor: pointer;
   color: #dddddd;
   background: rgba(255, 255, 255, 0.04);
