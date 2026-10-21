@@ -1386,6 +1386,11 @@ function handleStream(req, res, query) {
       }
 
       if (req.method === 'HEAD') {
+        if (outContentType === 'video/mp4' && (!contentType || contentType.indexOf('octet-stream') !== -1) &&
+            !/\.(mp4|m4v)(?:[?#]|$)/i.test(targetUrl) && /\.ts(?:[?#]|$)/i.test(req.url || '')) {
+          outHeaders['Content-Type'] = 'video/mp2t';
+          if (!upRes.headers['accept-ranges']) delete outHeaders['Accept-Ranges'];
+        }
         res.writeHead(upRes.statusCode || 200, outHeaders);
         upRes.resume();
         return res.end();
@@ -1402,6 +1407,7 @@ function handleStream(req, res, query) {
           for (let offset = 0; offset < 188 && offset + 376 < bytes.length; offset++) {
             if (bytes[offset] === 0x47 && bytes[offset + 188] === 0x47 && bytes[offset + 376] === 0x47) {
               outHeaders['Content-Type'] = 'video/mp2t';
+              if (!upRes.headers['accept-ranges']) delete outHeaders['Accept-Ranges'];
               break;
             }
           }
