@@ -5812,6 +5812,31 @@ function formatTime(sec) {
   return hh + ':' + mm + ':' + ss;
 }
 
+function isMusicPlaying() {
+  if (state.currentPlaylist && state.currentPlaylist.id === '__music') return true;
+  var c = state.recoveryItem;
+  if (!c && typeof getFilteredChannels === 'function') {
+    var list = getFilteredChannels();
+    if (list && list[state.currentChannelIdx]) c = list[state.currentChannelIdx];
+  }
+  if (c && c.url && c.url.indexOf('/api/ott/music/') !== -1) return true;
+  return false;
+}
+
+function advanceMusicTrack() {
+  if (!isMusicPlaying()) return;
+  var c = state.recoveryItem;
+  if (c && c.url && c.url.indexOf('/api/ott/music/radio') !== -1) return;
+  if (state._advancingMusic) return;
+  state._advancingMusic = true;
+  setTimeout(function() { state._advancingMusic = false; }, 2000);
+  var mList = (state.activeSeriesEpisodes && state.activeSeriesEpisodes.length > 0) ? state.activeSeriesEpisodes : getFilteredChannels();
+  if (!mList || mList.length === 0) return;
+  var nextIdx = (state.currentChannelIdx + 1) % mList.length;
+  lastChannelChangeTime = 0;
+  playChannelAt(nextIdx);
+}
+
 function updateDurationDisplay(v) {
   var timeEl = $('player-time-text');
   if (!timeEl) return;
@@ -5900,6 +5925,9 @@ function startPlaybackTicker() {
     }
 
     monitorPlaybackRecovery(cur, dur, v, netcastObj);
+    if (isMusicPlaying() && dur > 0 && (cur >= dur - 0.45 || (v && v.ended))) {
+      advanceMusicTrack();
+    }
 
     // Renderizado universal de subtítulos en pantalla (Overlay directo para cualquier Smart TV)
     var subEl = $('player-subtitles-overlay');
@@ -5967,6 +5995,9 @@ function monitorPlaybackRecovery(cur, dur, v, netcastObj) {
   }
   if (paused || (!samsungActive && !nativeActive && v && v.ended && state.recoveryVod) || (state.recoveryVod && dur > 0 && cur >= dur - 1)) {
     state.recoveryLastTime = now;
+    if (isMusicPlaying() && dur > 0 && (cur >= dur - 0.45 || (v && v.ended))) {
+      advanceMusicTrack();
+    }
     return;
   }
   if (cur > (state.recoveryLastPosition || 0) + 0.1) {
@@ -6453,9 +6484,8 @@ function startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c, forceProxy) {
         }
       } else if (ps === 2) {
         $('btnPlayPause').textContent = '▶';
-      } else if (ps === 5 && c && c.url && c.url.indexOf('/api/ott/music/stream') !== -1) {
-        var mList = getFilteredChannels();
-        if (mList && mList.length > 0) playChannelAt((state.currentChannelIdx + 1) % mList.length);
+      } else if (ps === 5 && isMusicPlaying()) {
+        advanceMusicTrack();
       } else if (ps === 6) { // Error
         fail();
       }
@@ -6510,16 +6540,27 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c, androidFallbackEngine) 
   v.style.display = 'block';
 
   v.onloadeddata = function() { hideTuning(); };
-  v.onwaiting = function() { setBuffering(true); };
-  v.oncanplay = function() { setBuffering(false); hideTuning(); };
+  v.onwaiting = function() {
+    setBuffering(true);
+    if (isMusicPlaying() && v.duration > 0 && v.currentTime >= v.duration - 1.2) {
+      advanceMusicTrack();
+    }
+  };
+  v.oncanplay = function() {
+    setBuffering(false);
+    hideTuning();
+    if (v.paused && state.screen === 'player') {
+      try {
+        var pCan = v.play();
+        if (pCan && typeof pCan.catch === 'function') pCan.catch(function() {});
+      } catch (eCan) {}
+    }
+  };
   v.onplaying = function() { setBuffering(false); hideTuning(); $('btnPlayPause').textContent = '▶❚❚'; };
   v.onpause = function() { $('btnPlayPause').textContent = '▶'; };
   v.onended = function() {
-    if (c && c.url && c.url.indexOf('/api/ott/music/stream') !== -1) {
-      var mList = getFilteredChannels();
-      if (mList && mList.length > 0) {
-        playChannelAt((state.currentChannelIdx + 1) % mList.length);
-      }
+    if (isMusicPlaying()) {
+      advanceMusicTrack();
     }
   };
   v.onloadedmetadata = function() {
@@ -6528,10 +6569,19 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c, androidFallbackEngine) 
       $('player-res').textContent = v.videoWidth + 'x' + v.videoHeight;
     }
     updateDurationDisplay(v);
+    if (v.paused && state.screen === 'player') {
+      try {
+        var pMeta = v.play();
+        if (pMeta && typeof pMeta.catch === 'function') pMeta.catch(function() {});
+      } catch (eMeta) {}
+    }
   };
   v.ontimeupdate = function() {
     if (v.currentTime > 0) hideTuning();
     updateProgressDisplay(v);
+    if (isMusicPlaying() && v.duration > 0 && v.currentTime >= v.duration - 0.45) {
+      advanceMusicTrack();
+    }
   };
   v.onerror = function() {
     if (!v.src || v.src === '' || v.src === window.location.href) return;
@@ -6658,7 +6708,18 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c, androidFallbackEngine) 
       v.load(); // Esencial en Smart TVs (LG webOS / Samsung Tizen) para refrescar el pipeline de video
       var playPromise = v.play();
       if (playPromise && typeof playPromise.catch === 'function') {
-        playPromise.catch(function(err) { androidPlayError(err); console.warn('v.play error:', err); });
+        playPromise.catch(function(err) {
+        androidPlayError(err);
+        console.warn('v.play error:', err);
+        setTimeout(function() {
+          if (v.paused && state.screen === 'player') {
+            try {
+              var pRetry = v.play();
+              if (pRetry && typeof pRetry.catch === 'function') pRetry.catch(function() {});
+            } catch (eRetry) {}
+          }
+        }, 150);
+      });
       }
     } catch (e) {
       console.warn('Error al llamar v.play():', e);
@@ -6769,15 +6830,17 @@ function handlePlayerNav(kc, eObj) {
     return;
   }
 
-  // 2. Cambio directo de canal con botones físicos del control remoto (CH+ / CH-): SIEMPRE ACTIVO
+  // 2. Cambio directo de canal con botones físicos del control remoto (CH+ / CH- / Next / Prev): SIEMPRE ACTIVO
   // CH+ (subir): avanza al siguiente canal (ej. de 1 Latina a 2 CTV)
   // CH- (bajar): retrocede al canal anterior
-  if (isChUp) {
+  var isNextTrack = (kc === 424 || kc === 176 || (eObj && (eObj.key === 'MediaTrackNext' || eObj.code === 'MediaTrackNext')));
+  var isPrevTrack = (kc === 425 || kc === 177 || (eObj && (eObj.key === 'MediaTrackPrevious' || eObj.code === 'MediaTrackPrevious')));
+  if (isChUp || isNextTrack) {
     var next = (state.currentChannelIdx + 1) % list.length;
     playChannelAt(next);
     return;
   }
-  if (isChDown) {
+  if (isChDown || isPrevTrack) {
     var prev = (state.currentChannelIdx - 1 + list.length) % list.length;
     playChannelAt(prev);
     return;

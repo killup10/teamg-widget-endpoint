@@ -92,6 +92,37 @@ const ottMusic = require('../ott-music');
   assert.equal(ottMusic.isIpBoundUrl('https://rr1---sn-abc.googlevideo.com/videoplayback?itag=140'), true);
   assert.equal(ottMusic.isIpBoundUrl('https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview.m4a'), false);
 
+  // 5. Validar Auto-Avance continuo y controles de pista siguiente/anterior
+  assert.ok(html.includes('function advanceMusicTrack()'), 'ott/index.html debe implementar advanceMusicTrack()');
+  assert.ok(html.includes('function isMusicPlaying()'), 'ott/index.html debe implementar isMusicPlaying()');
+  assert.ok(html.includes('isNextTrack') && html.includes('isPrevTrack'), 'handlePlayerNav debe soportar MediaTrackNext y MediaTrackPrevious');
+  assert.ok(html.includes('cur >= dur - 0.45'), 'ontimeupdate o ticker deben tener guardias de fin de archivo para auto-avance continuo');
+
+  // Simular avance automático en contexto VM
+  let playedIdx = -1;
+  const advanceCtx = {
+    state: {
+      currentPlaylist: { id: '__music' },
+      currentChannelIdx: 2,
+      recoveryItem: { url: '/api/ott/music/stream.mp4?id=test' },
+      _advancingMusic: false
+    },
+    lastChannelChangeTime: 500,
+    setTimeout: (fn) => fn(),
+    getFilteredChannels: () => [
+      { id: '1', name: 'Track 1' },
+      { id: '2', name: 'Track 2' },
+      { id: '3', name: 'Track 3' },
+      { id: '4', name: 'Track 4' }
+    ],
+    playChannelAt: (idx) => { playedIdx = idx; }
+  };
+  const advanceFuncStart = html.indexOf('function isMusicPlaying()');
+  const advanceFuncEnd = html.indexOf('function updateDurationDisplay(v)');
+  vm.runInNewContext(html.slice(advanceFuncStart, advanceFuncEnd), advanceCtx);
+  advanceCtx.advanceMusicTrack();
+  assert.equal(playedIdx, 3, 'advanceMusicTrack debe avanzar automáticamente a la pista siguiente (índice 3)');
+
   console.log('TeamG Music OTT integration unit tests pass.');
 })().catch((err) => {
   console.error(err);
