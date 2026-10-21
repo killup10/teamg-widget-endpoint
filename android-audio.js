@@ -39,30 +39,68 @@ function probe(url) {
   probes.set(url, pending);
   return pending;
 }
+function relayTransport(url, child, onError) {
+  let request, response, closed = false;
+  function close() {
+    closed = true;
+    if (response) response.destroy();
+    if (request) request.destroy();
+  }
+  function fail(message) { if (!closed) { close(); onError(new Error(message)); } }
+  function connect(target, redirects) {
+    if (closed) return;
+    const mod = new URL(target).protocol === 'https:' ? require('https') : require('http');
+    request = mod.get(target, {headers:{'User-Agent':'Mozilla/5.0 (SmartTV; NetCast) AppleWebKit/534.34',Accept:'*/*'}}, res => {
+      response = res;
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location && redirects > 0) {
+        const next = new URL(res.headers.location, target).toString();
+        try { validUrl(next); } catch { res.destroy(); return fail('Redirección de señal no permitida'); }
+        res.resume(); connect(next, redirects - 1); return;
+      }
+      if (res.statusCode !== 200 && res.statusCode !== 206) { res.destroy(); return fail('La fuente rechazó la conexión HTTP (' + res.statusCode + ')'); }
+      res.on('error', () => fail('Se interrumpió la conexión con la fuente'));
+      res.pipe(child.stdin);
+    });
+    request.setTimeout(12000, () => fail('La fuente no respondió al recibir la señal'));
+    request.on('error', () => fail('No se pudo conectar con la fuente de la señal'));
+  }
+  child.stdin.on('error', () => {}); // Decoder exit can close the input before the HTTP socket.
+  connect(url, 5);
+  return { close };
+}
 async function dispose(id) {
   const session = sessions.get(id);
   if (!session) return;
   sessions.delete(id);
+  if (session.input) session.input.close();
   if (session.child.exitCode === null) session.child.kill('SIGKILL');
   await fs.promises.rm(session.dir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 }).catch(() => {});
 }
 async function prepare(owner, url, forceHls = false) {
-  const codec = await probe(url);
-  const convertAudio = ['mp2', 'aac_latm', 'ac3', 'eac3'].includes(codec);
+  validUrl(url);
+  // Raw TS already requires packaging; FFmpeg discovers and converts its audio
+  // in the same connection. A separate probe must not block live startup.
+  const codec = forceHls ? 'auto' : await probe(url);
+  const convertAudio = forceHls || ['mp2', 'aac_latm', 'ac3', 'eac3'].includes(codec);
+  const relay = forceHls && !/(?:\.m3u8|\/playlist|\/chunks)/i.test(url);
   if (!convertAudio && !forceHls) return { transcoded: false, codec };
   for (const session of sessions.values()) if (session.owner === owner) await dispose(session.id);
   if (sessions.size >= MAX_SESSIONS) throw new Error('Conversión de audio ocupada. Intenta nuevamente.');
   const id = crypto.randomBytes(24).toString('hex');
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'teamg-audio-'));
-  const child = spawn(bin(), inputArgs(url).concat(['-map', '0:v:0', '-map', '0:a:0', '-c:v', 'copy',
+  const args = relay ? ['-hide_banner', '-nostdin', '-loglevel', 'info', '-analyzeduration', '6000000', '-probesize', '6000000', '-i', 'pipe:0'] : inputArgs(url);
+  const child = spawn(bin(), args.concat(['-map', '0:v:0', '-map', '0:a:0?', '-c:v', 'copy',
     ...(convertAudio ? ['-c:a', 'aac', '-profile:a', 'aac_low', '-b:a', '128k', '-ac', '2', '-ar', '48000'] : ['-c:a', 'copy']),
     '-max_muxing_queue_size', '1024', '-f', 'hls', '-hls_time', '2', '-hls_list_size', '5',
     '-hls_flags', 'delete_segments+omit_endlist', '-hls_delete_threshold', '2',
     '-hls_segment_filename', path.join(dir, 'segment-%06d.ts'), path.join(dir, 'index.m3u8')]),
-  { windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'] });
+  { windowsHide: true, stdio: [relay ? 'pipe' : 'ignore', 'ignore', 'pipe'] });
   child.stderr.resume();
   const session = { id, owner, url, dir, child, touched: Date.now(), created: Date.now(), failed: false };
   sessions.set(id, session);
+  if (relay) session.input = relayTransport(url, child, error => {
+    session.error = error.message; session.failed = true; dispose(id);
+  });
   child.on('error', () => { session.failed = true; dispose(id); });
   child.on('close', () => { session.failed = true; dispose(id); });
   session.ready = (async () => {
@@ -75,7 +113,7 @@ async function prepare(owner, url, forceHls = false) {
       await new Promise(resolve => setTimeout(resolve, 200));
     }
     await dispose(id);
-    throw new Error('La fuente no pudo iniciar la señal HLS compatible');
+    throw new Error(session.error || 'La fuente no pudo iniciar la señal HLS compatible');
   })();
   await session.ready;
   return { transcoded: true, codec, sessionId: id, url: '/api/ott/android-audio/' + id + '/index.m3u8' };
