@@ -95,14 +95,24 @@ async function prepare(owner, url, forceHls = false) {
     '-hls_flags', 'delete_segments+omit_endlist', '-hls_delete_threshold', '2',
     '-hls_segment_filename', path.join(dir, 'segment-%06d.ts'), path.join(dir, 'index.m3u8')]),
   { windowsHide: true, stdio: [relay ? 'pipe' : 'ignore', 'ignore', 'pipe'] });
-  child.stderr.resume();
+  let stderrTail = '';
+  child.stderr.setEncoding('utf8');
+  child.stderr.on('data', chunk => { stderrTail = (stderrTail + chunk).slice(-2400); });
   const session = { id, owner, url, dir, child, touched: Date.now(), created: Date.now(), failed: false };
   sessions.set(id, session);
   if (relay) session.input = relayTransport(url, child, error => {
     session.error = error.message; session.failed = true; dispose(id);
   });
-  child.on('error', () => { session.failed = true; dispose(id); });
-  child.on('close', () => { session.failed = true; dispose(id); });
+  child.on('error', err => { session.error = 'FFmpeg no pudo iniciar: ' + err.message; session.failed = true; dispose(id); });
+  child.on('close', (code, signal) => {
+    if (!session.error) {
+      const details = stderrTail.split('\n').map(line => line.trim())
+        .filter(line => /error|failed|invalid|not found|impossible|could not|unable|permission/i.test(line))
+        .slice(-4).join(' | ').replace(/https?:\/\/[^\s]+/g, '[fuente]').slice(-700);
+      session.error = 'FFmpeg cerró (código ' + code + (signal ? ', señal ' + signal : '') + ')' + (details ? ': ' + details : '');
+    }
+    session.failed = true; dispose(id);
+  });
   session.ready = (async () => {
     const deadline = Date.now() + 16000;
     while (Date.now() < deadline && !session.failed) {
@@ -113,7 +123,7 @@ async function prepare(owner, url, forceHls = false) {
       await new Promise(resolve => setTimeout(resolve, 200));
     }
     await dispose(id);
-    throw new Error(session.error || 'La fuente no pudo iniciar la señal HLS compatible');
+    throw new Error(session.error || ('No se creó HLS en 16 segundos. ' + (stderrTail.split('\n').slice(-5).join(' | ').replace(/https?:\/\/[^\s]+/g, '[fuente]').slice(-700) || 'FFmpeg no informó un error detallado')));
   })();
   await session.ready;
   return { transcoded: true, codec, sessionId: id, url: '/api/ott/android-audio/' + id + '/index.m3u8' };
