@@ -8,9 +8,9 @@ const audio = require('../android-audio');
 const html = fs.readFileSync('ott/index.html', 'utf8');
 const start = html.indexOf('  var androidLiveAudio =');
 const source = html.slice(start, html.indexOf('  // Resolve a single AVC', start));
-function routing(ua, vod, directCdn, raw = false) {
+function routing(ua, vod, directCdn, raw = false, native = false) {
   const requests = [], started = [];
-  const ctx = { ua, isHls: !raw, isDirectCdn: directCdn, state: { recoveryVod: vod, currentPlaylist: { id: 'pl' }, auth: { token: 'token', deviceId: 'tv' }, screen: 'player', playerGeneration: 5 },
+  const ctx = { ua, preferNetcast: native && /NetCast/i.test(ua), useNative: native && /Tizen/i.test(ua), isHls: !raw, isDirectCdn: directCdn, state: { recoveryVod: vod, currentPlaylist: { id: 'pl' }, auth: { token: 'token', deviceId: 'tv' }, screen: 'player', playerGeneration: 5 },
     API_BASE: 'https://app.test', streamUrl: raw ? 'http://source.test/play/a0cj' : 'https://source.test/live.m3u8', playUrl: 'original', v: { pause() {}, removeAttribute() {}, load() {} },
     apiCall: (...args) => requests.push(args), hideTuning() {}, showToast() {}, startSelectedPlayer: url => started.push(url) };
   vm.runInNewContext('(function(){' + source + '})()', ctx);
@@ -25,6 +25,10 @@ for (const ua of ['Chrome PC', 'NetCast', 'webOS', 'Android']) {
   assert.deepEqual(raw.started, [], 'Do not open unsupported raw TS while preparing HLS');
   raw.requests[0][3](200, {ok:true,transcoded:true,url:'/converted.m3u8',sessionId:'raw'});
   assert.deepEqual(raw.started, ['https://app.test/converted.m3u8']);
+}
+for (const ua of ['NetCast', 'Tizen']) {
+  const native = routing(ua, false, false, true, true);
+  assert.equal(native.requests.length, 0, ua + ': native TS startup must bypass HTML5 packaging');
 }
 const rawFailure = routing('Chrome PC', false, false, true);
 rawFailure.requests[0][3](503, {error:'busy'});

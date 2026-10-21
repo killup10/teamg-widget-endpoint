@@ -6198,7 +6198,9 @@ function playItem(c, recovering) {
   var androidLiveAudio = /Android/i.test(ua) && !/NetCast|webOS|Web0S|Tizen/i.test(ua) && !state.recoveryVod && !isDirectCdn;
   // A continuous TS response is not an HLS manifest. Package it for HTML5/TV
   // playback and convert unsupported broadcast audio (such as MP2) to AAC.
-  var rawLiveTransport = !state.recoveryVod && !isHls && !isDirectCdn &&
+  // Native TV decoders accept TS directly. Do not intercept their startup
+  // with the HTML5 packaging service (which also changes transport to HTTPS).
+  var rawLiveTransport = !preferNetcast && !useNative && !state.recoveryVod && !isHls && !isDirectCdn &&
     !/\.(?:mp4|m4v|mkv|webm|avi|mov|mp3|aac)(?:[?#]|$)/i.test(streamUrl);
   if ((androidLiveAudio || rawLiveTransport) && state.currentPlaylist && state.auth.token) {
     var audioGeneration = state.playerGeneration;
