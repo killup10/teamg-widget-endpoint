@@ -5846,6 +5846,41 @@ function advanceMusicTrack() {
   playChannelAt(nextIdx);
 }
 
+function extractTrackInfo(item) {
+  var artist = '';
+  var title = '';
+  if (item && item.url) {
+    var qIdx = item.url.indexOf('?');
+    if (qIdx !== -1) {
+      var queryStr = item.url.substring(qIdx + 1);
+      var pairs = queryStr.split('&');
+      for (var i = 0; i < pairs.length; i++) {
+        var p = pairs[i].split('=');
+        if (p.length === 2) {
+          var k = decodeURIComponent(p[0].replace(/\+/g, ' '));
+          var v = decodeURIComponent(p[1].replace(/\+/g, ' '));
+          if (k === 'artist') artist = v;
+          else if (k === 'title') title = v;
+        }
+      }
+    }
+  }
+  if (!artist || !title) {
+    var name = (item && item.name) ? item.name : '';
+    var parts = name.split(/\s*[\u2014\u2013-]\s*/);
+    if (parts.length >= 2) {
+      if (!title) title = parts[0].trim();
+      if (!artist) artist = parts.slice(1).join(' - ').trim();
+    } else {
+      if (!title) title = name;
+    }
+  }
+  return {
+    artist: artist ? artist.trim() : '',
+    title: title ? title.trim() : ''
+  };
+}
+
 function loadSongLyrics(item) {
   state.activeLyrics = null;
   state._lastActiveLyricText = null;
@@ -5855,12 +5890,10 @@ function loadSongLyrics(item) {
   var badge = $('player-music-badge');
   if (badge) badge.textContent = '🎵 TEAMG MUSIC';
   if (!item || !item.url || item.url.indexOf('/api/ott/music/radio') !== -1) return;
-  var name = item.name || '';
-  var parts = name.split(' - ');
-  var artist = parts.length > 1 ? parts[0].trim() : '';
-  var title = parts.length > 1 ? parts.slice(1).join(' - ').trim() : name;
-  if (!artist && item.group && item.group.indexOf('TeamG Music') === -1) artist = item.group;
-  var apiUrl = (API_BASE || '') + '/api/ott/music/lyrics?artist=' + encodeURIComponent(artist) + '&title=' + encodeURIComponent(title);
+  var info = extractTrackInfo(item);
+  var artist = info.artist;
+  var title = info.title;
+  var apiUrl = (API_BASE || '') + '/api/ott/music/lyrics?artist=' + encodeURIComponent(artist) + '&title=' + encodeURIComponent(title) + '&q=' + encodeURIComponent(item.name || '');
   if (window.location && window.location.protocol === 'https:' && apiUrl.indexOf('http://') === 0) {
     apiUrl = 'https://' + apiUrl.substring(7);
   }
@@ -5874,7 +5907,10 @@ function loadSongLyrics(item) {
           state.activeLyrics = data.cues;
           if (box) box.style.display = (state.lyricsEnabled !== false) ? 'block' : 'none';
           if (badge) badge.textContent = '🎤 KARAOKE EN VIVO';
-          updateMusicLyrics(0);
+          var curSec = 0;
+          var v = $('video-el');
+          if (v && v.currentTime > 0) curSec = v.currentTime;
+          updateMusicLyrics(curSec);
         }
       } catch (e) {}
     }

@@ -1318,13 +1318,27 @@ async function handleMusicLyrics(req, res, pathname, query) {
   let artist = String(query.artist || '').trim();
   let title = String(query.title || '').trim();
   const qParam = String(query.q || '').trim();
-  if (!artist && !title && qParam) {
-    const parts = qParam.split(/\s*-\s*/);
-    if (parts.length > 1) {
-      artist = parts[0].trim();
-      title = parts.slice(1).join(' - ').trim();
-    } else {
-      title = qParam;
+
+  // Descartar si el artista recibido es una categoría con emojis (ej. "🔥 Más Escuchado", "💃 Reggaetón")
+  if (/[\uD800-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27BF]|Más Escuchado|Reggaetón|Salsa|Cumbia|Rock|Pop|Favoritos|Todos|Resultados de Búsqueda/i.test(artist)) {
+    artist = '';
+  }
+
+  // Si el título contiene em-dash (—), en-dash (–) o guion (-), separar título y artista
+  if (title.includes('—') || title.includes('–') || title.includes(' - ')) {
+    const parts = title.split(/\s*[\u2014\u2013-]\s*/);
+    if (parts.length >= 2) {
+      if (!artist) artist = parts.slice(1).join(' - ').trim();
+      title = parts[0].trim();
+    }
+  }
+
+  // Si aún no tenemos artista pero vino q
+  if (!artist && qParam) {
+    const parts = qParam.split(/\s*[\u2014\u2013-]\s*/);
+    if (parts.length >= 2) {
+      title = parts[0].trim();
+      artist = parts.slice(1).join(' - ').trim();
     }
   }
 
@@ -1360,7 +1374,18 @@ async function handleMusicLyrics(req, res, pathname, query) {
       } catch (eGet) {}
     }
 
-    // 2. Intento por Búsqueda libre si no encontró exacto
+    // 2. Intento por Get invertido (por si vinieron intercambiados)
+    if ((!lrclibData || (!lrclibData.syncedLyrics && !lrclibData.plainLyrics)) && cleanArtist && cleanTitle) {
+      const swUrl = 'https://lrclib.net/api/get?artist_name=' + encodeURIComponent(cleanTitle) + '&track_name=' + encodeURIComponent(cleanArtist);
+      try {
+        const swRes = await fetch(swUrl, { signal: AbortSignal.timeout(3000) });
+        if (swRes.ok) {
+          lrclibData = await swRes.json();
+        }
+      } catch (eSw) {}
+    }
+
+    // 3. Intento por Búsqueda libre si no encontró exacto (artista + título)
     if ((!lrclibData || (!lrclibData.syncedLyrics && !lrclibData.plainLyrics)) && (cleanTitle || title)) {
       const searchQuery = (cleanArtist ? (cleanArtist + ' ') : '') + (cleanTitle || title);
       const sUrl = 'https://lrclib.net/api/search?q=' + encodeURIComponent(searchQuery);
@@ -1374,6 +1399,21 @@ async function handleMusicLyrics(req, res, pathname, query) {
           }
         }
       } catch (eSearch) {}
+    }
+
+    // 4. Intento por Búsqueda libre solo por título
+    if ((!lrclibData || (!lrclibData.syncedLyrics && !lrclibData.plainLyrics)) && cleanTitle) {
+      const sUrl2 = 'https://lrclib.net/api/search?q=' + encodeURIComponent(cleanTitle);
+      try {
+        const sRes2 = await fetch(sUrl2, { signal: AbortSignal.timeout(3500) });
+        if (sRes2.ok) {
+          const sList2 = await sRes2.json();
+          if (Array.isArray(sList2) && sList2.length > 0) {
+            const syncedCandidate2 = sList2.find((item) => item.syncedLyrics) || sList2[0];
+            if (syncedCandidate2) lrclibData = syncedCandidate2;
+          }
+        }
+      } catch (eSearch2) {}
     }
 
     let payload = { ok: false, error: 'Letra no encontrada' };

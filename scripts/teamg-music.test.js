@@ -140,6 +140,40 @@ const ottMusic = require('../ott-music');
   assert.ok(html.includes('id="player-music-lyric-next"'), 'ott/index.html debe incluir el elemento de línea siguiente');
   assert.ok(html.includes('function loadSongLyrics('), 'ott/index.html debe implementar loadSongLyrics');
   assert.ok(html.includes('function updateMusicLyrics('), 'ott/index.html debe implementar updateMusicLyrics');
+  assert.ok(html.includes('function extractTrackInfo('), 'ott/index.html debe implementar extractTrackInfo');
+
+  // Validar extractTrackInfo en VM con em-dash y query parameters
+  const extractTrackStart = html.indexOf('function extractTrackInfo(');
+  const extractTrackEnd = html.indexOf('function loadSongLyrics(');
+  const extractCtx = {};
+  vm.runInNewContext(html.slice(extractTrackStart, extractTrackEnd), extractCtx);
+  const ext1 = extractCtx.extractTrackInfo({
+    name: 'BbY WOW — KAROL G, Judeline & rusowsky',
+    url: 'http://ott.teamg.store/api/ott/music/stream.mp4?artist=KAROL+G%2C+Judeline+%26+rusowsky&title=BbY+WOW'
+  });
+  assert.equal(ext1.title, 'BbY WOW');
+  assert.equal(ext1.artist, 'KAROL G, Judeline & rusowsky');
+
+  const ext2 = extractCtx.extractTrackInfo({
+    name: 'BbY WOW — KAROL G, Judeline & rusowsky',
+    url: ''
+  });
+  assert.equal(ext2.title, 'BbY WOW');
+  assert.equal(ext2.artist, 'KAROL G, Judeline & rusowsky');
+
+  // Validar que handleMusicLyrics es inmune a que le envíen la categoría en artist
+  let mockStatus = 0, mockBody = '';
+  await ottMusic.handleMusicLyrics(
+    { method: 'GET', headers: {} },
+    { writeHead(s) { mockStatus = s; }, end(b) { mockBody = b; } },
+    '/api/ott/music/lyrics',
+    { artist: '🔥 Más Escuchado', title: 'BbY WOW — KAROL G, Judeline & rusowsky' }
+  );
+  assert.equal(mockStatus, 200, 'handleMusicLyrics debe sanitizar categorías y responder 200 para BbY WOW');
+  const parsedRes = JSON.parse(mockBody);
+  assert.equal(parsedRes.ok, true);
+  assert.equal(parsedRes.synced, true);
+  assert.ok(Array.isArray(parsedRes.cues) && parsedRes.cues.length > 20);
 
   console.log('TeamG Music OTT integration unit tests pass.');
 })().catch((err) => {
