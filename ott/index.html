@@ -2113,13 +2113,17 @@ body.text-large .drawer-num { font-size: 25px !important; }
     <object id="samsung-player" type="application/avplayer" style="display:none;" tabindex="-1"></object>
     <!-- Renderizado Universal de Subtítulos en Pantalla -->
     <div id="player-subtitles-overlay"></div>
-    <div id="player-music-stage" style="display:none;position:absolute;top:0;left:0;width:100%;height:100%;background:#120710;z-index:2;text-align:center;padding-top:16vh;">
-      <div style="display:inline-block;width:28vh;height:28vh;border:3px solid #e6b75a;border-radius:12px;overflow:hidden;background:#241116;vertical-align:middle;">
+    <div id="player-music-stage" style="display:none;position:absolute;top:0;left:0;width:100%;height:100%;background:#120710;z-index:2;text-align:center;padding-top:10vh;">
+      <div style="display:inline-block;width:24vh;height:24vh;border:3px solid #e6b75a;border-radius:12px;overflow:hidden;background:#241116;vertical-align:middle;box-shadow:0 4px 16px rgba(0,0,0,0.6);">
         <img id="player-music-cover" src="" style="width:100%;height:100%;display:none;" />
       </div>
-      <div id="player-music-badge" style="margin-top:2.2vh;font-size:2vh;color:#e6b75a;font-weight:bold;letter-spacing:2px;">🎵 TEAMG MUSIC</div>
-      <div id="player-music-title" style="margin:1vh auto 0 auto;max-width:76vw;font-size:3.6vh;color:#ffffff;font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
-      <div id="player-music-sub" style="margin-top:0.8vh;font-size:2.4vh;color:#cbb8c3;"></div>
+      <div id="player-music-badge" style="margin-top:1.8vh;font-size:2vh;color:#e6b75a;font-weight:bold;letter-spacing:2px;cursor:pointer;" title="Clic para alternar Karaoke">🎵 TEAMG MUSIC</div>
+      <div id="player-music-title" style="margin:0.8vh auto 0 auto;max-width:76vw;font-size:3.4vh;color:#ffffff;font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
+      <div id="player-music-sub" style="margin-top:0.6vh;font-size:2.2vh;color:#cbb8c3;"></div>
+      <div id="player-music-lyrics-box" style="display:none;margin:2vh auto 0 auto;max-width:84vw;text-align:center;min-height:9vh;">
+        <div id="player-music-lyric-active" style="font-size:3.2vh;font-weight:bold;color:#ffcc00;text-shadow:0 2px 8px rgba(0,0,0,0.9);line-height:1.3;min-height:4.2vh;white-space:normal;"></div>
+        <div id="player-music-lyric-next" style="font-size:2.2vh;color:#cbb8c3;margin-top:0.8vh;line-height:1.3;min-height:3vh;opacity:0.85;white-space:normal;"></div>
+      </div>
     </div>
     
     <!-- Capa de captura de clics y toques para Magic Remote sobre el video -->
@@ -5763,6 +5767,11 @@ function cleanPlayerEngines() {
     v.onended = null;
     var ms = $('player-music-stage');
     if (ms) ms.style.display = 'none';
+    var lb = $('player-music-lyrics-box');
+    if (lb) lb.style.display = 'none';
+    state.activeLyrics = null;
+    state._lastActiveLyricText = null;
+    state._lastNextLyricText = null;
     try { v.pause(); } catch (e1) {}
     if (v._splitter && v._merger) {
       try {
@@ -5835,6 +5844,70 @@ function advanceMusicTrack() {
   var nextIdx = (state.currentChannelIdx + 1) % mList.length;
   lastChannelChangeTime = 0;
   playChannelAt(nextIdx);
+}
+
+function loadSongLyrics(item) {
+  state.activeLyrics = null;
+  state._lastActiveLyricText = null;
+  state._lastNextLyricText = null;
+  var box = $('player-music-lyrics-box');
+  if (box) box.style.display = 'none';
+  var badge = $('player-music-badge');
+  if (badge) badge.textContent = '🎵 TEAMG MUSIC';
+  if (!item || !item.url || item.url.indexOf('/api/ott/music/radio') !== -1) return;
+  var name = item.name || '';
+  var parts = name.split(' - ');
+  var artist = parts.length > 1 ? parts[0].trim() : '';
+  var title = parts.length > 1 ? parts.slice(1).join(' - ').trim() : name;
+  if (!artist && item.group && item.group.indexOf('TeamG Music') === -1) artist = item.group;
+  var apiUrl = (API_BASE || '') + '/api/ott/music/lyrics?artist=' + encodeURIComponent(artist) + '&title=' + encodeURIComponent(title);
+  if (window.location && window.location.protocol === 'https:' && apiUrl.indexOf('http://') === 0) {
+    apiUrl = 'https://' + apiUrl.substring(7);
+  }
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', apiUrl, true);
+  xhr.onreadystatechange = function() {
+    if (xhr.readyState === 4 && xhr.status === 200) {
+      try {
+        var data = JSON.parse(xhr.responseText);
+        if (data && data.ok && data.synced && data.cues && data.cues.length > 0) {
+          state.activeLyrics = data.cues;
+          if (box) box.style.display = (state.lyricsEnabled !== false) ? 'block' : 'none';
+          if (badge) badge.textContent = '🎤 KARAOKE EN VIVO';
+          updateMusicLyrics(0);
+        }
+      } catch (e) {}
+    }
+  };
+  xhr.send();
+}
+
+function updateMusicLyrics(currentTime) {
+  if (!state.activeLyrics || state.lyricsEnabled === false || state.activeLyrics.length === 0) return;
+  var cues = state.activeLyrics;
+  var activeCue = null;
+  var nextCue = null;
+  for (var i = 0; i < cues.length; i++) {
+    if (currentTime >= cues[i].time) {
+      activeCue = cues[i];
+      nextCue = cues[i + 1] || null;
+    } else {
+      if (!activeCue && i === 0) nextCue = cues[i];
+      break;
+    }
+  }
+  var activeText = (activeCue && activeCue.text) ? activeCue.text : '';
+  var nextText = (nextCue && nextCue.text) ? nextCue.text : '';
+  if (state._lastActiveLyricText !== activeText) {
+    state._lastActiveLyricText = activeText;
+    var elAct = $('player-music-lyric-active');
+    if (elAct) elAct.textContent = activeText || (nextText ? '♪ ♪ ♪' : '');
+  }
+  if (state._lastNextLyricText !== nextText) {
+    state._lastNextLyricText = nextText;
+    var elNxt = $('player-music-lyric-next');
+    if (elNxt) elNxt.textContent = nextText;
+  }
 }
 
 function updateDurationDisplay(v) {
@@ -5925,8 +5998,11 @@ function startPlaybackTicker() {
     }
 
     monitorPlaybackRecovery(cur, dur, v, netcastObj);
-    if (isMusicPlaying() && dur > 0 && (cur >= dur - 0.45 || (v && v.ended))) {
-      advanceMusicTrack();
+    if (isMusicPlaying()) {
+      updateMusicLyrics(cur);
+      if (dur > 0 && (cur >= dur - 0.45 || (v && v.ended))) {
+        advanceMusicTrack();
+      }
     }
 
     // Renderizado universal de subtítulos en pantalla (Overlay directo para cualquier Smart TV)
@@ -6262,6 +6338,7 @@ function playItem(c, recovering) {
       if (mSub) mSub.textContent = c.group || '🎵 TeamG Music';
       mStage.style.display = 'block';
     }
+    loadSongLyrics(c);
   }
 
   if ((isBitel || isCloudfront || isMusicStream) && (!isPageHttps || isLegacyNetcast)) {
@@ -6579,8 +6656,11 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c, androidFallbackEngine) 
   v.ontimeupdate = function() {
     if (v.currentTime > 0) hideTuning();
     updateProgressDisplay(v);
-    if (isMusicPlaying() && v.duration > 0 && v.currentTime >= v.duration - 0.45) {
-      advanceMusicTrack();
+    if (isMusicPlaying()) {
+      updateMusicLyrics(v.currentTime);
+      if (v.duration > 0 && v.currentTime >= v.duration - 0.45) {
+        advanceMusicTrack();
+      }
     }
   };
   v.onerror = function() {
@@ -7659,6 +7739,15 @@ $('btnPlayerSubs').onclick = function(e) {
   var ev = e || window.event;
   if (ev && ev.stopPropagation) ev.stopPropagation();
   showPlayerOverlay();
+  if (isMusicPlaying()) {
+    state.lyricsEnabled = (state.lyricsEnabled === false);
+    var box = $('player-music-lyrics-box');
+    if (box) box.style.display = (state.lyricsEnabled && state.activeLyrics && state.activeLyrics.length > 0) ? 'block' : 'none';
+    var badge = $('player-music-badge');
+    if (badge) badge.textContent = state.lyricsEnabled ? '🎤 KARAOKE EN VIVO' : '🎵 TEAMG MUSIC';
+    showToast(state.lyricsEnabled ? '🎤 Karaoke / Letras: Activadas' : 'Letras: Desactivadas');
+    return;
+  }
   var v = $('video-el');
   if (window.TeamGNative && TeamGNative.active()) {
     var nativeSubs = TeamGNative.tracks('TEXT');

@@ -123,6 +123,24 @@ const ottMusic = require('../ott-music');
   advanceCtx.advanceMusicTrack();
   assert.equal(playedIdx, 3, 'advanceMusicTrack debe avanzar automáticamente a la pista siguiente (índice 3)');
 
+  // 6. Validar Karaoke y Letras Sincronizadas (Backend & Frontend UI)
+  assert.ok(typeof ottMusic.parseLrcToCues === 'function', 'ottMusic debe exportar parseLrcToCues');
+  assert.ok(typeof ottMusic.handleMusicLyrics === 'function', 'ottMusic debe exportar handleMusicLyrics');
+
+  const sampleLrc = '[00:00.50] Primera línea\n[00:02.30] Segunda línea';
+  const parsedCues = ottMusic.parseLrcToCues(sampleLrc);
+  assert.equal(parsedCues.length, 2);
+  assert.equal(parsedCues[0].time, 0.5);
+  assert.equal(parsedCues[0].text, 'Primera línea');
+  assert.equal(parsedCues[1].time, 2.3);
+  assert.equal(parsedCues[1].text, 'Segunda línea');
+
+  assert.ok(html.includes('id="player-music-lyrics-box"'), 'ott/index.html debe incluir la caja de Karaoke para TV');
+  assert.ok(html.includes('id="player-music-lyric-active"'), 'ott/index.html debe incluir el elemento de línea activa');
+  assert.ok(html.includes('id="player-music-lyric-next"'), 'ott/index.html debe incluir el elemento de línea siguiente');
+  assert.ok(html.includes('function loadSongLyrics('), 'ott/index.html debe implementar loadSongLyrics');
+  assert.ok(html.includes('function updateMusicLyrics('), 'ott/index.html debe implementar updateMusicLyrics');
+
   console.log('TeamG Music OTT integration unit tests pass.');
 })().catch((err) => {
   console.error(err);
