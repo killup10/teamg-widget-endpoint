@@ -168,39 +168,27 @@ const server = http.createServer((req, res) => {
     return require('./android-audio').serve(req, res, pathname);
   }
   if (pathname === '/api/ott/music/debug') {
-    const ottMusic = require('./ott-music');
     return (async () => {
-      const logs = [];
+      let debugText = '';
       try {
-        const sc = await ottMusic.resolveViaSoundCloudBuffer ? await ottMusic.resolveViaSoundCloudBuffer('Bad Bunny', 'Yonaguni') : null;
-        logs.push({ step: 'soundCloudViaExport', ok: !!sc });
+        const res = await fetch('https://www.youtube.com/youtubei/v1/player?prettyPrint=false', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'User-Agent': 'com.google.android.youtube/20.10.38 (Linux; U; Android 11) gzip'
+          },
+          body: JSON.stringify({
+            videoId: 'doLMt10ytHY',
+            context: { client: { clientName: 'ANDROID', clientVersion: '20.10.38', hl: 'en', gl: 'US' } }
+          })
+        });
+        const text = await res.text();
+        debugText = 'Status: ' + res.status + ' | ' + text.substring(0, 400);
       } catch (e) {
-        logs.push({ step: 'scExportErr', msg: e.message });
+        debugText = 'Error: ' + e.message;
       }
-      try {
-        const ctl = new AbortController();
-        const pageRes = await fetch('https://soundcloud.com/discover', { headers: { 'User-Agent': 'Mozilla/5.0' } });
-        const html = await pageRes.text();
-        const scripts = [...html.matchAll(/src="https:\/\/a-v2\.sndcdn\.com\/assets\/([^"]+\.js)"/g)].map(m => m[1]);
-        logs.push({ step: 'scDiscover', ok: pageRes.ok, scriptsCount: scripts.length });
-        
-        let clientId = '';
-        for (const scUrl of scripts.slice(-3)) {
-          const js = await (await fetch('https://a-v2.sndcdn.com/assets/' + scUrl)).text();
-          const m = js.match(/client_id:"([a-zA-Z0-9]{32})"/);
-          if (m && m[1]) { clientId = m[1]; break; }
-        }
-        logs.push({ step: 'scClientId', clientId });
-        if (clientId) {
-          const sRes = await fetch('https://api-v2.soundcloud.com/search/tracks?q=' + encodeURIComponent('Bad Bunny Yonaguni') + '&client_id=' + clientId + '&limit=5');
-          const sJson = await sRes.json();
-          logs.push({ step: 'scSearch', status: sRes.status, count: sJson.collection ? sJson.collection.length : 0, firstTitle: sJson.collection && sJson.collection[0] ? sJson.collection[0].title : null, duration: sJson.collection && sJson.collection[0] ? sJson.collection[0].duration : 0 });
-        }
-      } catch (e) {
-        logs.push({ step: 'scDirectErr', msg: e.message });
-      }
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(logs, null, 2));
+      res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+      res.end(debugText);
     })();
   }
   if (pathname.indexOf('/api/ott/music/lyrics') === 0) {
