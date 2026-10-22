@@ -2149,7 +2149,7 @@ body.text-large .drawer-num { font-size: 25px !important; }
       <div id="player-music-sub" style="margin-top:0.2vh;font-size:1.6vh;color:#cbb8c3;"></div>
       <div id="player-music-lyrics-box" style="display:none;margin:1.8vh auto 0 auto;max-width:94vw;width:94vw;text-align:center;padding-bottom:3vh;">
         <div id="player-music-lyric-prev" style="font-size:2.8vh;color:#a894a1;opacity:0.6;line-height:1.25;min-height:3.5vh;white-space:normal;text-shadow:0 2px 6px rgba(0,0,0,0.9);"></div>
-        <div id="player-music-lyric-active" style="font-size:7.2vh;font-weight:900;color:#ffdd00;text-shadow:0 4px 20px rgba(0,0,0,0.98), 0 0 35px rgba(255,221,0,0.45);line-height:1.22;min-height:9vh;margin:1.2vh 0;white-space:normal;letter-spacing:0.5px;"></div>
+        <div id="player-music-lyric-active" style="font-size:10.5vh;font-weight:900;color:#ffdd00;text-shadow:0 4px 20px rgba(0,0,0,0.98), 0 0 35px rgba(255,221,0,0.45);line-height:1.22;min-height:9vh;margin:1.2vh 0;white-space:normal;letter-spacing:0.5px;"></div>
         <div id="player-music-lyric-next" style="font-size:4.6vh;font-weight:bold;color:#ffffff;opacity:0.95;line-height:1.25;min-height:5.8vh;margin-top:1.8vh;white-space:normal;text-shadow:0 3px 10px rgba(0,0,0,0.98);"></div>
         <div id="player-music-lyric-next2" style="font-size:3.5vh;color:#ded0d9;opacity:0.65;line-height:1.25;min-height:4.4vh;margin-top:1.4vh;white-space:normal;text-shadow:0 2px 8px rgba(0,0,0,0.9);"></div>
         <div id="player-music-lyric-next3" style="font-size:2.6vh;color:#bbaab5;opacity:0.4;line-height:1.25;min-height:3.2vh;margin-top:1vh;white-space:normal;text-shadow:0 2px 6px rgba(0,0,0,0.9);"></div>
@@ -5940,7 +5940,19 @@ function stopLyricsTimer() {
   }
 }
 
+// Pixel sizing also works on old TV engines with unreliable viewport units.
+function sizeMusicLyrics() {
+  var height = window.innerHeight || document.documentElement.clientHeight || 720;
+  var sizes = [['player-music-lyric-active', 0.115], ['player-music-lyric-next', 0.065], ['player-music-lyric-prev', 0.035]];
+  for (var i = 0; i < sizes.length; i++) {
+    var el = $(sizes[i][0]);
+    if (el) el.style.setProperty('font-size', Math.round(height * sizes[i][1]) + 'px', 'important');
+  }
+}
+window.addEventListener('resize', sizeMusicLyrics, false);
+
 function loadSongLyrics(item) {
+  sizeMusicLyrics();
   var lyricsGeneration = state.playerGeneration;
   state.activeLyrics = null;
   state.lyricsOffset = 0;

@@ -450,25 +450,8 @@ async function resolveViaSoundCloudBuffer(artist, title) {
     );
     if (candidates.length === 0) return null;
 
-    const wantsRemix = /(remix|live|en vivo|cover|instrumental|karaoke)/i.test(q);
-    const cleanOrig = wantsRemix
-      ? candidates
-      : candidates.filter((t) => !/(remix|mashup|edit|cover|karaoke|instrumental|slowed|reverb|tributo|remake|bootleg|sped|en vivo|live|circuit|dj |\bmix\b|\bclub\b|\bflip\b)/i.test(t.title || ''));
-    
-    const candidatesToTry = (cleanOrig.length > 0)
-      ? cleanOrig
-      : candidates.filter((t) => !/(karaoke|instrumental|slowed|reverb|tributo|sped|acapella)/i.test(t.title || ''));
-
-    if (candidatesToTry.length === 0) return null;
-    let matching = candidatesToTry.filter((t) => matchesSongTitle(t.title, title) &&
-      cleanTitleWords(artist).some((word) => cleanTitleWords(
-        [t.title, t.user?.username, t.user?.full_name].join(' ')).includes(word)));
-    if (matching.length === 0) {
-      matching = candidatesToTry.filter((t) => matchesSongTitle(t.title, title));
-    }
-    if (matching.length === 0) {
-      matching = candidatesToTry;
-    }
+    // Never relax identity/version checks when the original is unavailable.
+    const matching = candidates.filter((track) => isTrustedSoundCloudOriginal(track, artist, title));
     for (const best of matching) {
     try {
 
@@ -927,6 +910,17 @@ async function searchYouTubeCandidatesHtml(query, expectedDurationSec = 0, requi
   }
 }
 
+function isTrustedSoundCloudOriginal(track, artist, title) {
+  if (!track || !track.user || !track.user.verified || !artist || !title) return false;
+  const metadata = [track.title, track.description, track.user.username].join(' ');
+  if (!isOriginalCandidate(metadata, title)) return false;
+  const primaryArtist = String(artist).split(/\s*(?:&|,| feat\.? | ft\.? )\s*/i)[0];
+  const artistWords = cleanTitleWords(primaryArtist);
+  const ownerWords = cleanTitleWords([track.user.username, track.user.full_name].join(' '));
+  return artistWords.length > 0 && artistWords.every((word) => ownerWords.includes(word)) &&
+    matchesSongTitle(track.title, title);
+}
+
 function isOriginalCandidate(title, requestedTitle = '') {
   return matchesSongTitle(title, requestedTitle) &&
     !/\b(remix|mashup|edit|cover|karaoke|instrumental|slowed|reverb|nightcore|tributo|remake|bootleg|sped|live|mix|extended|acoustic|acustico)\b|en\s+vivo/i.test(title || '');
@@ -1250,9 +1244,8 @@ async function fetchAudioBufferWithYtDlp({ youtubeId, artist, title }) {
       }
       if (!fs.existsSync(binPath)) return null;
       const hasId = /^[a-zA-Z0-9_-]{11}$/.test(cleanId);
-      const target = hasId
-        ? 'https://www.youtube.com/watch?v=' + cleanId
-        : 'ytsearch1:' + [cleanArtist, cleanTitle, 'audio oficial'].filter(Boolean).join(' - ').trim();
+      if (!hasId) return null; // Do not bypass the validated resolver with an unchecked first search result.
+      const target = 'https://www.youtube.com/watch?v=' + cleanId;
 
       return await new Promise((resolve) => {
         const proc = spawn(binPath, [
@@ -1526,16 +1519,7 @@ async function handleMusicStream(req, res, pathname, query) {
       }
     }
 
-    // 2d. Último respaldo de seguridad: Vista previa de alta fidelidad desde iTunes (evita 404 en Smart TV)
-    if (artist || title) {
-      try {
-        const itunesTracks = await searchItunesTracks(artist + ' ' + title, 5);
-        const it = itunesTracks.find((x) => x.previewUrl && matchesSongTitle(x.title, title)) || itunesTracks[0];
-        if (it && it.previewUrl) {
-          return redirectDirectStream(res, it.previewUrl);
-        }
-      } catch (_) {}
-    }
+    // A preview is not a replacement for the requested full recording.
 
     res.writeHead(404, {
       'Content-Type': 'application/json; charset=utf-8',
