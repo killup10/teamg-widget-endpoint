@@ -779,12 +779,29 @@ function parseDurationSeconds(text) {
   return 0;
 }
 
-async function searchViaYouTubeHtml(query) {
-  const candidates = await searchYouTubeCandidatesHtml(query);
+function cleanTitleWords(t) {
+  return String(t || '').toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter((w) => w.length >= 3 && !['los', 'las', 'del', 'con', 'the', 'and', 'por', 'que', 'una', 'uno', 'para'].includes(w));
+}
+
+function matchesSongTitle(videoTitle, requestedTitle) {
+  if (!requestedTitle) return true;
+  const vNorm = String(videoTitle || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const reqWords = cleanTitleWords(requestedTitle);
+  if (reqWords.length === 0) return true;
+  const matches = reqWords.filter((w) => vNorm.includes(w));
+  return matches.length >= Math.ceil(reqWords.length * 0.5);
+}
+
+async function searchViaYouTubeHtml(query, expectedDurationSec = 0, requiredTitle = '') {
+  const candidates = await searchYouTubeCandidatesHtml(query, expectedDurationSec, requiredTitle);
   return candidates.length > 0 ? candidates[0] : null;
 }
 
-async function searchYouTubeCandidatesHtml(query, expectedDurationSec = 0) {
+async function searchYouTubeCandidatesHtml(query, expectedDurationSec = 0, requiredTitle = '') {
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), 6500);
   try {
@@ -829,30 +846,37 @@ async function searchYouTubeCandidatesHtml(query, expectedDurationSec = 0) {
 
         if (durSec < 45 || durSec > 660) continue;
 
+        // Validar que el video realmente sea la canción solicitada (evita sugerencias de YouTube de otros temas)
+        if (requiredTitle && !matchesSongTitle(title, requiredTitle)) continue;
+
+        // Descartar categóricamente remixes, edits, directos, bootlegs y versiones alternativas
+        if (/\b(remix|mashup|slowed|reverb|sped\s*up|nightcore|tributo|remake|bootleg|circuit|dj\s+|coachella|en\s*vivo|concierto|acoustic|acustico|8d\s*audio|mix\b|flip\b|extended|parodia|cover)\b/i.test(title)) {
+          continue;
+        }
+
         let score = 100;
-        // Descartar/penalizar remixes, edits, directos y versiones no de estudio
-        if (/(remix|mashup|slowed|reverb|sped up|nightcore|tributo|remake|bootleg|circuit|dj |coachella|en vivo|live|concierto|acoustic|acustico|8d audio)/i.test(title)) {
-          score -= 80;
-        }
-        // Penalizar videos musicales con intro cinematográfica/actuada
-        if (/(official video|video oficial|official music video|videoclip|clip oficial)/i.test(title)) {
-          score -= 35;
-        }
-        // Premiar audios oficiales de estudio y canales Topic de sellos discográficos
-        if (author.includes('- topic') || author.includes('topic')) {
-          score += 45;
-        }
-        if (/(official audio|audio oficial|\baudio\b|\bletra\b|\blyrics\b)/i.test(title)) {
-          score += 30;
-        }
-        // Validar contra duración de estudio esperada si se conoce
+
+        // Validar contra duración de estudio esperada si se conoce (de iTunes / LRCLIB)
         if (expectedDurationSec > 0 && durSec > 0) {
           const diff = Math.abs(durSec - expectedDurationSec);
           if (diff <= 3) {
-            score += 40; // Coincidencia exacta con la pista master de estudio
+            score += 80; // Coincidencia exacta con la pista master de estudio
           } else if (diff > 8) {
-            score -= 40; // Descartar videos con intro alargada o cortes
+            continue; // Descartar videos con intro alargada, sketch o cortes
           }
+        }
+
+        // Penalizar fuertemente videos musicales con actuación o intro
+        if (/\b(official\s+video|video\s+oficial|official\s+music\s+video|videoclip|clip\s+oficial|short\s+film)\b/i.test(title)) {
+          score -= 50;
+        }
+
+        // Premiar audios oficiales de estudio y canales Topic oficiales
+        if (author.includes('- topic') || author.includes('topic')) {
+          score += 60;
+        }
+        if (/\b(official\s+audio|audio\s+oficial|\baudio\b|\bletra\b|\blyrics\b)\b/i.test(title)) {
+          score += 40;
         }
 
         candidates.push({ videoId: vr.videoId, score });
@@ -908,18 +932,23 @@ async function searchViaInvidious(query) {
   return null;
 }
 
-async function resolveYouTubeId(artist, title) {
+async function resolveYouTubeId(artist, title, expectedDurationSec = 0) {
   const key = (String(artist || '').trim() + '|' + String(title || '').trim()).toLowerCase();
   if (resolveCache.has(key)) {
     const entry = resolveCache.get(key);
     if (Date.now() - entry.ts < RESOLVE_TTL_MS) return entry.youtubeId;
   }
-  const q = [artist, title, 'official audio'].filter(Boolean).join(' - ').trim();
+  const q = [artist, title, 'audio oficial'].filter(Boolean).join(' - ').trim();
   if (!q) return null;
 
-  const videoId = (await searchViaYouTubeHtml(q)) ||
-                  (await searchViaPiped(q)) ||
-                  (await searchViaInvidious(q));
+  let videoId = await searchViaYouTubeHtml(q, expectedDurationSec, title);
+  if (!videoId) {
+    const topicQ = [artist, '- Topic', title].filter(Boolean).join(' ').trim();
+    videoId = await searchViaYouTubeHtml(topicQ, expectedDurationSec, title);
+  }
+  if (!videoId) {
+    videoId = (await searchViaPiped(q)) || (await searchViaInvidious(q));
+  }
   if (videoId) {
     setBoundedCache(resolveCache, key, { youtubeId: videoId, ts: Date.now() });
   }
@@ -1095,9 +1124,17 @@ async function resolveAudioStream({ youtubeId, artist, title, expectedDurationSe
     }
     const q = [artist, title, 'audio oficial'].filter(Boolean).join(' - ').trim();
     if (candidates.length === 0 && q) {
-      const htmlIds = await searchYouTubeCandidatesHtml(q, expectedDurationSec || 0);
+      const htmlIds = await searchYouTubeCandidatesHtml(q, expectedDurationSec || 0, title);
       for (const id of htmlIds) {
         if (!candidates.includes(id)) candidates.push(id);
+      }
+      if (candidates.length === 0) {
+        // Segundo intento: buscar en canal oficial Topic
+        const topicQ = [artist, '- Topic', title].filter(Boolean).join(' ').trim();
+        const topicIds = await searchYouTubeCandidatesHtml(topicQ, expectedDurationSec || 0, title);
+        for (const id of topicIds) {
+          if (!candidates.includes(id)) candidates.push(id);
+        }
       }
       if (candidates.length === 0) {
         const fallbackId = (await searchViaPiped(q)) || (await searchViaInvidious(q));
@@ -1294,8 +1331,18 @@ async function handleMusicStream(req, res, pathname, query) {
       audioBufferCache.delete(trackKey);
     }
 
-    // 2b. Fuente primaria: si no se especificó youtubeId de estudio oficial, intentar SoundCloud libre de remixes
-    if (!youtubeId && (artist || title)) {
+    // 2b. Fuente primaria: Audio Original de Estudio vía YouTube (100% puro, sin intros habladas ni remixes)
+    const expectedDurationSec = parseInt(query.dur || 0, 10);
+    const stream = await resolveAudioStream({ youtubeId, artist, title, expectedDurationSec });
+    if (stream && stream.url) {
+      if (!forceProxy && !legacyNetcast && !isIpBoundUrl(stream.url)) {
+        return redirectDirectStream(res, stream.url);
+      }
+      return proxyUpstreamAudio(stream.url, req, res, stream.mimeType || 'audio/mp4', stream.contentLength || null, 5, stream.userAgent || '');
+    }
+
+    // 2c. Respaldo secundario: SoundCloud (solo si YouTube no resolvió y estrictamente libre de remixes y edits)
+    if (artist || title) {
       const scTrack = await resolveViaSoundCloudBuffer(artist, title);
       if (scTrack && scTrack.buffer && scTrack.buffer.length > 0) {
         setBoundedBufferCache(trackKey, {
@@ -1307,17 +1354,8 @@ async function handleMusicStream(req, res, pathname, query) {
       }
     }
 
-    // 2c. Fuente secundaria de alta fidelidad: YouTube Studio Audio / Piped / Invidious
-    const expectedDurationSec = parseInt(query.dur || 0, 10);
-    const stream = await resolveAudioStream({ youtubeId, artist, title, expectedDurationSec });
-    if (!stream || !stream.url) {
-      res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
-      return res.end(JSON.stringify({ ok: false, error: 'Audio no disponible para esta pista' }));
-    }
-    if (!forceProxy && !legacyNetcast && !isIpBoundUrl(stream.url)) {
-      return redirectDirectStream(res, stream.url);
-    }
-    return proxyUpstreamAudio(stream.url, req, res, stream.mimeType || 'audio/mp4', stream.contentLength || null, 5, stream.userAgent || '');
+    res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
+    return res.end(JSON.stringify({ ok: false, error: 'Audio original no disponible para esta pista' }));
   } catch (err) {
     if (!res.headersSent) {
       res.writeHead(502, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
