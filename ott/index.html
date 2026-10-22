@@ -6012,6 +6012,10 @@ function updateMusicLyrics(currentTime) {
     nextText = isInstrumentalBreak ? (next ? next.text : '') : (next ? next.text : '');
     next2Text = isInstrumentalBreak ? (next2 ? next2.text : '') : (next2 ? next2.text : '');
     prevText = isInstrumentalBreak ? (active.text || '') : (prev ? prev.text : '');
+    if (activeText && activeText.indexOf('^') !== -1) activeText = activeText.split('^')[0];
+    if (nextText && nextText.indexOf('^') !== -1) nextText = nextText.split('^')[0];
+    if (next2Text && next2Text.indexOf('^') !== -1) next2Text = next2Text.split('^')[0];
+    if (prevText && prevText.indexOf('^') !== -1) prevText = prevText.split('^')[0];
   }
   if (state._lastActiveLyricText !== activeText) {
     state._lastActiveLyricText = activeText;

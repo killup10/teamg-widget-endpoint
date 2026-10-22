@@ -135,6 +135,12 @@ const ottMusic = require('../ott-music');
   assert.equal(parsedCues[1].time, 2.3);
   assert.equal(parsedCues[1].text, 'Segunda línea');
 
+  const sampleLrcBilingual = '[00:25.83] Ey, ahora todos quieren una colombiana^Hey, now everyone wants a Colombian girl\n[00:31.51] Una puertorriqueña, una venezolana^A Puerto Rican, a Venezuelan';
+  const parsedBilingual = ottMusic.parseLrcToCues(sampleLrcBilingual);
+  assert.equal(parsedBilingual.length, 2);
+  assert.equal(parsedBilingual[0].text, 'Ey, ahora todos quieren una colombiana');
+  assert.equal(parsedBilingual[1].text, 'Una puertorriqueña, una venezolana');
+
   assert.ok(html.includes('id="player-music-lyrics-box"'), 'ott/index.html debe incluir la caja de Karaoke para TV');
   assert.ok(html.includes('id="player-music-lyric-prev"'), 'ott/index.html debe incluir el elemento de línea previa');
   assert.ok(html.includes('id="player-music-lyric-active"'), 'ott/index.html debe incluir el elemento de línea activa ampliada');

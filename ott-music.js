@@ -125,34 +125,34 @@ const LIVE_RADIOS = [
 // ── Catálogo Base Curado de Respuesta Instantánea (0ms latencia en TV) ───────
 const CURATED_TRACKS = [
   // Más Escuchado (Top Global)
-  { artist: 'KAROL G, Judeline & rusowsky', title: 'BbY WOW', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80', youtubeId: 'fRIhCiUVaKs' },
-  { artist: 'KAROL G', title: 'LATINA FOREVA', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80', youtubeId: 'BgMU9Vuj17Y' },
-  { artist: 'Karol G', title: 'Si Antes Te Hubiera Conocido', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80', youtubeId: 'QCZZwZQ4qNs' },
-  { artist: 'Bad Bunny', title: 'MONACO', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80', youtubeId: 'Pt0gH4H_NQw' },
+  { artist: 'KAROL G, Judeline & rusowsky', title: 'BbY WOW', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80', youtubeId: 'aiRayi2XpfE' },
+  { artist: 'KAROL G', title: 'LATINA FOREVA', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80', youtubeId: 'm_WdNBHsJLE' },
+  { artist: 'Karol G', title: 'Si Antes Te Hubiera Conocido', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80', youtubeId: 'zokUHAyGh2Y' },
+  { artist: 'Bad Bunny', title: 'MONACO', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80', youtubeId: 'YBi7d3wav5Q' },
   { artist: 'Bad Bunny', title: 'Yonaguni', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80' },
   { artist: 'Bad Bunny', title: 'Efecto', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80' },
   { artist: 'Fuerza Regida & Grupo Frontera', title: 'COQUETA', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=600&auto=format&fit=crop&q=80' },
   { artist: 'Rauw Alejandro', title: 'Dile a El', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=600&auto=format&fit=crop&q=80' },
   { artist: 'Feid & Atl Jacob', title: 'LUNA', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Lady Gaga & Bruno Mars', title: 'Die With A Smile', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80', youtubeId: 'kPa7bsKwL-8' },
+  { artist: 'Lady Gaga & Bruno Mars', title: 'Die With A Smile', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80', youtubeId: 'PfH7jq_uSCM' },
   { artist: 'FloyyMenor & Cris MJ', title: 'Gata Only', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=600&auto=format&fit=crop&q=80', youtubeId: 'sMdf_V_3Vl8' },
   { artist: 'Myke Towers', title: 'LALA', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'The Weeknd', title: 'Blinding Lights', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=600&auto=format&fit=crop&q=80', youtubeId: '4NRXx6U8ABQ' },
+  { artist: 'The Weeknd', title: 'Blinding Lights', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=600&auto=format&fit=crop&q=80', youtubeId: 'fHI8X4OXluQ' },
   { artist: 'Rauw Alejandro', title: 'Todo De Ti', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=600&auto=format&fit=crop&q=80' },
   { artist: 'Shakira & Bizarrap', title: 'Bzrp Music Sessions, Vol. 53', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80' },
   { artist: 'Quevedo & Bizarrap', title: 'Bzrp Music Sessions, Vol. 52', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80' },
   { artist: 'Dua Lipa', title: 'Levitating', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Miley Cyrus', title: 'Flowers', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=600&auto=format&fit=crop&q=80', youtubeId: 'G7KNmW9a75Y' },
+  { artist: 'Miley Cyrus', title: 'Flowers', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=600&auto=format&fit=crop&q=80', youtubeId: 'SWpAYbgHmTo' },
 
   // Reggaetón & Urbano
-  { artist: 'KAROL G, Judeline & rusowsky', title: 'BbY WOW', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80', youtubeId: 'fRIhCiUVaKs' },
-  { artist: 'KAROL G', title: 'AMARGURA', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80', youtubeId: 'q8Dk8O_F1lA' },
-  { artist: 'Karol G & Shakira', title: 'TQG', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80', youtubeId: 'jZGnkIkvDT8' },
-  { artist: 'Karol G', title: 'Provenza', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80', youtubeId: 'ca48oMV5GwU' },
-  { artist: 'Karol G & Peso Pluma', title: 'Qlona', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80', youtubeId: 'm4XJ8rP4zLg' },
-  { artist: 'Bad Bunny', title: 'Tití Me Preguntó', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80', youtubeId: '10EX-_h4pYc' },
-  { artist: 'Bad Bunny & Chencho Corleone', title: 'Me Porto Bonito', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80', youtubeId: 'saGYMhAprLM' },
-  { artist: 'Bad Bunny & JHAYCO', title: 'DÁKITI', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80', youtubeId: 'TmKh7lAwnBI' },
+  { artist: 'KAROL G, Judeline & rusowsky', title: 'BbY WOW', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80', youtubeId: 'aiRayi2XpfE' },
+  { artist: 'KAROL G', title: 'AMARGURA', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80', youtubeId: '99iTRF__BuM' },
+  { artist: 'Karol G & Shakira', title: 'TQG', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80', youtubeId: '24o_iGVXlG0' },
+  { artist: 'Karol G', title: 'Provenza', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80', youtubeId: 'kNgGWDn1zY4' },
+  { artist: 'Karol G & Peso Pluma', title: 'Qlona', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80', youtubeId: '3Z_bUjdKKQU' },
+  { artist: 'Bad Bunny', title: 'Tití Me Preguntó', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80', youtubeId: '1ZJCDGUGc1o' },
+  { artist: 'Bad Bunny & Chencho Corleone', title: 'Me Porto Bonito', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80', youtubeId: 'BeihlMOalMI' },
+  { artist: 'Bad Bunny & JHAYCO', title: 'DÁKITI', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80', youtubeId: 'rSPnrtPpnbk' },
   { artist: 'Feid', title: 'Feliz Cumpleaños Ferxxo', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80' },
   { artist: 'Feid & Young Miko', title: 'Classy 101', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80' },
   { artist: 'Daddy Yankee', title: 'Gasolina', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=600&auto=format&fit=crop&q=80' },
@@ -652,6 +652,7 @@ function buildTrackStreamUrl(baseUrl, track) {
   params.set('artist', track.artist || '');
   params.set('title', track.title || '');
   if (track.youtubeId) params.set('v', track.youtubeId);
+  if (track.durationSec) params.set('dur', String(track.durationSec));
   return baseUrl + '/api/ott/music/stream.mp4?' + params.toString();
 }
 
@@ -683,6 +684,7 @@ async function buildMusicM3u(baseUrl, searchQuery = '', forceFresh = false) {
         title: r.title,
         cover: r.cover,
         previewUrl: r.previewUrl,
+        durationSec: r.durationSec || 0,
         group: '🔍 Resultados de Búsqueda'
       });
       if (merged.length >= 36) break;
@@ -782,7 +784,7 @@ async function searchViaYouTubeHtml(query) {
   return candidates.length > 0 ? candidates[0] : null;
 }
 
-async function searchYouTubeCandidatesHtml(query) {
+async function searchYouTubeCandidatesHtml(query, expectedDurationSec = 0) {
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), 6500);
   try {
@@ -805,8 +807,7 @@ async function searchYouTubeCandidatesHtml(query) {
     }
     const data = JSON.parse(match[1]);
     const contents = data?.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents || [];
-    const preferred = [];
-    const fallback = [];
+    const candidates = [];
 
     for (const section of contents) {
       const items = section?.itemSectionRenderer?.contents || [];
@@ -821,18 +822,50 @@ async function searchYouTubeCandidatesHtml(query) {
         const navUrl = vr.navigationEndpoint?.commandMetadata?.webCommandMetadata?.url || '';
         if (navUrl.includes('/shorts/')) continue;
 
+        const title = (vr.title?.runs?.[0]?.text || vr.title?.simpleText || '').toLowerCase();
+        const author = (vr.ownerText?.runs?.[0]?.text || '').toLowerCase();
         const durText = vr.lengthText?.simpleText || '';
         const durSec = parseDurationSeconds(durText);
-        if (durSec >= 60 && durSec <= 660) {
-          if (!preferred.includes(vr.videoId)) preferred.push(vr.videoId);
-        } else if (durSec === 0 || durSec > 45) {
-          if (!fallback.includes(vr.videoId)) fallback.push(vr.videoId);
+
+        if (durSec < 45 || durSec > 660) continue;
+
+        let score = 100;
+        // Descartar/penalizar remixes, edits, directos y versiones no de estudio
+        if (/(remix|mashup|slowed|reverb|sped up|nightcore|tributo|remake|bootleg|circuit|dj |coachella|en vivo|live|concierto|acoustic|acustico|8d audio)/i.test(title)) {
+          score -= 80;
         }
-        if (preferred.length >= 4) break;
+        // Penalizar videos musicales con intro cinematográfica/actuada
+        if (/(official video|video oficial|official music video|videoclip|clip oficial)/i.test(title)) {
+          score -= 35;
+        }
+        // Premiar audios oficiales de estudio y canales Topic de sellos discográficos
+        if (author.includes('- topic') || author.includes('topic')) {
+          score += 45;
+        }
+        if (/(official audio|audio oficial|\baudio\b|\bletra\b|\blyrics\b)/i.test(title)) {
+          score += 30;
+        }
+        // Validar contra duración de estudio esperada si se conoce
+        if (expectedDurationSec > 0 && durSec > 0) {
+          const diff = Math.abs(durSec - expectedDurationSec);
+          if (diff <= 3) {
+            score += 40; // Coincidencia exacta con la pista master de estudio
+          } else if (diff > 8) {
+            score -= 40; // Descartar videos con intro alargada o cortes
+          }
+        }
+
+        candidates.push({ videoId: vr.videoId, score });
       }
-      if (preferred.length >= 4) break;
     }
-    return [...preferred, ...fallback].slice(0, 4);
+
+    candidates.sort((a, b) => b.score - a.score);
+    const uniqueIds = [];
+    for (const c of candidates) {
+      if (!uniqueIds.includes(c.videoId)) uniqueIds.push(c.videoId);
+      if (uniqueIds.length >= 4) break;
+    }
+    return uniqueIds;
   } catch (e) {
     return [];
   } finally {
@@ -1045,7 +1078,7 @@ async function audioViaInvidious(youtubeId) {
   return null;
 }
 
-async function resolveAudioStream({ youtubeId, artist, title }) {
+async function resolveAudioStream({ youtubeId, artist, title, expectedDurationSec = 0 }) {
   const candidates = [];
   const initialVid = String(youtubeId || '').trim();
   if (/^[a-zA-Z0-9_-]{11}$/.test(initialVid)) {
@@ -1060,9 +1093,9 @@ async function resolveAudioStream({ youtubeId, artist, title }) {
         candidates.push(entry.youtubeId);
       }
     }
-    const q = [artist, title, 'official audio'].filter(Boolean).join(' - ').trim();
+    const q = [artist, title, 'audio oficial'].filter(Boolean).join(' - ').trim();
     if (candidates.length === 0 && q) {
-      const htmlIds = await searchYouTubeCandidatesHtml(q);
+      const htmlIds = await searchYouTubeCandidatesHtml(q, expectedDurationSec || 0);
       for (const id of htmlIds) {
         if (!candidates.includes(id)) candidates.push(id);
       }
@@ -1274,8 +1307,9 @@ async function handleMusicStream(req, res, pathname, query) {
       }
     }
 
-    // 2c. Fuente secundaria de respaldo: YouTube / Piped / Invidious
-    const stream = await resolveAudioStream({ youtubeId, artist, title });
+    // 2c. Fuente secundaria de alta fidelidad: YouTube Studio Audio / Piped / Invidious
+    const expectedDurationSec = parseInt(query.dur || 0, 10);
+    const stream = await resolveAudioStream({ youtubeId, artist, title, expectedDurationSec });
     if (!stream || !stream.url) {
       res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
       return res.end(JSON.stringify({ ok: false, error: 'Audio no disponible para esta pista' }));
@@ -1307,7 +1341,11 @@ function parseLrcToCues(lrcText) {
       const min = parseInt(match[1], 10);
       const sec = parseFloat(match[2]);
       const time = Math.round((min * 60 + sec) * 100) / 100;
-      const text = match[3].trim();
+      let text = match[3].trim();
+      // Eliminar traducciones bilingües incrustadas con caret '^' (ej. "Texto español^English translation")
+      if (text.includes('^')) {
+        text = text.split('^')[0].trim();
+      }
       cues.push({ time, text });
     }
   }
