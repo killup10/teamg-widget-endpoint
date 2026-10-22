@@ -1157,7 +1157,7 @@ async function resolveAudioStream({ youtubeId, artist, title, expectedDurationSe
     candidates.push(initialVid);
   }
 
-  if (artist || title) {
+  if (candidates.length === 0 && (artist || title)) {
     const key = (String(artist || '').trim() + '|' + String(title || '').trim()).toLowerCase();
     if (resolveCache.has(key)) {
       const entry = resolveCache.get(key);
@@ -1165,26 +1165,28 @@ async function resolveAudioStream({ youtubeId, artist, title, expectedDurationSe
         candidates.push(entry.youtubeId);
       }
     }
-    const q = [artist, title, 'audio oficial'].filter(Boolean).join(' - ').trim();
-    if (q) {
-      const htmlIds = await searchYouTubeCandidatesHtml(q, expectedDurationSec || 0, title);
-      for (const id of htmlIds) {
-        if (!candidates.includes(id)) candidates.push(id);
-      }
-      if (candidates.length === 0) {
-        // Segundo intento: buscar en canal oficial Topic
-        const topicQ = [artist, '- Topic', title].filter(Boolean).join(' ').trim();
-        const topicIds = await searchYouTubeCandidatesHtml(topicQ, expectedDurationSec || 0, title);
-        for (const id of topicIds) {
+    if (candidates.length === 0) {
+      const q = [artist, title, 'audio oficial'].filter(Boolean).join(' - ').trim();
+      if (q) {
+        const htmlIds = await searchYouTubeCandidatesHtml(q, expectedDurationSec || 0, title);
+        for (const id of htmlIds) {
           if (!candidates.includes(id)) candidates.push(id);
         }
-      }
-      if (candidates.length === 0) {
-        const fallbackId = (await searchViaPiped(q, title)) || (await searchViaInvidious(q, title));
-        if (fallbackId) candidates.push(fallbackId);
-      }
-      if (candidates[0]) {
-        setBoundedCache(resolveCache, key, { youtubeId: candidates[0], ts: Date.now() });
+        if (candidates.length === 0) {
+          // Segundo intento: buscar en canal oficial Topic
+          const topicQ = [artist, '- Topic', title].filter(Boolean).join(' ').trim();
+          const topicIds = await searchYouTubeCandidatesHtml(topicQ, expectedDurationSec || 0, title);
+          for (const id of topicIds) {
+            if (!candidates.includes(id)) candidates.push(id);
+          }
+        }
+        if (candidates.length === 0) {
+          const fallbackId = (await searchViaPiped(q, title)) || (await searchViaInvidious(q, title));
+          if (fallbackId) candidates.push(fallbackId);
+        }
+        if (candidates[0]) {
+          setBoundedCache(resolveCache, key, { youtubeId: candidates[0], ts: Date.now() });
+        }
       }
     }
   }
