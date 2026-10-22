@@ -671,6 +671,7 @@ function buildTrackStreamUrl(baseUrl, track) {
   params.set('artist', track.artist || '');
   params.set('title', track.title || '');
   if (track.youtubeId) params.set('v', track.youtubeId);
+  if (track.directUrl) params.set('src', track.directUrl);
   if (track.durationSec) params.set('dur', String(track.durationSec));
   return baseUrl + '/api/ott/music/stream.mp4?' + params.toString();
 }
@@ -1191,16 +1192,24 @@ function ytDlpCookieArgs() {
   }
 }
 
-// Si YouTube exige verificación anti-bot, no repetir intentos de 25s en cada canción.
+// Si YouTube exige verificación anti-bot o cookies caducadas, no bloquear peticiones en cada canción.
 let ytBotBlockedUntil = 0;
+let ytCookiesExpiredUntil = 0;
+function areCookiesValid() {
+  if (Date.now() < ytCookiesExpiredUntil) return false;
+  return ytDlpCookieArgs().length > 0;
+}
 function ytDlpBlocked() {
-  if (ytDlpCookieArgs().length > 0) return false;
+  if (areCookiesValid()) return false;
   return Date.now() < ytBotBlockedUntil;
 }
 function noteYtDlpError(err, stderr) {
   const combined = String(stderr || '') + ' ' + String((err && err.message) || '');
   if (/confirm you.?re not a bot|Sign in to confirm/i.test(combined)) {
     ytBotBlockedUntil = Date.now() + 10 * 60 * 1000;
+  }
+  if (/no longer valid|rotated in the browser|HTTP Error 403/i.test(combined)) {
+    ytCookiesExpiredUntil = Date.now() + 30 * 60 * 1000;
   }
 }
 
@@ -1634,6 +1643,20 @@ async function handleMusicStream(req, res, pathname, query) {
   }
 
   // 2. Canción bajo demanda (/api/ott/music/stream.mp4?artist=...&title=...)
+  const directSrc = String(query.src || '').trim();
+  if (directSrc && /^https?:\/\//i.test(directSrc)) {
+    let finalUrl = directSrc;
+    if (finalUrl.includes('dropbox.com')) {
+      finalUrl = finalUrl.replace(/[?&]dl=0/, '').replace(/[?&]raw=1/, '');
+      finalUrl += (finalUrl.includes('?') ? '&' : '?') + 'dl=1';
+    }
+    if (!forceProxy && !legacyNetcast) {
+      return redirectDirectStream(res, finalUrl);
+    }
+    try { res.setHeader('X-Audio-Source', 'Direct Studio Audio'); } catch (_) {}
+    return proxyUpstreamAudio(finalUrl, req, res, 'video/mp4', null, 5);
+  }
+
   const youtubeId = String(query.v || query.youtubeId || '').trim();
   const artist = String(query.artist || '').trim();
   const title = String(query.title || '').trim();
@@ -1659,10 +1682,11 @@ async function handleMusicStream(req, res, pathname, query) {
     }
 
     const expectedDurationSec = parseInt(query.dur || 0, 10);
-    const hasCookies = ytDlpCookieArgs().length > 0;
+    const hasCookies = areCookiesValid();
+    const canTryYoutube = (hasCookies || youtubeId) && !ytDlpBlocked();
 
-    // 2b. Con cookies configuradas o ID conocido, YouTube entrega la versión de estudio oficial original (máx 4s)
-    if (hasCookies || youtubeId) {
+    // 2b. Con cookies configuradas o ID conocido, YouTube entrega la versión de estudio oficial original (máx 12s)
+    if (canTryYoutube) {
       const stream = await Promise.race([
         resolveAudioStream({ youtubeId, artist, title, expectedDurationSec }),
         new Promise((resolve) => setTimeout(() => resolve(null), 12000))
