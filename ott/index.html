@@ -1902,6 +1902,7 @@ body.text-large .drawer-num { font-size: 25px !important; }
 /* Karaoke legible a distancia, con espacio reservado para los controles de TV. */
 #player-music-stage { box-sizing:border-box; overflow:hidden; }
 #player-music-stage > div:first-child { width:8vh !important; height:8vh !important; }
+#player-music-sync-box { display:none !important; }
 #player-music-lyrics-box {
   position:absolute; top:23vh; bottom:5vh; left:2vw;
   width:96vw !important; max-width:96vw !important;
@@ -2143,11 +2144,7 @@ body.text-large .drawer-num { font-size: 25px !important; }
       </div>
       <div style="margin-top:0.8vh;text-align:center;">
         <span id="player-music-badge" style="display:inline-block;font-size:1.7vh;color:#e6b75a;font-weight:bold;letter-spacing:2px;cursor:pointer;vertical-align:middle;" title="Clic para alternar Karaoke">🎵 TEAMG MUSIC</span>
-        <span id="player-music-sync-box" style="display:none;margin-left:1.5vw;font-size:1.5vh;color:#cbb8c3;vertical-align:middle;">
-          <span id="lyrics-sync-minus" style="display:inline-block;padding:2px 8px;margin-right:4px;background:#241116;border:1px solid #e6b75a;border-radius:4px;color:#e6b75a;cursor:pointer;font-weight:bold;vertical-align:middle;" title="Retrasar letra 0.5s">-0.5s</span>
-          <span id="lyrics-sync-val" style="display:inline-block;min-width:3.5vw;color:#ffffff;font-weight:bold;text-align:center;vertical-align:middle;">0.0s</span>
-          <span id="lyrics-sync-plus" style="display:inline-block;padding:2px 8px;margin-left:4px;background:#241116;border:1px solid #e6b75a;border-radius:4px;color:#e6b75a;cursor:pointer;font-weight:bold;vertical-align:middle;" title="Adelantar letra 0.5s">+0.5s</span>
-        </span>
+
       </div>
       <div id="player-music-title" style="margin:0.4vh auto 0 auto;max-width:86vw;font-size:2.6vh;color:#ffffff;font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
       <div id="player-music-sub" style="margin-top:0.2vh;font-size:1.6vh;color:#cbb8c3;"></div>
@@ -5818,6 +5815,7 @@ function cleanPlayerEngines() {
   }
   var ytCont = $('player-music-yt-container');
   if (ytCont) ytCont.style.display = 'none';
+  state.currentMusicItem = null;
   state.musicYtActive = false;
   state.musicYtPaused = true;
   stopLyricsTimer();
@@ -6987,8 +6985,34 @@ function initYtPlayer(videoId) {
         },
         onError: function(event) {
           console.warn('YouTube error code:', event.data);
-          if (event.data === 101 || event.data === 150 || event.data === 100) {
-            showToast('Pista restringida en YouTube, pasando a la siguiente…');
+          if (event.data === 101 || event.data === 150 || event.data === 100 || event.data === 2) {
+            var c = state.currentMusicItem || state.recoveryItem;
+            if (c) {
+              c._ytFailures = c._ytFailures || [];
+              var curId = c.youtubeId || (typeof ytMusicPlayer !== 'undefined' && ytMusicPlayer && ytMusicPlayer.getVideoData ? ytMusicPlayer.getVideoData().video_id : '');
+              if (curId && c._ytFailures.indexOf(curId) === -1) c._ytFailures.push(curId);
+              
+              if (c._ytFailures.length <= 3) {
+                showToast('Buscando versión compatible sin restricciones...');
+                var info = extractTrackInfo(c);
+                var excludedStr = c._ytFailures.join(',');
+                var resolveUrl = (API_BASE || '') + '/api/ott/music/resolve?artist=' + encodeURIComponent(info.artist) +
+                  '&title=' + encodeURIComponent(info.title) + '&exclude=' + encodeURIComponent(excludedStr) + '&alt=1';
+                apiCall('GET', resolveUrl, null, function(st, data) {
+                  if (st === 200 && data && data.ok && data.youtubeId && c._ytFailures.indexOf(data.youtubeId) === -1) {
+                    c.youtubeId = data.youtubeId;
+                    playMusicViaYt(data.youtubeId, c);
+                    return;
+                  }
+                  showToast('Pista protegida por derechos de autor, pasando a la siguiente…');
+                  setTimeout(function() {
+                    if (state.musicYtActive) advanceMusicTrack();
+                  }, 1200);
+                });
+                return;
+              }
+            }
+            showToast('Pista protegida por derechos de autor, pasando a la siguiente…');
             setTimeout(function() {
               if (state.musicYtActive) advanceMusicTrack();
             }, 1200);
@@ -7005,6 +7029,7 @@ function initYtPlayer(videoId) {
 }
 
 function playMusicViaYt(videoId, c) {
+  state.currentMusicItem = c;
   state.musicYtActive = true;
   state.musicYtPaused = false;
   state.activeMusicCurrentTime = 0;

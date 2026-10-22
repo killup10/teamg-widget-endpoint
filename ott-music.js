@@ -141,7 +141,7 @@ const CURATED_TRACKS = [
   { artist: 'KAROL G', title: 'LATINA FOREVA', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80', youtubeId: 'm_WdNBHsJLE' },
   { artist: 'Karol G', title: 'Si Antes Te Hubiera Conocido', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80', youtubeId: 'zokUHAyGh2Y' },
   { artist: 'Bad Bunny', title: 'MONACO', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80', youtubeId: 'YBi7d3wav5Q' },
-  { artist: 'Bad Bunny', title: 'Yonaguni', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80', youtubeId: 'juH8_d4Dwrk' },
+  { artist: 'Bad Bunny', title: 'Yonaguni', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80', youtubeId: 'DGicgAu89tE' },
   { artist: 'Bad Bunny', title: 'Efecto', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80', youtubeId: 'J5Lapviks9I' },
   { artist: 'Fuerza Regida & Grupo Frontera', title: 'COQUETA', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=600&auto=format&fit=crop&q=80', youtubeId: 'nNUiVCKu_9Y' },
   { artist: 'Rauw Alejandro', title: 'Dile a El', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=600&auto=format&fit=crop&q=80', youtubeId: 'iJT3xtMmzGE' },
@@ -1853,10 +1853,11 @@ async function handleMusicLyrics(req, res, pathname, query) {
 }
 
 // ── Resolución de Track Candidate para Smart TVs y Clientes Web ──────────────
-async function resolveTrackCandidate(artist, title, expectedDurationSec = 0) {
+async function resolveTrackCandidate(artist, title, expectedDurationSec = 0, excludeIds = []) {
   let cleanA = String(artist || '').trim();
   let cleanT = String(title || '').trim();
   const dur = parseInt(expectedDurationSec || 0, 10);
+  const excludes = Array.isArray(excludeIds) ? excludeIds : String(excludeIds || '').split(',').map(s => s.trim()).filter(Boolean);
 
   // Descartar si el artista recibido es una categoría con emojis
   if (/[\uD800-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27BF]|Más Escuchado|Reggaetón|Salsa|Cumbia|Rock|Pop|Favoritos|Todos|Resultados de Búsqueda/i.test(cleanA)) {
@@ -1873,9 +1874,9 @@ async function resolveTrackCandidate(artist, title, expectedDurationSec = 0) {
   }
 
   const cacheKey = (cleanA + '|' + cleanT).toLowerCase();
-  if (resolveCache.has(cacheKey)) {
+  if (excludes.length === 0 && resolveCache.has(cacheKey)) {
     const entry = resolveCache.get(cacheKey);
-    if (Date.now() - entry.ts < RESOLVE_TTL_MS && entry.youtubeId) {
+    if (Date.now() - entry.ts < RESOLVE_TTL_MS && entry.youtubeId && !excludes.includes(entry.youtubeId)) {
       return entry.youtubeId;
     }
   }
@@ -1884,30 +1885,30 @@ async function resolveTrackCandidate(artist, title, expectedDurationSec = 0) {
   const tNorm = cleanT.toLowerCase();
   const aNorm = cleanA.toLowerCase();
   for (const cur of CURATED_TRACKS) {
-    if (cur.youtubeId && cur.title.toLowerCase() === tNorm) {
+    if (cur.youtubeId && !excludes.includes(cur.youtubeId) && cur.title.toLowerCase() === tNorm) {
       if (!cleanA || cur.artist.toLowerCase().includes(aNorm) || aNorm.includes(cur.artist.toLowerCase())) {
-        setBoundedCache(resolveCache, cacheKey, { youtubeId: cur.youtubeId, ts: Date.now() });
         return cur.youtubeId;
       }
     }
   }
   for (const cur of CURATED_TRACKS) {
-    if (cur.youtubeId && (cur.title.toLowerCase().includes(tNorm) || tNorm.includes(cur.title.toLowerCase()))) {
+    if (cur.youtubeId && !excludes.includes(cur.youtubeId) && (cur.title.toLowerCase().includes(tNorm) || tNorm.includes(cur.title.toLowerCase()))) {
       if (!cleanA || cur.artist.toLowerCase().includes(aNorm) || aNorm.includes(cur.artist.toLowerCase())) {
-        setBoundedCache(resolveCache, cacheKey, { youtubeId: cur.youtubeId, ts: Date.now() });
         return cur.youtubeId;
       }
     }
   }
 
-  // 2. Búsqueda HTML en YouTube oficial (filtra remixes, versiones en vivo y edits)
-  const q = [cleanA, cleanT, 'audio oficial'].filter(Boolean).join(' - ').trim();
+  // 2. Búsqueda HTML en YouTube oficial (obtenemos lista de candidatos y descartamos los restringidos)
+  const q = [cleanA, cleanT, excludes.length > 0 ? 'audio letra oficial' : 'audio oficial'].filter(Boolean).join(' - ').trim();
   if (q) {
     try {
-      const foundId = await searchViaYouTubeHtml(q, dur, cleanT);
-      if (foundId) {
-        setBoundedCache(resolveCache, cacheKey, { youtubeId: foundId, ts: Date.now() });
-        return foundId;
+      const candidates = await searchYouTubeCandidatesHtml(q, dur, cleanT);
+      for (const id of candidates) {
+        if (id && !excludes.includes(id)) {
+          setBoundedCache(resolveCache, cacheKey, { youtubeId: id, ts: Date.now() });
+          return id;
+        }
       }
     } catch (eSearch) {}
   }
@@ -1918,6 +1919,7 @@ async function handleMusicResolve(req, res, query) {
   const artist = String(query.artist || '').trim();
   const title = String(query.title || '').trim();
   const dur = parseInt(query.dur || 0, 10);
+  const exclude = String(query.exclude || '').trim();
 
   if (!artist && !title) {
     res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
@@ -1925,7 +1927,7 @@ async function handleMusicResolve(req, res, query) {
   }
 
   try {
-    const youtubeId = await resolveTrackCandidate(artist, title, dur);
+    const youtubeId = await resolveTrackCandidate(artist, title, dur, exclude);
     res.writeHead(200, {
       'Content-Type': 'application/json; charset=utf-8',
       'Access-Control-Allow-Origin': '*',
