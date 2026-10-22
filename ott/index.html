@@ -6540,6 +6540,9 @@ function playItem(c, recovering) {
   var isMusicStream = (streamUrl.indexOf('/api/ott/music/') !== -1);
   var isDirectCdn = (isBitel || isCablered || isCloudfront || isMusicStream);
   if (isMusicStream) {
+    if (playUrl.indexOf('/api/ott/music/stream') !== -1 && playUrl.indexOf('_v=') === -1) {
+      playUrl += (playUrl.indexOf('?') !== -1 ? '&' : '?') + '_v=' + (new Date()).getTime();
+    }
     $('player-res').textContent = (streamUrl.indexOf('/api/ott/music/radio') !== -1) ? 'RADIO 24/7' : 'AUDIO HD';
     var mStage = $('player-music-stage');
     if (mStage) {
@@ -6894,6 +6897,7 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c, androidFallbackEngine) 
     if (isMusic && c && !c._triedMusicProxy) {
       c._triedMusicProxy = true;
       var retryMUrl = playUrl + (playUrl.indexOf('?') !== -1 ? '&proxy=1' : '?proxy=1');
+      if (retryMUrl.indexOf('_r=') === -1) retryMUrl += '&_r=' + (new Date()).getTime();
       if ((!isPageHttps || isLegacyNetcast) && retryMUrl.indexOf('https://') === 0) retryMUrl = 'http://' + retryMUrl.substring(8);
       v.src = retryMUrl;
       try {
@@ -6986,6 +6990,7 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c, androidFallbackEngine) 
         if (isMusic && c && !c._triedMusicProxy) {
           c._triedMusicProxy = true;
           var retryMUrl = playUrl + (playUrl.indexOf('?') !== -1 ? '&proxy=1' : '?proxy=1');
+          if (retryMUrl.indexOf('_r=') === -1) retryMUrl += '&_r=' + (new Date()).getTime();
           if ((!isPageHttps || isLegacyNetcast) && retryMUrl.indexOf('https://') === 0) retryMUrl = 'http://' + retryMUrl.substring(8);
           v.src = retryMUrl;
           try {

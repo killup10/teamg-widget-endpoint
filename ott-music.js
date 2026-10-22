@@ -140,19 +140,19 @@ const CURATED_TRACKS = [
   { artist: 'KAROL G', title: 'LATINA FOREVA', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80', youtubeId: 'm_WdNBHsJLE' },
   { artist: 'Karol G', title: 'Si Antes Te Hubiera Conocido', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80', youtubeId: 'zokUHAyGh2Y' },
   { artist: 'Bad Bunny', title: 'MONACO', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80', youtubeId: 'YBi7d3wav5Q' },
-  { artist: 'Bad Bunny', title: 'Yonaguni', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Bad Bunny', title: 'Efecto', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Fuerza Regida & Grupo Frontera', title: 'COQUETA', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Rauw Alejandro', title: 'Dile a El', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Feid & Atl Jacob', title: 'LUNA', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80' },
+  { artist: 'Bad Bunny', title: 'Yonaguni', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80', youtubeId: 'juH8_d4Dwrk' },
+  { artist: 'Bad Bunny', title: 'Efecto', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80', youtubeId: 'J5Lapviks9I' },
+  { artist: 'Fuerza Regida & Grupo Frontera', title: 'COQUETA', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=600&auto=format&fit=crop&q=80', youtubeId: 'nNUiVCKu_9Y' },
+  { artist: 'Rauw Alejandro', title: 'Dile a El', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=600&auto=format&fit=crop&q=80', youtubeId: 'iJT3xtMmzGE' },
+  { artist: 'Feid & Atl Jacob', title: 'LUNA', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80', youtubeId: 'mBH3Qkwn3Bk' },
   { artist: 'Lady Gaga & Bruno Mars', title: 'Die With A Smile', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80', youtubeId: 'PfH7jq_uSCM' },
   { artist: 'FloyyMenor & Cris MJ', title: 'Gata Only', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=600&auto=format&fit=crop&q=80', youtubeId: 'sMdf_V_3Vl8' },
-  { artist: 'Myke Towers', title: 'LALA', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=600&auto=format&fit=crop&q=80' },
+  { artist: 'Myke Towers', title: 'LALA', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=600&auto=format&fit=crop&q=80', youtubeId: 'DFb1i0d1hTE' },
   { artist: 'The Weeknd', title: 'Blinding Lights', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=600&auto=format&fit=crop&q=80', youtubeId: 'fHI8X4OXluQ' },
-  { artist: 'Rauw Alejandro', title: 'Todo De Ti', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Shakira & Bizarrap', title: 'Bzrp Music Sessions, Vol. 53', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Quevedo & Bizarrap', title: 'Bzrp Music Sessions, Vol. 52', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Dua Lipa', title: 'Levitating', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80' },
+  { artist: 'Rauw Alejandro', title: 'Todo De Ti', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=600&auto=format&fit=crop&q=80', youtubeId: 'CnEZteulvm4' },
+  { artist: 'Shakira & Bizarrap', title: 'Bzrp Music Sessions, Vol. 53', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80', youtubeId: 'khxr9JbAT6g' },
+  { artist: 'Quevedo & Bizarrap', title: 'Bzrp Music Sessions, Vol. 52', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80', youtubeId: 'wzhk9-k7Sk8' },
+  { artist: 'Dua Lipa', title: 'Levitating', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80', youtubeId: 'WHuBW3qKm9g' },
   { artist: 'Miley Cyrus', title: 'Flowers', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=600&auto=format&fit=crop&q=80', youtubeId: 'SWpAYbgHmTo' },
 
   // Reggaetón & Urbano
@@ -164,62 +164,62 @@ const CURATED_TRACKS = [
   { artist: 'Bad Bunny', title: 'Tití Me Preguntó', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80', youtubeId: '1ZJCDGUGc1o' },
   { artist: 'Bad Bunny & Chencho Corleone', title: 'Me Porto Bonito', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80', youtubeId: 'BeihlMOalMI' },
   { artist: 'Bad Bunny & JHAYCO', title: 'DÁKITI', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80', youtubeId: 'rSPnrtPpnbk' },
-  { artist: 'Feid', title: 'Feliz Cumpleaños Ferxxo', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Feid & Young Miko', title: 'Classy 101', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Daddy Yankee', title: 'Gasolina', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Don Omar', title: 'Danza Kuduro', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Wisin & Yandel', title: 'Rakata', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'J Balvin & Willy William', title: 'Mi Gente', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Maluma', title: 'Hawái', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Rauw Alejandro & Baby Rasta', title: 'Punto 40', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Ozuna', title: 'Se Preparó', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Nicky Jam & Enrique Iglesias', title: 'El Perdón', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80' },
+  { artist: 'Feid', title: 'Feliz Cumpleaños Ferxxo', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80', youtubeId: 'eRwVHsCNnj4' },
+  { artist: 'Feid & Young Miko', title: 'Classy 101', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80', youtubeId: 'XPz0BRHfi7M' },
+  { artist: 'Daddy Yankee', title: 'Gasolina', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=600&auto=format&fit=crop&q=80', youtubeId: 'seXp4KrhJx0' },
+  { artist: 'Don Omar', title: 'Danza Kuduro', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=600&auto=format&fit=crop&q=80', youtubeId: 'xnknaDotE0g' },
+  { artist: 'Wisin & Yandel', title: 'Rakata', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80', youtubeId: '2KNcGxvpxaw' },
+  { artist: 'J Balvin & Willy William', title: 'Mi Gente', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80', youtubeId: 'i1eslpwXPd0' },
+  { artist: 'Maluma', title: 'Hawái', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=600&auto=format&fit=crop&q=80', youtubeId: 'BGsfeF4SNCg' },
+  { artist: 'Rauw Alejandro & Baby Rasta', title: 'Punto 40', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=600&auto=format&fit=crop&q=80', youtubeId: 'ZiYzDcPQ8j8' },
+  { artist: 'Ozuna', title: 'Se Preparó', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80', youtubeId: 'G-kx4I_n8Zg' },
+  { artist: 'Nicky Jam & Enrique Iglesias', title: 'El Perdón', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80', youtubeId: 'ybm205q7Pd4' },
 
   // Salsa, Cumbia & Tropical
-  { artist: 'Grupo 5', title: 'Motor y Motivo', group: '🎺 Salsa, Cumbia & Tropical', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Grupo 5', title: 'El Ritmo de Mi Corazón', group: '🎺 Salsa, Cumbia & Tropical', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Agua Marina', title: 'Tu Amor Fue Una Mentira', group: '🎺 Salsa, Cumbia & Tropical', cover: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Armonía 10', title: 'El Cervecero', group: '🎺 Salsa, Cumbia & Tropical', cover: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Corazón Serrano', title: 'Díganle', group: '🎺 Salsa, Cumbia & Tropical', cover: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Marc Anthony', title: 'Vivir Mi Vida', group: '🎺 Salsa, Cumbia & Tropical', cover: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Marc Anthony', title: 'Flor Pálida', group: '🎺 Salsa, Cumbia & Tropical', cover: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Héctor Lavoe', title: 'El Cantante', group: '🎺 Salsa, Cumbia & Tropical', cover: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Willie Colón', title: 'Idilio', group: '🎺 Salsa, Cumbia & Tropical', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Romeo Santos', title: 'Propuesta Indecente', group: '🎺 Salsa, Cumbia & Tropical', cover: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Aventura', title: 'Obsesión', group: '🎺 Salsa, Cumbia & Tropical', cover: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Grupo Niche', title: 'Cali Pachanguero', group: '🎺 Salsa, Cumbia & Tropical', cover: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=600&auto=format&fit=crop&q=80' },
+  { artist: 'Grupo 5', title: 'Motor y Motivo', group: '🎺 Salsa, Cumbia & Tropical', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80', youtubeId: 'w_LWtxTDr44' },
+  { artist: 'Grupo 5', title: 'El Ritmo de Mi Corazón', group: '🎺 Salsa, Cumbia & Tropical', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80', youtubeId: 'Eyx-Il6joDE' },
+  { artist: 'Agua Marina', title: 'Tu Amor Fue Una Mentira', group: '🎺 Salsa, Cumbia & Tropical', cover: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80', youtubeId: 'QR3f6Mxcpn8' },
+  { artist: 'Armonía 10', title: 'El Cervecero', group: '🎺 Salsa, Cumbia & Tropical', cover: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=600&auto=format&fit=crop&q=80', youtubeId: 'Pva8PPkh2mI' },
+  { artist: 'Corazón Serrano', title: 'Díganle', group: '🎺 Salsa, Cumbia & Tropical', cover: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80', youtubeId: 'il9gTjecwRY' },
+  { artist: 'Marc Anthony', title: 'Vivir Mi Vida', group: '🎺 Salsa, Cumbia & Tropical', cover: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80', youtubeId: 'kMNPv_HXffQ' },
+  { artist: 'Marc Anthony', title: 'Flor Pálida', group: '🎺 Salsa, Cumbia & Tropical', cover: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80', youtubeId: 'PCckAR5xxe8' },
+  { artist: 'Héctor Lavoe', title: 'El Cantante', group: '🎺 Salsa, Cumbia & Tropical', cover: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80', youtubeId: 'rzCQFQ2oMuU' },
+  { artist: 'Willie Colón', title: 'Idilio', group: '🎺 Salsa, Cumbia & Tropical', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80', youtubeId: 'oaY_GhS9JMw' },
+  { artist: 'Romeo Santos', title: 'Propuesta Indecente', group: '🎺 Salsa, Cumbia & Tropical', cover: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=600&auto=format&fit=crop&q=80', youtubeId: '9LxMLbdForI' },
+  { artist: 'Aventura', title: 'Obsesión', group: '🎺 Salsa, Cumbia & Tropical', cover: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=600&auto=format&fit=crop&q=80', youtubeId: 'g2vKoFm0V1A' },
+  { artist: 'Grupo Niche', title: 'Cali Pachanguero', group: '🎺 Salsa, Cumbia & Tropical', cover: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=600&auto=format&fit=crop&q=80', youtubeId: '7KxkMLAZlzw' },
 
   // Pop Latino & Baladas
-  { artist: 'Luis Miguel', title: 'Ahora Te Puedes Marchar', group: '🎤 Pop Latino & Baladas', cover: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Shakira', title: 'Hips Don\'t Lie', group: '🎤 Pop Latino & Baladas', cover: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Juanes', title: 'A Dios Le Pido', group: '🎤 Pop Latino & Baladas', cover: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Morat', title: 'Cómo Te Atreves', group: '🎤 Pop Latino & Baladas', cover: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Sebastián Yatra', title: 'Tacones Rojos', group: '🎤 Pop Latino & Baladas', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Camilo', title: 'Vida de Rico', group: '🎤 Pop Latino & Baladas', cover: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Chayanne', title: 'Torero', group: '🎤 Pop Latino & Baladas', cover: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Reik', title: 'Noviembre Sin Ti', group: '🎤 Pop Latino & Baladas', cover: 'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Gian Marco', title: 'Se Me Olvidó', group: '🎤 Pop Latino & Baladas', cover: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Pedro Suárez-Vértiz', title: 'Cuando Pienses En Volver', group: '🎤 Pop Latino & Baladas', cover: 'https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?w=600&auto=format&fit=crop&q=80' },
+  { artist: 'Luis Miguel', title: 'Ahora Te Puedes Marchar', group: '🎤 Pop Latino & Baladas', cover: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=600&auto=format&fit=crop&q=80', youtubeId: '1bn3NkMUjrU' },
+  { artist: 'Shakira', title: 'Hips Don\'t Lie', group: '🎤 Pop Latino & Baladas', cover: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80', youtubeId: 'p3pEe6aAJ4k' },
+  { artist: 'Juanes', title: 'A Dios Le Pido', group: '🎤 Pop Latino & Baladas', cover: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80', youtubeId: 'lHlW50z9VMU' },
+  { artist: 'Morat', title: 'Cómo Te Atreves', group: '🎤 Pop Latino & Baladas', cover: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80', youtubeId: 'VDhyrjWWaGc' },
+  { artist: 'Sebastián Yatra', title: 'Tacones Rojos', group: '🎤 Pop Latino & Baladas', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80', youtubeId: 'PymjsyGeu5I' },
+  { artist: 'Camilo', title: 'Vida de Rico', group: '🎤 Pop Latino & Baladas', cover: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=600&auto=format&fit=crop&q=80', youtubeId: 'Oj0Q8GNMSKk' },
+  { artist: 'Chayanne', title: 'Torero', group: '🎤 Pop Latino & Baladas', cover: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=600&auto=format&fit=crop&q=80', youtubeId: '_FGg5ocABDM' },
+  { artist: 'Reik', title: 'Noviembre Sin Ti', group: '🎤 Pop Latino & Baladas', cover: 'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=600&auto=format&fit=crop&q=80', youtubeId: 'akJcqKti6FE' },
+  { artist: 'Gian Marco', title: 'Se Me Olvidó', group: '🎤 Pop Latino & Baladas', cover: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=600&auto=format&fit=crop&q=80', youtubeId: 'YoOZT2CPzuI' },
+  { artist: 'Pedro Suárez-Vértiz', title: 'Cuando Pienses En Volver', group: '🎤 Pop Latino & Baladas', cover: 'https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?w=600&auto=format&fit=crop&q=80', youtubeId: 'OPHdZBWl9Yc' },
 
   // Rock Clásico & Español
-  { artist: 'Soda Stereo', title: 'De Música Ligera', group: '🎸 Rock Clásico & Español', cover: 'https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Soda Stereo', title: 'Persiana Americana', group: '🎸 Rock Clásico & Español', cover: 'https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Enanitos Verdes', title: 'Lamento Boliviano', group: '🎸 Rock Clásico & Español', cover: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Hombres G', title: 'Devuélveme a mi chica', group: '🎸 Rock Clásico & Español', cover: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Queen', title: 'Bohemian Rhapsody', group: '🎸 Rock Clásico & Español', cover: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Guns N\' Roses', title: 'Sweet Child O\' Mine', group: '🎸 Rock Clásico & Español', cover: 'https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'AC/DC', title: 'Back In Black', group: '🎸 Rock Clásico & Español', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Libido', title: 'En Esta Habitación', group: '🎸 Rock Clásico & Español', cover: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Arena Hash', title: 'Y Es Que Sucede Así', group: '🎸 Rock Clásico & Español', cover: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Coldplay', title: 'Viva La Vida', group: '🎸 Rock Clásico & Español', cover: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80' },
+  { artist: 'Soda Stereo', title: 'De Música Ligera', group: '🎸 Rock Clásico & Español', cover: 'https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?w=600&auto=format&fit=crop&q=80', youtubeId: 'T_FkEw27XJ0' },
+  { artist: 'Soda Stereo', title: 'Persiana Americana', group: '🎸 Rock Clásico & Español', cover: 'https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?w=600&auto=format&fit=crop&q=80', youtubeId: 'LalPz4lIZYk' },
+  { artist: 'Enanitos Verdes', title: 'Lamento Boliviano', group: '🎸 Rock Clásico & Español', cover: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=600&auto=format&fit=crop&q=80', youtubeId: 'Fsq_nPjUQ44' },
+  { artist: 'Hombres G', title: 'Devuélveme a mi chica', group: '🎸 Rock Clásico & Español', cover: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80', youtubeId: 'vmBHE3NXclA' },
+  { artist: 'Queen', title: 'Bohemian Rhapsody', group: '🎸 Rock Clásico & Español', cover: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80', youtubeId: '0dJ00UKYYyc' },
+  { artist: 'Guns N\' Roses', title: 'Sweet Child O\' Mine', group: '🎸 Rock Clásico & Español', cover: 'https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?w=600&auto=format&fit=crop&q=80', youtubeId: 'aEMool3DlIU' },
+  { artist: 'AC/DC', title: 'Back In Black', group: '🎸 Rock Clásico & Español', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80', youtubeId: 'rrim6_9VSeM' },
+  { artist: 'Libido', title: 'En Esta Habitación', group: '🎸 Rock Clásico & Español', cover: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=600&auto=format&fit=crop&q=80', youtubeId: '4I-h7cCMaY8' },
+  { artist: 'Arena Hash', title: 'Y Es Que Sucede Así', group: '🎸 Rock Clásico & Español', cover: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=600&auto=format&fit=crop&q=80', youtubeId: '3M5aC12lyK8' },
+  { artist: 'Coldplay', title: 'Viva La Vida', group: '🎸 Rock Clásico & Español', cover: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80', youtubeId: 'y4zdDXPYo0I' },
 
   // Electrónica & Fiesta
-  { artist: 'David Guetta & Bebe Rexha', title: 'I\'m Good (Blue)', group: '⚡ Electrónica & Fiesta', cover: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Avicii', title: 'Wake Me Up', group: '⚡ Electrónica & Fiesta', cover: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Calvin Harris', title: 'Summer', group: '⚡ Electrónica & Fiesta', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Tiësto', title: 'The Business', group: '⚡ Electrónica & Fiesta', cover: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Daft Punk', title: 'One More Time', group: '⚡ Electrónica & Fiesta', cover: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Alan Walker', title: 'Faded', group: '⚡ Electrónica & Fiesta', cover: 'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=600&auto=format&fit=crop&q=80' }
+  { artist: 'David Guetta & Bebe Rexha', title: 'I\'m Good (Blue)', group: '⚡ Electrónica & Fiesta', cover: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=600&auto=format&fit=crop&q=80', youtubeId: 'kKVChmJPd60' },
+  { artist: 'Avicii', title: 'Wake Me Up', group: '⚡ Electrónica & Fiesta', cover: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80', youtubeId: 'IcrbM1l_BoI' },
+  { artist: 'Calvin Harris', title: 'Summer', group: '⚡ Electrónica & Fiesta', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80', youtubeId: 'NF_BiW05Rtw' },
+  { artist: 'Tiësto', title: 'The Business', group: '⚡ Electrónica & Fiesta', cover: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=600&auto=format&fit=crop&q=80', youtubeId: 'wJS9eb6_o00' },
+  { artist: 'Daft Punk', title: 'One More Time', group: '⚡ Electrónica & Fiesta', cover: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=600&auto=format&fit=crop&q=80', youtubeId: 'A2VpR8HahKc' },
+  { artist: 'Alan Walker', title: 'Faded', group: '⚡ Electrónica & Fiesta', cover: 'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=600&auto=format&fit=crop&q=80', youtubeId: 'zbxl4aiJo3M' }
 ];
 
 // ── Cachés en memoria ────────────────────────────────────────────────────────
@@ -232,7 +232,7 @@ const MAX_CACHE_ENTRIES = 400; // Límite estricto de RAM para Render Free (512 
 
 // Caché acotada de buffers M4A/MP3 ensamblados (máximo 4 pistas en RAM ~12 MB) para soporte Range instantáneo
 const audioBufferCache = new Map(); // key: trackKey -> { buffer, mimeType, ts }
-const MAX_BUFFER_CACHE = 4;
+const MAX_BUFFER_CACHE = 12;
 const BUFFER_CACHE_TTL_MS = 15 * 60 * 1000;
 
 function setBoundedBufferCache(key, value) {
@@ -532,7 +532,7 @@ function serveAudioBufferWithRange(req, res, buffer, mimeType = 'audio/mp4') {
     'Access-Control-Expose-Headers': 'Content-Length, Content-Range, Accept-Ranges',
     'Content-Type': mimeType,
     'Accept-Ranges': 'bytes',
-    'Cache-Control': 'public, max-age=900'
+    'Cache-Control': 'no-cache, no-store, must-revalidate'
   };
 
   if (range) {
@@ -1226,9 +1226,14 @@ async function resolveAudioStream({ youtubeId, artist, title, expectedDurationSe
 const pendingAudioFetches = new Map();
 
 async function fetchAudioBufferWithYtDlp({ youtubeId, artist, title }) {
-  const cleanId = String(youtubeId || '').trim();
   const cleanArtist = String(artist || '').trim();
   const cleanTitle = String(title || '').trim();
+  let cleanId = String(youtubeId || '').trim();
+  if (!/^[a-zA-Z0-9_-]{11}$/.test(cleanId) && (cleanArtist || cleanTitle)) {
+    try {
+      cleanId = (await resolveYouTubeId(cleanArtist, cleanTitle)) || '';
+    } catch (_) {}
+  }
   const cacheKey = (cleanArtist + '|' + cleanTitle + '|' + cleanId).toLowerCase();
   if (pendingAudioFetches.has(cacheKey)) {
     return pendingAudioFetches.get(cacheKey);
@@ -1459,7 +1464,9 @@ async function handleMusicStream(req, res, pathname, query) {
   const youtubeId = String(query.v || query.youtubeId || '').trim();
   const artist = String(query.artist || '').trim();
   const title = String(query.title || '').trim();
-  const trackKey = (artist + '|' + title + '|' + youtubeId).toLowerCase();
+  const trackKey = (artist && title)
+    ? (artist + '|' + title).toLowerCase()
+    : (artist + '|' + title + '|' + youtubeId).toLowerCase();
 
   try {
     // 2a. Caché en RAM de pista completa ensamblada (respuesta Range en <1ms)
@@ -1470,6 +1477,13 @@ async function handleMusicStream(req, res, pathname, query) {
       }
       audioBufferCache.delete(trackKey);
     }
+    if (youtubeId && audioBufferCache.has(youtubeId.toLowerCase())) {
+      const cachedBuf = audioBufferCache.get(youtubeId.toLowerCase());
+      if (Date.now() - cachedBuf.ts < BUFFER_CACHE_TTL_MS) {
+        return serveAudioBufferWithRange(req, res, cachedBuf.buffer, cachedBuf.mimeType);
+      }
+      audioBufferCache.delete(youtubeId.toLowerCase());
+    }
 
     // 2b. Fuente primaria: Extracción completa y robusta vía yt-dlp (audio 100% original de estudio sin 403 ni 1MB gate)
     const ytdlpBuf = await fetchAudioBufferWithYtDlp({ youtubeId, artist, title });
@@ -1479,6 +1493,13 @@ async function handleMusicStream(req, res, pathname, query) {
         mimeType: 'audio/mp4',
         ts: Date.now()
       });
+      if (youtubeId) {
+        setBoundedBufferCache(youtubeId.toLowerCase(), {
+          buffer: ytdlpBuf,
+          mimeType: 'audio/mp4',
+          ts: Date.now()
+        });
+      }
       return serveAudioBufferWithRange(req, res, ytdlpBuf, 'audio/mp4');
     }
 
@@ -1516,11 +1537,21 @@ async function handleMusicStream(req, res, pathname, query) {
       } catch (_) {}
     }
 
-    res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
+    res.writeHead(404, {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Access-Control-Allow-Origin': '*',
+      'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+      'Pragma': 'no-cache'
+    });
     return res.end(JSON.stringify({ ok: false, error: 'Audio original no disponible para esta pista' }));
   } catch (err) {
     if (!res.headersSent) {
-      res.writeHead(502, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
+      res.writeHead(502, {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Access-Control-Allow-Origin': '*',
+        'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+        'Pragma': 'no-cache'
+      });
       res.end(JSON.stringify({ ok: false, error: err.message || 'Error al resolver audio' }));
     }
   }
