@@ -11,7 +11,7 @@ const fs = require('fs');
 
 const http = require('http');
 const https = require('https');
-const { spawn } = require('child_process');
+const { spawn, execFile } = require('child_process');
 let getYtDlpPath;
 try {
   getYtDlpPath = require('./scripts/ensure-yt-dlp').getYtDlpPath;
@@ -1151,49 +1151,145 @@ async function audioViaInvidious(youtubeId) {
   return null;
 }
 
+async function getValidYtDlpBin() {
+  let bin = (typeof getYtDlpPath === 'function') ? getYtDlpPath() : null;
+  if (!bin || !fs.existsSync(bin)) {
+    try {
+      const { ensureYtDlp } = require('./scripts/ensure-yt-dlp');
+      bin = await ensureYtDlp();
+    } catch (_) {}
+  }
+  return (bin && fs.existsSync(bin)) ? bin : null;
+}
+
+function audioViaYtDlp(youtubeId) {
+  return new Promise(async (resolve) => {
+    try {
+      const bin = await getValidYtDlpBin();
+      if (!bin) return resolve(null);
+      const cleanId = String(youtubeId || '').trim();
+      if (!/^[a-zA-Z0-9_-]{11}$/.test(cleanId)) return resolve(null);
+
+      const target = 'https://www.youtube.com/watch?v=' + cleanId;
+      execFile(bin, [
+        '-g',
+        '-f', '140/bestaudio[ext=m4a]/bestaudio',
+        '--no-warnings',
+        '--no-playlist',
+        target
+      ], { timeout: 12000 }, (err, stdout) => {
+        if (err || !stdout || !stdout.trim()) return resolve(null);
+        const url = stdout.trim().split(/\r?\n/)[0].trim();
+        if (!url || !url.startsWith('http')) return resolve(null);
+        let clen = null;
+        let durMs = null;
+        try {
+          const u = new URL(url);
+          clen = parseInt(u.searchParams.get('clen'), 10) || null;
+          durMs = Math.round(parseFloat(u.searchParams.get('dur') || 0) * 1000) || null;
+        } catch (_) {}
+        resolve({
+          url,
+          mimeType: 'audio/mp4',
+          contentLength: clen,
+          durationMs: durMs,
+          userAgent: UA_BROWSER
+        });
+      });
+    } catch (e) {
+      resolve(null);
+    }
+  });
+}
+
+function parseYtDlpSearchOutput(stdout, resolve) {
+  const lines = stdout.trim().split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  let id = '';
+  let url = '';
+  for (const l of lines) {
+    if (/^[a-zA-Z0-9_-]{11}$/.test(l) && !id) {
+      id = l;
+    } else if (l.startsWith('http')) {
+      url = l;
+    }
+  }
+  if (!url) return resolve(null);
+  let clen = null;
+  let durMs = null;
+  try {
+    const u = new URL(url);
+    clen = parseInt(u.searchParams.get('clen'), 10) || null;
+    durMs = Math.round(parseFloat(u.searchParams.get('dur') || 0) * 1000) || null;
+  } catch (_) {}
+  resolve({
+    youtubeId: id || null,
+    url,
+    mimeType: 'audio/mp4',
+    contentLength: clen,
+    durationMs: durMs,
+    userAgent: UA_BROWSER
+  });
+}
+
+function resolveViaYtDlpSearch(artist, title) {
+  return new Promise(async (resolve) => {
+    try {
+      const bin = await getValidYtDlpBin();
+      if (!bin) return resolve(null);
+      const cleanA = String(artist || '').trim();
+      const cleanT = String(title || '').trim();
+      if (!cleanA && !cleanT) return resolve(null);
+
+      // 1. Buscar prioritariamente la pista de audio de estudio Topic (0s intro, audio oficial de discográfica)
+      const searchQuery = 'ytsearch1:' + [cleanA, '- Topic', cleanT].filter(Boolean).join(' ');
+      execFile(bin, [
+        '--print', 'id',
+        '-g',
+        '-f', '140/bestaudio[ext=m4a]/bestaudio',
+        '--no-warnings',
+        '--no-playlist',
+        searchQuery
+      ], { timeout: 14000 }, (err, stdout) => {
+        if (err || !stdout || !stdout.trim()) {
+          // 2. Segundo intento: official audio
+          const fallbackQ = 'ytsearch1:' + [cleanA, cleanT, 'official audio'].filter(Boolean).join(' ');
+          execFile(bin, [
+            '--print', 'id',
+            '-g',
+            '-f', '140/bestaudio[ext=m4a]/bestaudio',
+            '--no-warnings',
+            '--no-playlist',
+            fallbackQ
+          ], { timeout: 12000 }, (err2, stdout2) => {
+            if (err2 || !stdout2 || !stdout2.trim()) return resolve(null);
+            parseYtDlpSearchOutput(stdout2, resolve);
+          });
+          return;
+        }
+        parseYtDlpSearchOutput(stdout, resolve);
+      });
+    } catch (e) {
+      resolve(null);
+    }
+  });
+}
+
 async function resolveAudioStream({ youtubeId, artist, title, expectedDurationSec = 0 }) {
-  const candidates = [];
   const initialVid = String(youtubeId || '').trim();
-  if (/^[a-zA-Z0-9_-]{11}$/.test(initialVid)) {
-    candidates.push(initialVid);
-  }
+  const cleanA = String(artist || '').trim();
+  const cleanT = String(title || '').trim();
+  const key = (cleanA + '|' + cleanT).toLowerCase();
 
-  if (candidates.length === 0 && (artist || title)) {
-    const key = (String(artist || '').trim() + '|' + String(title || '').trim()).toLowerCase();
-    if (resolveCache.has(key)) {
-      const entry = resolveCache.get(key);
-      if (Date.now() - entry.ts < RESOLVE_TTL_MS && entry.youtubeId && !candidates.includes(entry.youtubeId)) {
-        candidates.push(entry.youtubeId);
-      }
-    }
-    if (candidates.length === 0) {
-      const q = [artist, title, 'audio oficial'].filter(Boolean).join(' - ').trim();
-      if (q) {
-        const htmlIds = await searchYouTubeCandidatesHtml(q, expectedDurationSec || 0, title);
-        for (const id of htmlIds) {
-          if (!candidates.includes(id)) candidates.push(id);
-        }
-        if (candidates.length === 0) {
-          // Segundo intento: buscar en canal oficial Topic
-          const topicQ = [artist, '- Topic', title].filter(Boolean).join(' ').trim();
-          const topicIds = await searchYouTubeCandidatesHtml(topicQ, expectedDurationSec || 0, title);
-          for (const id of topicIds) {
-            if (!candidates.includes(id)) candidates.push(id);
-          }
-        }
-        if (candidates.length === 0) {
-          const fallbackId = (await searchViaPiped(q, title)) || (await searchViaInvidious(q, title));
-          if (fallbackId) candidates.push(fallbackId);
-        }
-        if (candidates[0]) {
-          setBoundedCache(resolveCache, key, { youtubeId: candidates[0], ts: Date.now() });
-        }
-      }
+  // 1. Si tenemos youtubeId directo o en cache de resolución, intentar yt-dlp ultrarrápido (~3.0s)
+  let vid = (/^[a-zA-Z0-9_-]{11}$/.test(initialVid)) ? initialVid : null;
+  if (!vid && (cleanA || cleanT) && resolveCache.has(key)) {
+    const entry = resolveCache.get(key);
+    if (Date.now() - entry.ts < RESOLVE_TTL_MS && entry.youtubeId) {
+      vid = entry.youtubeId;
     }
   }
 
-  for (const vid of candidates) {
-    if (!/^[a-zA-Z0-9_-]{11}$/.test(vid)) continue;
+  if (vid) {
     if (audioUrlCache.has(vid)) {
       const cached = audioUrlCache.get(vid);
       if (Date.now() - cached.ts < AUDIO_URL_TTL_MS) {
@@ -1201,19 +1297,49 @@ async function resolveAudioStream({ youtubeId, artist, title, expectedDurationSe
       }
       audioUrlCache.delete(vid);
     }
-    // Canción 100% completa (nunca preview de 30s): IOS/VISIONOS YouTube player -> Piped -> Invidious
-    let resolved = null;
-    for (const provider of [audioViaYouTubeI, audioViaPiped, audioViaInvidious]) {
-      const stream = await provider(vid);
-      if (stream && await isPlayableAudioStream(stream)) {
-        resolved = stream;
-        break;
-      }
-    }
-    if (resolved && resolved.url) {
-      const entry = { ...resolved, youtubeId: vid, ts: Date.now() };
+    // yt-dlp resuelve directamente en ~3.0s con visionOS client
+    const ytdlpStream = await audioViaYtDlp(vid);
+    if (ytdlpStream && ytdlpStream.url && await isPlayableAudioStream(ytdlpStream)) {
+      const entry = { ...ytdlpStream, youtubeId: vid, ts: Date.now() };
       setBoundedCache(audioUrlCache, vid, entry);
       return entry;
+    }
+  } else if (cleanA || cleanT) {
+    // Si no tenemos ID, usar búsqueda yt-dlp que resuelve ID + stream URL simultáneamente en ~3.5s
+    const searchRes = await resolveViaYtDlpSearch(cleanA, cleanT);
+    if (searchRes && searchRes.url && await isPlayableAudioStream(searchRes)) {
+      const resolvedVid = searchRes.youtubeId || ('ytdlp_' + Date.now());
+      const entry = { ...searchRes, youtubeId: resolvedVid, ts: Date.now() };
+      if (searchRes.youtubeId) {
+        setBoundedCache(resolveCache, key, { youtubeId: searchRes.youtubeId, ts: Date.now() });
+        setBoundedCache(audioUrlCache, searchRes.youtubeId, entry);
+      }
+      return entry;
+    }
+  }
+
+  // 2. Fallbacks secundarios (InnerTube / Piped / Invidious) si yt-dlp no está disponible
+  const candidates = [];
+  if (vid) candidates.push(vid);
+  if (candidates.length === 0 && (cleanA || cleanT)) {
+    const q = [cleanA, cleanT, 'audio oficial'].filter(Boolean).join(' - ').trim();
+    if (q) {
+      const htmlIds = await searchYouTubeCandidatesHtml(q, expectedDurationSec || 0, cleanT);
+      for (const id of htmlIds) {
+        if (!candidates.includes(id)) candidates.push(id);
+      }
+    }
+  }
+
+  for (const cVid of candidates) {
+    if (!/^[a-zA-Z0-9_-]{11}$/.test(cVid)) continue;
+    for (const provider of [audioViaYouTubeI, audioViaPiped, audioViaInvidious]) {
+      const stream = await provider(cVid);
+      if (stream && await isPlayableAudioStream(stream)) {
+        const entry = { ...stream, youtubeId: cVid, ts: Date.now() };
+        setBoundedCache(audioUrlCache, cVid, entry);
+        return entry;
+      }
     }
   }
 

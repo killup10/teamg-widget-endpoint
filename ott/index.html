@@ -1903,21 +1903,21 @@ body.text-large .drawer-num { font-size: 25px !important; }
 #player-music-stage { box-sizing:border-box; overflow:hidden; }
 #player-music-stage > div:first-child { width:8vh !important; height:8vh !important; }
 #player-music-lyrics-box {
-  position:absolute; top:26vh; bottom:9vh; left:3vw;
-  width:94vw !important; max-width:94vw !important;
+  position:absolute; top:23vh; bottom:5vh; left:2vw;
+  width:96vw !important; max-width:96vw !important;
   margin:0 !important; padding:0 !important;
 }
-#player-music-lyric-prev { font-size:3.5vh !important; min-height:4vh !important; }
+#player-music-lyric-prev { font-size:3.5vh !important; min-height:4vh !important; opacity:0.5 !important; }
 #player-music-lyric-active {
-  font-size:10.5vh !important; line-height:1.12 !important;
-  min-height:12vh !important; margin:2vh 0 !important;
+  font-size:11.5vh !important; line-height:1.12 !important;
+  min-height:13vh !important; margin:1.5vh 0 !important;
   overflow-wrap:break-word;
 }
 #player-music-lyric-next {
-  font-size:6vh !important; line-height:1.15 !important;
-  min-height:7vh !important; margin-top:2vh !important;
+  font-size:6.8vh !important; line-height:1.15 !important;
+  min-height:8vh !important; margin-top:1.5vh !important;
 }
-#player-music-lyric-next2 { font-size:3.8vh !important; margin-top:2vh !important; }
+#player-music-lyric-next2 { font-size:4.2vh !important; min-height:5vh !important; margin-top:1.2vh !important; opacity:0.6 !important; }
 #player-music-lyric-next3 { display:none; }
 </style>
 </head>
@@ -2128,7 +2128,6 @@ body.text-large .drawer-num { font-size: 25px !important; }
   <!-- REPRODUCTOR DE VIDEO A PANTALLA COMPLETA (Foto 2 y 3) -->
   <div id="player-container">
     <video id="video-el" preload="auto" playsinline webkit-playsinline tabindex="-1"></video>
-    <iframe id="music-youtube-player" style="display:none;position:absolute;top:0;left:0;width:100%;height:100%;border:none;z-index:1;background:#000000;" src="" frameborder="0" allow="autoplay; encrypted-media"></iframe>
     <object id="netcast-player" type="application/x-netcast-av" width="100%" height="100%" style="display:none;" tabindex="-1">
       <param name="wmode" value="transparent">
     </object>
@@ -5687,19 +5686,7 @@ function hideTuning() {
 }
 
 function seekRelative(step) {
-  if (state.musicYtActive) {
-    var ifrM = $('music-youtube-player');
-    if (ifrM && ifrM.contentWindow) {
-      var targetTime = Math.max(0, (state.activeMusicCurrentTime || 0) + step);
-      if (state.activeDuration && targetTime > state.activeDuration) targetTime = state.activeDuration;
-      state.activeMusicCurrentTime = targetTime;
-      updateMusicLyrics(targetTime);
-      ifrM.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'seekTo', args: [targetTime, true] }), '*');
-      showToast((step > 0 ? ('⏩ +' + step + 's') : ('⏪ ' + step + 's')) + ' (' + formatTime(targetTime) + ')');
-      showPlayerOverlay();
-    }
-    return;
-  }
+
   if (window.TeamGNative && TeamGNative.active()) {
     var nativeTime = TeamGNative.info();
     if (TeamGNative.seek(nativeTime.currentTime + step)) showToast('Posición: ' + formatTime(nativeTime.currentTime + step));
@@ -5950,13 +5937,7 @@ function startLyricsTimer() {
       stopLyricsTimer();
       return;
     }
-    if (state.musicYtActive) {
-      if (typeof state.activeMusicCurrentTime === 'number' && !state.musicYtPaused) {
-        state.activeMusicCurrentTime += 0.075;
-        updateMusicLyrics(state.activeMusicCurrentTime);
-      }
-      return;
-    }
+
     var v = $('video-el');
     if (v && !v.paused && typeof v.currentTime !== 'undefined') {
       updateMusicLyrics(v.currentTime);
@@ -6884,25 +6865,7 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c, androidFallbackEngine) 
   var isLegacyNetcast = (ua.indexOf('NetCast') !== -1 && ua.indexOf('Web0S') === -1 && ua.indexOf('webOS') === -1);
   c._triedHtml5 = true;
 
-  var mYt = streamUrl && streamUrl.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
-  var musicYtId = (c && c.youtubeId) || (mYt ? mYt[1] : '');
-  if (musicYtId && !isLegacyNetcast) {
-    var ifrM = $('music-youtube-player');
-    if (ifrM) {
-      if (v) { try { v.pause(); v.removeAttribute('src'); v.load(); } catch(eV0){} v.style.display = 'none'; }
-      if (netcastObj) netcastObj.style.display = 'none';
-      state.musicYtActive = true;
-      state.musicYtPaused = false;
-      state.activeMusicCurrentTime = 0;
-      state.recoveryVod = true;
-      ifrM.style.display = 'block';
-      ifrM.src = 'https://www.youtube-nocookie.com/embed/' + musicYtId + '?autoplay=1&enablejsapi=1&controls=0&playsinline=1&rel=0&modestbranding=1';
-      hideTuning();
-      $('btnPlayPause').textContent = '▶❚❚';
-      startLyricsTimer();
-      return;
-    }
-  }
+
   if (netcastObj) {
     try { netcastObj.onPlayStateChange = null; } catch(e0) {}
     try { netcastObj.stop(); } catch(e02) {}
@@ -7133,12 +7096,7 @@ function stopPlayer() {
   if (state.recoveryTimer) clearTimeout(state.recoveryTimer);
   state.recoveryTimer = null;
   state.recoveryItem = null;
-  var ifrM = $('music-youtube-player');
-  if (ifrM) {
-    ifrM.src = '';
-    ifrM.style.display = 'none';
-  }
-  state.musicYtActive = false;
+
   state.recoverySeek = 0;
   cleanPlayerEngines();
   var pc = $('player-container');
@@ -7636,37 +7594,7 @@ if (document.addEventListener) {
   document.onkeydown = onGlobalKeyDown;
 }
 
-if (typeof window !== 'undefined' && window.addEventListener) {
-  window.addEventListener('message', function(event) {
-    if (!state.musicYtActive || state.screen !== 'player') return;
-    try {
-      var d = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
-      if (d && d.event === 'infoDelivery' && d.info) {
-        if (typeof d.info.currentTime === 'number') {
-          state.activeMusicCurrentTime = d.info.currentTime;
-          updateMusicLyrics(d.info.currentTime);
-          if (typeof d.info.duration === 'number' && d.info.duration > 0) {
-            state.activeDuration = d.info.duration;
-            var timeEl = $('player-time-text');
-            if (timeEl) timeEl.textContent = formatTime(d.info.currentTime) + ' / ' + formatTime(d.info.duration);
-            var fillEl = $('player-epg-fill');
-            if (fillEl) fillEl.style.width = Math.min(100, Math.max(0, (d.info.currentTime / d.info.duration) * 100)) + '%';
-          }
-        }
-        if (d.info.playerState === 0) {
-          advanceMusicTrack();
-        } else if (d.info.playerState === 1) {
-          hideTuning();
-          state.musicYtPaused = false;
-          $('btnPlayPause').textContent = '▶❚❚';
-        } else if (d.info.playerState === 2) {
-          state.musicYtPaused = true;
-          $('btnPlayPause').textContent = '▶';
-        }
-      }
-    } catch (eM) {}
-  }, false);
-}
+
 
 /* ==========================================================================
    INICIALIZACIÓN
@@ -8195,18 +8123,7 @@ $('btnPlayPause').onclick = function(e) {
   var ev = e || window.event;
   if (ev && ev.stopPropagation) ev.stopPropagation();
   showPlayerOverlay();
-  if (state.musicYtActive) {
-    var ifrM = $('music-youtube-player');
-    if (ifrM && ifrM.contentWindow) {
-      var cmd = state.musicYtPaused ? 'playVideo' : 'pauseVideo';
-      state.musicYtPaused = !state.musicYtPaused;
-      ifrM.contentWindow.postMessage(JSON.stringify({ event: 'command', func: cmd, args: '' }), '*');
-      $('btnPlayPause').textContent = state.musicYtPaused ? '▶' : '▶❚❚';
-      if (state.musicYtPaused) stopLyricsTimer();
-      else startLyricsTimer();
-    }
-    return;
-  }
+
   if (window.TeamGNative && TeamGNative.active()) {
     if (TeamGNative.toggle()) $('btnPlayPause').textContent = TeamGNative.info().paused ? '▶' : '▶❚❚';
     return;

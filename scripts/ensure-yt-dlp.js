@@ -14,7 +14,8 @@ function downloadFile(url, dest, maxRedirects = 5) {
     if (maxRedirects <= 0) return reject(new Error('Demasiadas redirecciones'));
     https.get(url, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } }, (res) => {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-        return downloadFile(res.headers.location, dest, maxRedirects - 1).then(resolve).catch(reject);
+        const next = new URL(res.headers.location, url).toString();
+        return downloadFile(next, dest, maxRedirects - 1).then(resolve).catch(reject);
       }
       if (res.statusCode !== 200) {
         return reject(new Error('HTTP ' + res.statusCode + ' al descargar ' + url));
@@ -89,6 +90,10 @@ module.exports = {
     if (fs.existsSync(binPath)) return binPath;
     const rootBin = path.join(__dirname, '..', binName);
     if (fs.existsSync(rootBin)) return rootBin;
+    const linuxBin = path.join(binDir, 'yt-dlp_linux');
+    if (fs.existsSync(linuxBin)) return linuxBin;
+    const rootLinux = path.join(__dirname, '..', 'yt-dlp_linux');
+    if (fs.existsSync(rootLinux)) return rootLinux;
     return binPath;
   }
 };
