@@ -29,6 +29,10 @@ const getProto = (req) => {
 };
 const baseOf = (req) => getProto(req) + '://' + getHost(req);
 
+// Caché en RAM de carátulas para que la TV abra carpetas a 0ms sin lag
+const ottImgCache = new Map();
+const MAX_OTT_IMG_CACHE = 200;
+
 // Función que crea el JSON dinámico para Media Station X
 // APP 1 (existente, no tocar IDs): TeamG Play en /
 const createWidgetJson = (req) => {
@@ -258,14 +262,42 @@ const server = http.createServer((req, res) => {
     if (!/^https?:\/\//i.test(target)) {
       res.writeHead(400); return res.end();
     }
-    const client = target.startsWith('https') ? require('https') : require('http');
-    const proxyReq = client.get(target, { headers: { 'User-Agent': 'Mozilla/5.0' }, timeout: 6000 }, (imgRes) => {
-      res.writeHead(imgRes.statusCode || 200, {
-        'Content-Type': imgRes.headers['content-type'] || 'image/jpeg',
+    if (ottImgCache.has(target)) {
+      const hit = ottImgCache.get(target);
+      res.writeHead(200, {
+        'Content-Type': hit.contentType || 'image/jpeg',
+        'Content-Length': String(hit.buffer.length),
         'Access-Control-Allow-Origin': '*',
         'Cache-Control': 'public, max-age=604800'
       });
-      imgRes.pipe(res);
+      return res.end(hit.buffer);
+    }
+    const client = target.startsWith('https') ? require('https') : require('http');
+    const proxyReq = client.get(target, { headers: { 'User-Agent': 'Mozilla/5.0' }, timeout: 6000 }, (imgRes) => {
+      if (imgRes.statusCode >= 300 && imgRes.statusCode < 400 && imgRes.headers.location) {
+        res.writeHead(imgRes.statusCode, { Location: imgRes.headers.location, 'Access-Control-Allow-Origin': '*' });
+        return res.end();
+      }
+      const chunks = [];
+      imgRes.on('data', c => chunks.push(c));
+      imgRes.on('end', () => {
+        const buf = Buffer.concat(chunks);
+        const cType = imgRes.headers['content-type'] || 'image/jpeg';
+        if (imgRes.statusCode === 200 && buf.length > 0) {
+          if (ottImgCache.size >= MAX_OTT_IMG_CACHE) {
+            const oldest = ottImgCache.keys().next().value;
+            ottImgCache.delete(oldest);
+          }
+          ottImgCache.set(target, { buffer: buf, contentType: cType });
+        }
+        res.writeHead(imgRes.statusCode || 200, {
+          'Content-Type': cType,
+          'Content-Length': String(buf.length),
+          'Access-Control-Allow-Origin': '*',
+          'Cache-Control': 'public, max-age=604800'
+        });
+        res.end(buf);
+      });
     });
     proxyReq.on('error', () => { if (!res.headersSent) { res.writeHead(404); res.end(); } });
     return;
