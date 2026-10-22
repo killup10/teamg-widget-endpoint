@@ -1188,6 +1188,16 @@ function ytDlpCookieArgs() {
   }
 }
 
+// Si YouTube exige verificación anti-bot, no repetir intentos de 25s en cada canción.
+let ytBotBlockedUntil = 0;
+function ytDlpBlocked() { return Date.now() < ytBotBlockedUntil; }
+function noteYtDlpError(err, stderr) {
+  const combined = String(stderr || '') + ' ' + String((err && err.message) || '');
+  if (/confirm you.?re not a bot|Sign in to confirm/i.test(combined)) {
+    ytBotBlockedUntil = Date.now() + 10 * 60 * 1000;
+  }
+}
+
 function ytDlpArgs() {
   const clients = process.env.YTDLP_CLIENTS || 'visionos,mweb';
   return ['--extractor-args', 'youtube:player_client=' + clients, '--no-warnings', '--no-playlist'].concat(ytDlpCookieArgs());
@@ -1196,6 +1206,7 @@ function ytDlpArgs() {
 function audioViaYtDlp(youtubeId) {
   return new Promise(async (resolve) => {
     try {
+      if (ytDlpBlocked()) return resolve(null);
       const bin = await getValidYtDlpBin();
       if (!bin) return resolve(null);
       const cleanId = String(youtubeId || '').trim();
@@ -1207,8 +1218,8 @@ function audioViaYtDlp(youtubeId) {
         '-f', '140/bestaudio[ext=m4a]/bestaudio',
         ...ytDlpArgs(),
         target
-      ], { timeout: 25000 }, (err, stdout) => {
-        if (err || !stdout || !stdout.trim()) return resolve(null);
+      ], { timeout: 7000 }, (err, stdout, stderr) => {
+        if (err || !stdout || !stdout.trim()) { noteYtDlpError(err, stderr); return resolve(null); }
         const url = stdout.trim().split(/\r?\n/)[0].trim();
         if (!url || !url.startsWith('http')) return resolve(null);
         let clen = null;
@@ -1264,6 +1275,7 @@ function parseYtDlpSearchOutput(stdout, resolve) {
 function resolveViaYtDlpSearch(artist, title) {
   return new Promise(async (resolve) => {
     try {
+      if (ytDlpBlocked()) return resolve(null);
       const bin = await getValidYtDlpBin();
       if (!bin) return resolve(null);
       const cleanA = String(artist || '').trim();
@@ -1400,7 +1412,7 @@ async function fetchAudioBufferWithYtDlp({ youtubeId, artist, title }) {
           binPath = await ensureYtDlp();
         } catch (_) {}
       }
-      if (!fs.existsSync(binPath)) return null;
+      if (!fs.existsSync(binPath) || ytDlpBlocked()) return null;
       const hasId = /^[a-zA-Z0-9_-]{11}$/.test(cleanId);
       if (!hasId) return null; // Do not bypass the validated resolver with an unchecked first search result.
       const target = 'https://www.youtube.com/watch?v=' + cleanId;

@@ -1903,6 +1903,8 @@ body.text-large .drawer-num { font-size: 25px !important; }
 #player-music-stage { box-sizing:border-box; overflow:hidden; }
 #player-music-stage > div:first-child { width:8vh !important; height:8vh !important; }
 #player-music-sync-box { display:none !important; }
+body.smart-tv #player-music-stage { background:#120710 !important; }
+body.smart-tv #player-music-yt-container { display:none !important; }
 #player-music-lyrics-box {
   position:absolute; top:23vh; bottom:5vh; left:2vw;
   width:96vw !important; max-width:96vw !important;
@@ -6319,7 +6321,7 @@ function startPlaybackTicker() {
 }
 
 function failMusicPlayback() {
-  destroyYtPlayer();
+  if (typeof destroyYtPlayer === 'function') destroyYtPlayer();
   state.musicPlaybackFailed = true;
   if (state.recoveryTimer) clearTimeout(state.recoveryTimer);
   state.recoveryTimer = null;
@@ -6946,8 +6948,22 @@ function startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c, forceProxy) {
 var ytMusicPlayer = null;
 var _pendingYtVideoId = null;
 
+// Smart TVs (LG NetCast/webOS, Samsung Tizen...) reproducen música como audio
+// HTML5 del servidor: sin iframe de YouTube ni video de fondo (evita el lag).
+var IS_SMART_TV = (function() {
+  var u = (typeof navigator !== 'undefined' && navigator.userAgent) || '';
+  if (/NetCast|Web0S|webOS|Tizen|SMART-TV|SmartTV|HbbTV|NETTV|BRAVIA|AFT[A-Z]|GoogleTV|Android TV|MSX/i.test(u)) return true;
+  if (typeof window !== 'undefined' && (!!window.NetCastLaunchRATIO || !!window.PalmSystem || !!window.tizen)) return true;
+  return false;
+})();
+var _ytApiRequested = false;
+function loadYtApi() {
+  if (_ytApiRequested || IS_SMART_TV) return;
+  _ytApiRequested = true;
+  try { var tag = document.createElement('script'); tag.id = 'yt-iframe-api'; tag.src = 'https://www.youtube.com/iframe_api'; var f = document.getElementsByTagName('script')[0]; if (f && f.parentNode) f.parentNode.insertBefore(tag, f); } catch(eTag){}
+}
 if (typeof window !== 'undefined') {
-  try { var tag = document.createElement('script'); tag.id = 'yt-iframe-api'; tag.src = 'https://www.youtube.com/iframe_api'; var f = document.getElementsByTagName('script')[0]; if (f && f.parentNode) f.parentNode.insertBefore(tag, f); } catch(eTag){} 
+  if (IS_SMART_TV && document.body && document.body.className.indexOf('smart-tv') === -1) document.body.className += ' smart-tv';
   window.onYouTubeIframeAPIReady = function() {
     if (_pendingYtVideoId) {
       var vid = _pendingYtVideoId;
@@ -7130,6 +7146,7 @@ function playMusicViaYt(videoId, c) {
     initYtPlayer(videoId);
   } else {
     _pendingYtVideoId = videoId;
+    loadYtApi();
   }
 }
 
@@ -7142,7 +7159,7 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c, androidFallbackEngine) 
   var isLegacyNetcast = (ua.indexOf('NetCast') !== -1 && ua.indexOf('Web0S') === -1 && ua.indexOf('webOS') === -1);
   c._triedHtml5 = true;
 
-  if (musicOnDemand && !isLegacyNetcast) {
+  if (musicOnDemand && !isLegacyNetcast && !IS_SMART_TV) {
     var mYt = streamUrl && streamUrl.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
     var musicYtId = (c && c.youtubeId) || (mYt ? mYt[1] : '');
     playMusicViaYt(musicYtId, c);
