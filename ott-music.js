@@ -1,3 +1,4 @@
+const fs = require('fs');
 // ============================================================================
 // TeamG Music para OTT TV (LG NetCast / webOS / Samsung Tizen / Android TV)
 // - Catálogo musical curado + Top Global Apple Music / iTunes en tiempo real
