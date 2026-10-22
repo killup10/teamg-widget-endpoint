@@ -951,12 +951,11 @@ body::-webkit-scrollbar {
 }
 
 .kb-key.focused {
-  background: #0070d0;
-  border-color: #ffffff;
-  box-shadow: 0 0 12px #ffffff;
-  -webkit-box-shadow: 0 0 12px #ffffff;
-  transform: scale(1.08);
-  -webkit-transform: scale(1.08);
+  background: #ffcc00 !important;
+  color: #000000 !important;
+  border-color: #ffffff !important;
+  outline: 3px solid #ffffff !important;
+  outline-offset: -1px;
 }
 
 .kb-bottom-row {
@@ -987,9 +986,11 @@ body::-webkit-scrollbar {
 .kb-spec-key.ok { background: #0066cc; width: 140px; }
 
 .kb-spec-key.focused {
-  border-color: #ffffff;
-  box-shadow: 0 0 14px #ffffff;
-  -webkit-box-shadow: 0 0 14px #ffffff;
+  border-color: #ffffff !important;
+  outline: 3px solid #ffffff !important;
+  outline-offset: -1px;
+  background: #ffcc00 !important;
+  color: #000000 !important;
 }
 
 /* ==================== VISTA: DISPOSITIVO (Foto 4) ==================== */
@@ -1887,8 +1888,8 @@ body.theme-wine #topbar { background: #1c0b0b; }
 #view-keyboard { box-sizing: border-box; overflow-y: auto; }
 .kb-key { width: 7.1%; margin: 0 0.28%; box-sizing: border-box; border-radius: 6px; font-weight: bold; }
 .kb-spec-key, .kb-spec-key.space, .kb-spec-key.ok { width: 18.5%; padding: 0; margin: 0 0.5%; box-sizing: border-box; border-radius: 6px; font-weight: bold; }
-.kb-key.focused { background: #ffcc00 !important; color: #000000 !important; border-color: #ffffff !important; box-shadow: 0 0 16px #ffcc00; -webkit-box-shadow: 0 0 16px #ffcc00; font-weight: bold; }
-.kb-spec-key.focused, .kb-btn-back.focused { border-color: #ffffff !important; box-shadow: 0 0 16px #ffffff; -webkit-box-shadow: 0 0 16px #ffffff; }
+.kb-key.focused { background: #ffcc00 !important; color: #000000 !important; border-color: #ffffff !important; outline: 3px solid #ffffff !important; outline-offset: -1px; font-weight: bold; }
+.kb-spec-key.focused, .kb-btn-back.focused { border-color: #ffffff !important; outline: 3px solid #ffffff !important; outline-offset: -1px; background: #ffcc00 !important; color: #000000 !important; }
 .kb-input-box { white-space: nowrap; overflow: hidden; text-align: left; padding: 12px 24px; font-weight: 500; }
 body.text-large .opt-label, body.text-large .opt-value { font-size: 20px; }
 body.text-large .tile-title { font-size: 3.4vh; }
@@ -2835,6 +2836,7 @@ function toggleKeyboardLayout() {
 function renderKeyboard() {
   var container = $('kbGrid');
   container.innerHTML = '';
+  state.currentKbFocusedEl = null;
   for (var r = 0; r < KB_ROWS.length; r++) {
     var rowDiv = document.createElement('div');
     rowDiv.className = 'kb-row';
@@ -2978,6 +2980,10 @@ function searchTeamGMusic(q) {
 }
 
 function closeKeyboard(commit) {
+  if (state.currentKbFocusedEl) {
+    state.currentKbFocusedEl.classList.remove('focused');
+    state.currentKbFocusedEl = null;
+  }
   if (state.kbTargetField === 'search') {
     if (commit) {
       state.searchQuery = (kbInputText || '').trim();
@@ -3032,21 +3038,25 @@ function handleKeyClick(ch) {
 }
 
 function updateKeyboardFocus() {
-  var keys = document.getElementsByClassName('kb-key');
-  for (var i = 0; i < keys.length; i++) { keys[i].classList.remove('focused'); }
-  var specKeys = document.getElementsByClassName('kb-spec-key');
-  for (var j = 0; j < specKeys.length; j++) { specKeys[j].classList.remove('focused'); }
-  $('kbBtnBack').classList.remove('focused');
-
+  if (state.currentKbFocusedEl) {
+    state.currentKbFocusedEl.classList.remove('focused');
+    state.currentKbFocusedEl = null;
+  }
+  var targetKey = null;
   if (state.kbRow === -1) {
-    $('kbBtnBack').classList.add('focused');
+    targetKey = $('kbBtnBack');
   } else if (state.kbRow < 4) {
-    var rows = $('kbGrid').children;
-    if (rows[state.kbRow] && rows[state.kbRow].children[state.kbCol]) {
-      rows[state.kbRow].children[state.kbCol].classList.add('focused');
+    var grid = $('kbGrid');
+    if (grid && grid.children[state.kbRow] && grid.children[state.kbRow].children[state.kbCol]) {
+      targetKey = grid.children[state.kbRow].children[state.kbCol];
     }
   } else if (state.kbRow === 4) {
-    if (specKeys[state.kbCol]) specKeys[state.kbCol].classList.add('focused');
+    var specKeys = document.getElementsByClassName('kb-spec-key');
+    if (specKeys && specKeys[state.kbCol]) targetKey = specKeys[state.kbCol];
+  }
+  if (targetKey) {
+    targetKey.classList.add('focused');
+    state.currentKbFocusedEl = targetKey;
   }
 }
 
@@ -5942,14 +5952,16 @@ function stopLyricsTimer() {
 
 // Pixel sizing also works on old TV engines with unreliable viewport units.
 function sizeMusicLyrics() {
-  var height = window.innerHeight || document.documentElement.clientHeight || 720;
+  var height = (typeof window !== 'undefined' && window.innerHeight) || (typeof document !== 'undefined' && document.documentElement && document.documentElement.clientHeight) || 720;
   var sizes = [['player-music-lyric-active', 0.115], ['player-music-lyric-next', 0.065], ['player-music-lyric-prev', 0.035]];
   for (var i = 0; i < sizes.length; i++) {
     var el = $(sizes[i][0]);
     if (el) el.style.setProperty('font-size', Math.round(height * sizes[i][1]) + 'px', 'important');
   }
 }
-window.addEventListener('resize', sizeMusicLyrics, false);
+if (typeof window !== 'undefined' && window.addEventListener) {
+  window.addEventListener('resize', sizeMusicLyrics, false);
+}
 
 function loadSongLyrics(item) {
   sizeMusicLyrics();
@@ -6069,7 +6081,7 @@ function updateMusicLyrics(currentTime) {
       // Mantener las frases largas dentro del espacio disponible en televisores.
       var lyricSize = 10.5;
       elAct.style.setProperty('font-size', lyricSize + 'vh', 'important');
-      var lyricHeight = (window.innerHeight || document.documentElement.clientHeight) * 0.27;
+      var lyricHeight = ((typeof window !== 'undefined' && window.innerHeight) || (typeof document !== 'undefined' && document.documentElement && document.documentElement.clientHeight) || 720) * 0.27;
       while (lyricSize > 5 && elAct.scrollHeight > lyricHeight) {
         lyricSize -= 0.5;
         elAct.style.setProperty('font-size', lyricSize + 'vh', 'important');
@@ -6576,7 +6588,7 @@ function playItem(c, recovering) {
     // Bitel y CloudFront soportan HTTP nativo en puerto 80 sin TLS; para NetCast antiguo y páginas HTTP
     // usamos http:// directamente para compatibilidad 100% nativa evitando fallos de TLS 1.0 (Alert 70).
     if (playUrl.indexOf('https://') === 0) {
-      playUrl = 'http://' + streamUrl.substring(8);
+      playUrl = 'http://' + playUrl.substring(8);
     }
   }
 

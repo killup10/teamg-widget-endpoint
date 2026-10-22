@@ -505,15 +505,16 @@ async function resolveViaSoundCloudBuffer(artist, title) {
   }
 }
 
-function serveAudioBufferWithRange(req, res, buffer, mimeType = 'audio/mp4') {
+function serveAudioBufferWithRange(req, res, buffer, mimeType = 'video/mp4') {
   const total = buffer.length;
   const range = req.headers && req.headers.range;
+  const effectiveMime = (mimeType === 'audio/mp4' || (req && req.url && req.url.indexOf('.mp4') !== -1)) ? 'video/mp4' : mimeType;
   const baseHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
     'Access-Control-Allow-Headers': 'Range, Origin, Content-Type, Accept, User-Agent',
     'Access-Control-Expose-Headers': 'Content-Length, Content-Range, Accept-Ranges',
-    'Content-Type': mimeType,
+    'Content-Type': effectiveMime,
     'Accept-Ranges': 'bytes',
     'Cache-Control': 'no-cache, no-store, must-revalidate'
   };
@@ -1259,7 +1260,7 @@ async function fetchAudioBufferWithYtDlp({ youtubeId, artist, title }) {
         const timer = setTimeout(() => {
           try { proc.kill('SIGKILL'); } catch (_) {}
           resolve(null);
-        }, 25000);
+        }, 6000);
 
         proc.stdout.on('data', (c) => chunks.push(c));
         proc.stderr.on('data', () => {});
@@ -1372,7 +1373,7 @@ function proxyUpstreamAudio(targetUrl, req, res, defaultMime = 'audio/mp4', tota
       'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
       'Access-Control-Allow-Headers': 'Range, Origin, Content-Type, Accept, User-Agent',
       'Access-Control-Expose-Headers': 'Content-Length, Content-Range, Accept-Ranges',
-      'Content-Type': (upRes.headers['content-type'] || defaultMime).split(';')[0],
+      'Content-Type': ((upRes.headers['content-type'] || defaultMime).split(';')[0] === 'audio/mp4' || (req && req.url && req.url.indexOf('.mp4') !== -1)) ? 'video/mp4' : (upRes.headers['content-type'] || defaultMime).split(';')[0],
       'Accept-Ranges': 'bytes',
       'Cache-Control': 'no-cache'
     };
@@ -1478,32 +1479,14 @@ async function handleMusicStream(req, res, pathname, query) {
       audioBufferCache.delete(youtubeId.toLowerCase());
     }
 
-    // 2b. Fuente primaria: Extracción completa y robusta vía yt-dlp (audio 100% original de estudio sin 403 ni 1MB gate)
-    const ytdlpBuf = await fetchAudioBufferWithYtDlp({ youtubeId, artist, title });
-    if (ytdlpBuf && ytdlpBuf.length > 0) {
-      setBoundedBufferCache(trackKey, {
-        buffer: ytdlpBuf,
-        mimeType: 'audio/mp4',
-        ts: Date.now()
-      });
-      if (youtubeId) {
-        setBoundedBufferCache(youtubeId.toLowerCase(), {
-          buffer: ytdlpBuf,
-          mimeType: 'audio/mp4',
-          ts: Date.now()
-        });
-      }
-      return serveAudioBufferWithRange(req, res, ytdlpBuf, 'audio/mp4');
-    }
-
-    // 2c. Respaldo secundario: Stream resuelto vía YouTube Innertube
+    // 2b. Fuente primaria ultra-rápida (~1.2s): Stream oficial de estudio resuelto vía YouTube Innertube
     const expectedDurationSec = parseInt(query.dur || 0, 10);
     const stream = await resolveAudioStream({ youtubeId, artist, title, expectedDurationSec });
     if (stream && stream.url) {
       if (!forceProxy && !legacyNetcast && !isIpBoundUrl(stream.url)) {
         return redirectDirectStream(res, stream.url);
       }
-      return proxyUpstreamAudio(stream.url, req, res, stream.mimeType || 'audio/mp4', stream.contentLength || null, 5, stream.userAgent || '');
+      return proxyUpstreamAudio(stream.url, req, res, 'video/mp4', stream.contentLength || null, 5, stream.userAgent || '');
     }
 
     // 2c. Respaldo secundario: SoundCloud (solo si YouTube no resolvió y estrictamente libre de remixes y edits)
@@ -1512,10 +1495,31 @@ async function handleMusicStream(req, res, pathname, query) {
       if (scTrack && scTrack.buffer && scTrack.buffer.length > 0) {
         setBoundedBufferCache(trackKey, {
           buffer: scTrack.buffer,
-          mimeType: scTrack.mimeType || 'audio/mp4',
+          mimeType: 'video/mp4',
           ts: Date.now()
         });
-        return serveAudioBufferWithRange(req, res, scTrack.buffer, scTrack.mimeType || 'audio/mp4');
+        return serveAudioBufferWithRange(req, res, scTrack.buffer, 'video/mp4');
+      }
+    }
+
+    // 2d. Respaldo terciario: Extracción vía yt-dlp local si está presente en disco
+    const bin = getYtDlpPath();
+    if (fs.existsSync(bin)) {
+      const ytdlpBuf = await fetchAudioBufferWithYtDlp({ youtubeId, artist, title });
+      if (ytdlpBuf && ytdlpBuf.length > 0) {
+        setBoundedBufferCache(trackKey, {
+          buffer: ytdlpBuf,
+          mimeType: 'video/mp4',
+          ts: Date.now()
+        });
+        if (youtubeId) {
+          setBoundedBufferCache(youtubeId.toLowerCase(), {
+            buffer: ytdlpBuf,
+            mimeType: 'video/mp4',
+            ts: Date.now()
+          });
+        }
+        return serveAudioBufferWithRange(req, res, ytdlpBuf, 'video/mp4');
       }
     }
 
@@ -1717,19 +1721,13 @@ async function handleMusicLyrics(req, res, pathname, query) {
 
 function warmTopCuratedTracks() {
   setTimeout(async () => {
-    const topTracks = CURATED_TRACKS.slice(0, 6);
+    const topTracks = CURATED_TRACKS.slice(0, 10);
     for (const t of topTracks) {
-      const trackKey = (t.artist + '|' + t.title + '|' + (t.youtubeId || '')).toLowerCase();
-      if (!audioBufferCache.has(trackKey)) {
-        try {
-          const buf = await fetchAudioBufferWithYtDlp({ youtubeId: t.youtubeId, artist: t.artist, title: t.title });
-          if (buf && buf.length > 0) {
-            setBoundedBufferCache(trackKey, { buffer: buf, mimeType: 'audio/mp4', ts: Date.now() });
-          }
-        } catch (_) {}
-      }
+      try {
+        await resolveAudioStream({ youtubeId: t.youtubeId, artist: t.artist, title: t.title, expectedDurationSec: t.durationSec || 0 });
+      } catch (_) {}
     }
-  }, 2500);
+  }, 2000);
 }
 warmTopCuratedTracks();
 
