@@ -1203,7 +1203,7 @@ function noteYtDlpError(err, stderr) {
 
 function ytDlpArgs() {
   const cookieArgs = ytDlpCookieArgs();
-  const args = ['--no-warnings', '--no-playlist'];
+  const args = ['--no-warnings', '--no-playlist', '--js-runtimes', 'node:' + process.execPath];
   if (cookieArgs.length > 0) {
     return args.concat(cookieArgs);
   }
@@ -1223,7 +1223,7 @@ function audioViaYtDlp(youtubeId) {
       const target = 'https://www.youtube.com/watch?v=' + cleanId;
       execFile(bin, [
         '-g',
-        '-f', '140/bestaudio[ext=m4a]/bestaudio',
+        '-f', '140/bestaudio[ext=m4a]/ba/b/best',
         ...ytDlpArgs(),
         target
       ], { timeout: 3500 }, (err, stdout, stderr) => {
@@ -1295,7 +1295,7 @@ function resolveViaYtDlpSearch(artist, title) {
       execFile(bin, [
         '--print', 'id',
         '-g',
-        '-f', '140/bestaudio[ext=m4a]/bestaudio',
+        '-f', '140/bestaudio[ext=m4a]/ba/b/best',
         ...ytDlpArgs(),
         searchQuery
       ], { timeout: 25000 }, (err, stdout) => {
@@ -1305,7 +1305,7 @@ function resolveViaYtDlpSearch(artist, title) {
           execFile(bin, [
             '--print', 'id',
             '-g',
-            '-f', '140/bestaudio[ext=m4a]/bestaudio',
+            '-f', '140/bestaudio[ext=m4a]/ba/b/best',
             ...ytDlpArgs(),
             fallbackQ
           ], { timeout: 25000 }, (err2, stdout2) => {
@@ -1428,7 +1428,7 @@ async function fetchAudioBufferWithYtDlp({ youtubeId, artist, title }) {
       return await new Promise((resolve) => {
         const proc = spawn(binPath, [
           '-o', '-',
-          '-f', '140/bestaudio[ext=m4a]/bestaudio',
+          '-f', '140/bestaudio[ext=m4a]/ba/b/best',
           ...ytDlpArgs(),
           target
         ]);
@@ -1658,9 +1658,12 @@ async function handleMusicStream(req, res, pathname, query) {
     const expectedDurationSec = parseInt(query.dur || 0, 10);
     const hasCookies = ytDlpCookieArgs().length > 0;
 
-    // 2b. Con cookies configuradas o ID conocido, YouTube entrega la versión de estudio oficial original
+    // 2b. Con cookies configuradas o ID conocido, YouTube entrega la versión de estudio oficial original (máx 4s)
     if (hasCookies || youtubeId) {
-      const stream = await resolveAudioStream({ youtubeId, artist, title, expectedDurationSec });
+      const stream = await Promise.race([
+        resolveAudioStream({ youtubeId, artist, title, expectedDurationSec }),
+        new Promise((resolve) => setTimeout(() => resolve(null), 4000))
+      ]);
       if (stream && stream.url) {
         if (!forceProxy && !legacyNetcast && !isIpBoundUrl(stream.url)) {
           return redirectDirectStream(res, stream.url);

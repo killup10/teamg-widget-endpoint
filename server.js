@@ -233,6 +233,23 @@ const server = http.createServer((req, res) => {
   if (pathname.indexOf('/api/ott/music/stream') === 0 || pathname.indexOf('/api/ott/music/radio') === 0) {
     return require('./ott-music').handleMusicStream(req, res, pathname, query);
   }
+  if (pathname === '/api/ott/img') {
+    const target = String(query.url || '').trim();
+    if (!/^https?:\/\//i.test(target)) {
+      res.writeHead(400); return res.end();
+    }
+    const client = target.startsWith('https') ? require('https') : require('http');
+    const proxyReq = client.get(target, { headers: { 'User-Agent': 'Mozilla/5.0' }, timeout: 6000 }, (imgRes) => {
+      res.writeHead(imgRes.statusCode || 200, {
+        'Content-Type': imgRes.headers['content-type'] || 'image/jpeg',
+        'Access-Control-Allow-Origin': '*',
+        'Cache-Control': 'public, max-age=604800'
+      });
+      imgRes.pipe(res);
+    });
+    proxyReq.on('error', () => { if (!res.headersSent) { res.writeHead(404); res.end(); } });
+    return;
+  }
   if (pathname.indexOf('/api/ott/stream') === 0) {
     return ottApi.handleStream(req, res, query);
   }

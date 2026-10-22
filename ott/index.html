@@ -2281,6 +2281,12 @@ function resolveIconUrl(url) {
     return (API_BASE || '') + '/api/ott/icon/' + parts[1];
   }
   if (u.indexOf('/api/ott/subtitle/') !== -1) return (API_BASE || '') + '/api/ott/subtitle/' + u.split('/api/ott/subtitle/')[1];
+  var ua = (typeof navigator !== 'undefined' && navigator.userAgent) || '';
+  var isNetcast = (ua.indexOf('NetCast') !== -1 && ua.indexOf('Web0S') === -1 && ua.indexOf('webOS') === -1);
+  if (isNetcast && /^https?:\/\/(images\.unsplash\.com|is\d+-ssl\.mzstatic\.com|[^\/]*\.sndcdn\.com)/i.test(u)) {
+    var hostBase = (API_BASE || '').replace(/^https:/, 'http:');
+    return hostBase + '/api/ott/img?url=' + encodeURIComponent(u);
+  }
   return u;
 }
 
@@ -7383,7 +7389,7 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c, androidFallbackEngine) 
   state.tuningWatchdog = setInterval(function() {
     if (musicOnDemand && state.playerGeneration === musicGeneration &&
         !state.musicPlaybackFailed && v.currentTime === 0 &&
-        (new Date()).getTime() - musicLoadStarted > 18000) {
+        (new Date()).getTime() - musicLoadStarted > 25000) {
       failMusicPlayback();
       return;
     }
