@@ -1174,6 +1174,7 @@ function audioViaYtDlp(youtubeId) {
       execFile(bin, [
         '-g',
         '-f', '140/bestaudio[ext=m4a]/bestaudio',
+        '--extractor-args', 'youtube:player_client=visionos,mweb',
         '--no-warnings',
         '--no-playlist',
         target
@@ -1246,6 +1247,7 @@ function resolveViaYtDlpSearch(artist, title) {
         '--print', 'id',
         '-g',
         '-f', '140/bestaudio[ext=m4a]/bestaudio',
+        '--extractor-args', 'youtube:player_client=visionos,mweb',
         '--no-warnings',
         '--no-playlist',
         searchQuery
@@ -1257,7 +1259,8 @@ function resolveViaYtDlpSearch(artist, title) {
             '--print', 'id',
             '-g',
             '-f', '140/bestaudio[ext=m4a]/bestaudio',
-            '--no-warnings',
+            '--extractor-args', 'youtube:player_client=visionos,mweb',
+        '--no-warnings',
             '--no-playlist',
             fallbackQ
           ], { timeout: 25000 }, (err2, stdout2) => {
@@ -1381,7 +1384,8 @@ async function fetchAudioBufferWithYtDlp({ youtubeId, artist, title }) {
         const proc = spawn(binPath, [
           '-o', '-',
           '-f', '140/bestaudio[ext=m4a]/bestaudio',
-          '--no-warnings',
+          '--extractor-args', 'youtube:player_client=visionos,mweb',
+        '--no-warnings',
           '--no-playlist',
           target
         ]);

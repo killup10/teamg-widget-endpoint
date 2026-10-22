@@ -198,13 +198,13 @@ const server = http.createServer((req, res) => {
       const activeBin = fs.existsSync(bin) ? bin : (logs.ensured && fs.existsSync(logs.ensured) ? logs.ensured : null);
       if (activeBin) {
         try {
-          logs.version = execFileSync(activeBin, ['--version'], { encoding: 'utf8', timeout: 5000 }).trim();
+          logs.version = execFileSync(activeBin, ['--version'], { encoding: 'utf8', timeout: 30000 }).trim();
         } catch (e) {
           logs.verErr = e.message;
         }
         try {
           logs.execTest = await new Promise(r => {
-            execFile(activeBin, ['-g', '-f', '140/bestaudio[ext=m4a]/bestaudio', '--no-warnings', '--no-playlist', 'https://www.youtube.com/watch?v=zokUHAyGh2Y'], { timeout: 25000 }, (err, stdout, stderr) => {
+            execFile(activeBin, ['-g', '-f', '140/bestaudio[ext=m4a]/bestaudio', '--extractor-args', 'youtube:player_client=visionos,mweb', '--no-warnings', '--no-playlist', 'https://www.youtube.com/watch?v=zokUHAyGh2Y'], { timeout: 25000 }, (err, stdout, stderr) => {
               r({ err: err ? err.message : null, stdout: stdout ? stdout.substring(0, 100) : null, stderr: stderr ? stderr.substring(0, 100) : null });
             });
           });
