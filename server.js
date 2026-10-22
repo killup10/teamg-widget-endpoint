@@ -169,26 +169,38 @@ const server = http.createServer((req, res) => {
   }
   if (pathname === '/api/ott/music/debug') {
     return (async () => {
-      let debugText = '';
-      try {
-        const res = await fetch('https://www.youtube.com/youtubei/v1/player?prettyPrint=false', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'User-Agent': 'com.google.android.youtube/20.10.38 (Linux; U; Android 11) gzip'
-          },
-          body: JSON.stringify({
-            videoId: 'doLMt10ytHY',
-            context: { client: { clientName: 'ANDROID', clientVersion: '20.10.38', hl: 'en', gl: 'US' } }
-          })
-        });
-        const text = await res.text();
-        debugText = 'Status: ' + res.status + ' | ' + text.substring(0, 400);
-      } catch (e) {
-        debugText = 'Error: ' + e.message;
+      const results = {};
+      const vid = 'doLMt10ytHY';
+      const clients = [
+        { name: 'ANDROID', clientName: 'ANDROID', clientVersion: '20.10.38', ua: 'com.google.android.youtube/20.10.38 (Linux; U; Android 11) gzip' },
+        { name: 'IOS', clientName: 'IOS', clientVersion: '20.03.02', ua: 'com.google.ios.youtube/20.03.02 (iPhone16,2; U; CPU iOS 18_2_1 like Mac OS X;)' },
+        { name: 'TVHTML5', clientName: 'TVHTML5', clientVersion: '7.20230405.08.01', ua: 'Mozilla/5.0 (SMART-TV; Linux; Tizen 6.0) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/4.0 Chrome/76.0.3809.146 TV Safari/537.36' },
+        { name: 'WEB', clientName: 'WEB', clientVersion: '2.20240101.01.00', ua: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+      ];
+      for (const c of clients) {
+        try {
+          const res = await fetch('https://www.youtube.com/youtubei/v1/player?prettyPrint=false', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'User-Agent': c.ua },
+            body: JSON.stringify({ videoId: vid, context: { client: { clientName: c.clientName, clientVersion: c.clientVersion, hl: 'en', gl: 'US' } } }),
+            signal: AbortSignal.timeout(5000)
+          });
+          const text = await res.text();
+          if (text.startsWith('{')) {
+            const j = JSON.parse(text);
+            const status = j.playabilityStatus?.status;
+            const adaptive = j.streamingData?.adaptiveFormats || [];
+            const withUrl = adaptive.filter(f => f.url).map(f => f.itag);
+            results[c.name] = { httpStatus: res.status, playability: status, formatsWithUrl: withUrl };
+          } else {
+            results[c.name] = { httpStatus: res.status, htmlSnippet: text.substring(0, 150) };
+          }
+        } catch (e) {
+          results[c.name] = { err: e.message };
+        }
       }
-      res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
-      res.end(debugText);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(results, null, 2));
     })();
   }
   if (pathname.indexOf('/api/ott/music/lyrics') === 0) {
