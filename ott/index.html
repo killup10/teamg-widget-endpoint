@@ -2117,7 +2117,14 @@ body.text-large .drawer-num { font-size: 25px !important; }
       <div style="display:inline-block;width:16vh;height:16vh;border:3px solid #e6b75a;border-radius:10px;overflow:hidden;background:#241116;vertical-align:middle;box-shadow:0 4px 16px rgba(0,0,0,0.6);">
         <img id="player-music-cover" src="" style="width:100%;height:100%;display:none;" />
       </div>
-      <div id="player-music-badge" style="margin-top:1.2vh;font-size:1.8vh;color:#e6b75a;font-weight:bold;letter-spacing:2px;cursor:pointer;" title="Clic para alternar Karaoke">🎵 TEAMG MUSIC</div>
+      <div style="margin-top:1.2vh;text-align:center;">
+        <span id="player-music-badge" style="display:inline-block;font-size:1.8vh;color:#e6b75a;font-weight:bold;letter-spacing:2px;cursor:pointer;vertical-align:middle;" title="Clic para alternar Karaoke">🎵 TEAMG MUSIC</span>
+        <span id="player-music-sync-box" style="display:none;margin-left:1.5vw;font-size:1.5vh;color:#cbb8c3;vertical-align:middle;">
+          <span id="lyrics-sync-minus" style="display:inline-block;padding:2px 8px;margin-right:4px;background:#241116;border:1px solid #e6b75a;border-radius:4px;color:#e6b75a;cursor:pointer;font-weight:bold;vertical-align:middle;" title="Retrasar letra 0.5s">-0.5s</span>
+          <span id="lyrics-sync-val" style="display:inline-block;min-width:3.5vw;color:#ffffff;font-weight:bold;text-align:center;vertical-align:middle;">0.0s</span>
+          <span id="lyrics-sync-plus" style="display:inline-block;padding:2px 8px;margin-left:4px;background:#241116;border:1px solid #e6b75a;border-radius:4px;color:#e6b75a;cursor:pointer;font-weight:bold;vertical-align:middle;" title="Adelantar letra 0.5s">+0.5s</span>
+        </span>
+      </div>
       <div id="player-music-title" style="margin:0.5vh auto 0 auto;max-width:84vw;font-size:2.8vh;color:#ffffff;font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
       <div id="player-music-sub" style="margin-top:0.3vh;font-size:1.8vh;color:#cbb8c3;"></div>
       <div id="player-music-lyrics-box" style="display:none;margin:2vh auto 0 auto;max-width:92vw;width:92vw;text-align:center;">
@@ -5771,7 +5778,10 @@ function cleanPlayerEngines() {
     if (ms) ms.style.display = 'none';
     var lb = $('player-music-lyrics-box');
     if (lb) lb.style.display = 'none';
+    var sb = $('player-music-sync-box');
+    if (sb) sb.style.display = 'none';
     state.activeLyrics = null;
+    state.lyricsOffset = 0;
     state._lastActiveLyricText = null;
     state._lastNextLyricText = null;
     state._lastNext2LyricText = null;
@@ -5909,12 +5919,17 @@ function stopLyricsTimer() {
 
 function loadSongLyrics(item) {
   state.activeLyrics = null;
+  state.lyricsOffset = 0;
   state._lastActiveLyricText = null;
   state._lastNextLyricText = null;
   state._lastNext2LyricText = null;
   state._lastPrevLyricText = null;
   var box = $('player-music-lyrics-box');
   if (box) box.style.display = 'none';
+  var syncBox = $('player-music-sync-box');
+  if (syncBox) syncBox.style.display = 'none';
+  var syncVal = $('lyrics-sync-val');
+  if (syncVal) syncVal.textContent = '0.0s';
   var badge = $('player-music-badge');
   if (badge) badge.textContent = '🎵 TEAMG MUSIC';
   if (!item || !item.url || item.url.indexOf('/api/ott/music/radio') !== -1) return;
@@ -5933,7 +5948,9 @@ function loadSongLyrics(item) {
         var data = JSON.parse(xhr.responseText);
         if (data && data.ok && data.synced && data.cues && data.cues.length > 0) {
           state.activeLyrics = data.cues;
+          state.lyricsOffset = 0;
           if (box) box.style.display = (state.lyricsEnabled !== false) ? 'block' : 'none';
+          if (syncBox) syncBox.style.display = (state.lyricsEnabled !== false) ? 'inline-block' : 'none';
           if (badge) badge.textContent = '🎤 KARAOKE EN VIVO';
           var curSec = 0;
           var v = $('video-el');
@@ -5947,10 +5964,25 @@ function loadSongLyrics(item) {
   xhr.send();
 }
 
+function adjustLyricsSync(delta) {
+  state.lyricsOffset = Math.round(((state.lyricsOffset || 0) + delta) * 10) / 10;
+  var sval = $('lyrics-sync-val');
+  if (sval) {
+    var sign = state.lyricsOffset > 0 ? '+' : '';
+    sval.textContent = sign + state.lyricsOffset.toFixed(1) + 's';
+  }
+  var v = $('video-el');
+  if (v && typeof v.currentTime === 'number') {
+    updateMusicLyrics(v.currentTime);
+  }
+  showToast('Sincronización Karaoke: ' + (state.lyricsOffset > 0 ? '+' : '') + state.lyricsOffset.toFixed(1) + 's');
+}
+
 function updateMusicLyrics(currentTime) {
   if (!state.activeLyrics || state.lyricsEnabled === false || state.activeLyrics.length === 0) return;
   var cues = state.activeLyrics;
-  var t = currentTime + 0.15;
+  var offset = (typeof state.lyricsOffset === 'number' && !isNaN(state.lyricsOffset)) ? state.lyricsOffset : 0;
+  var t = (typeof currentTime === 'number' && !isNaN(currentTime)) ? (currentTime + offset) : 0;
   var idx = -1;
   for (var i = 0; i < cues.length; i++) {
     if (t >= cues[i].time) {
@@ -7836,6 +7868,8 @@ $('btnPlayerSubs').onclick = function(e) {
     state.lyricsEnabled = (state.lyricsEnabled === false);
     var box = $('player-music-lyrics-box');
     if (box) box.style.display = (state.lyricsEnabled && state.activeLyrics && state.activeLyrics.length > 0) ? 'block' : 'none';
+    var syncBox = $('player-music-sync-box');
+    if (syncBox) syncBox.style.display = (state.lyricsEnabled && state.activeLyrics && state.activeLyrics.length > 0) ? 'inline-block' : 'none';
     var badge = $('player-music-badge');
     if (badge) badge.textContent = state.lyricsEnabled ? '🎤 KARAOKE EN VIVO' : '🎵 TEAMG MUSIC';
     if (state.lyricsEnabled) startLyricsTimer(); else stopLyricsTimer();
@@ -8001,6 +8035,33 @@ if (pContainerEl) {
         resetPlayerOverlayTimer();
       }
     }
+  };
+}
+
+// Controles de Karaoke y calibración de sincronización
+var pBadge = $('player-music-badge');
+if (pBadge) {
+  pBadge.onclick = function(e) {
+    var ev = e || window.event;
+    if (ev && ev.stopPropagation) ev.stopPropagation();
+    var btnSubs = $('btnPlayerSubs');
+    if (btnSubs && btnSubs.onclick) btnSubs.onclick(ev);
+  };
+}
+var pSyncMinus = $('lyrics-sync-minus');
+if (pSyncMinus) {
+  pSyncMinus.onclick = function(e) {
+    var ev = e || window.event;
+    if (ev && ev.stopPropagation) ev.stopPropagation();
+    adjustLyricsSync(-0.5);
+  };
+}
+var pSyncPlus = $('lyrics-sync-plus');
+if (pSyncPlus) {
+  pSyncPlus.onclick = function(e) {
+    var ev = e || window.event;
+    if (ev && ev.stopPropagation) ev.stopPropagation();
+    adjustLyricsSync(0.5);
   };
 }
 

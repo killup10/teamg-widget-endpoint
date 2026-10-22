@@ -125,34 +125,34 @@ const LIVE_RADIOS = [
 // ── Catálogo Base Curado de Respuesta Instantánea (0ms latencia en TV) ───────
 const CURATED_TRACKS = [
   // Más Escuchado (Top Global)
-  { artist: 'KAROL G, Judeline & rusowsky', title: 'BbY WOW', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'KAROL G', title: 'LATINA FOREVA', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Karol G', title: 'Si Antes Te Hubiera Conocido', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Bad Bunny', title: 'MONACO', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80' },
+  { artist: 'KAROL G, Judeline & rusowsky', title: 'BbY WOW', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80', youtubeId: 'fRIhCiUVaKs' },
+  { artist: 'KAROL G', title: 'LATINA FOREVA', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80', youtubeId: 'BgMU9Vuj17Y' },
+  { artist: 'Karol G', title: 'Si Antes Te Hubiera Conocido', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80', youtubeId: 'QCZZwZQ4qNs' },
+  { artist: 'Bad Bunny', title: 'MONACO', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80', youtubeId: 'Pt0gH4H_NQw' },
   { artist: 'Bad Bunny', title: 'Yonaguni', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80' },
   { artist: 'Bad Bunny', title: 'Efecto', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80' },
   { artist: 'Fuerza Regida & Grupo Frontera', title: 'COQUETA', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=600&auto=format&fit=crop&q=80' },
   { artist: 'Rauw Alejandro', title: 'Dile a El', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=600&auto=format&fit=crop&q=80' },
   { artist: 'Feid & Atl Jacob', title: 'LUNA', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Lady Gaga & Bruno Mars', title: 'Die With A Smile', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'FloyyMenor & Cris MJ', title: 'Gata Only', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=600&auto=format&fit=crop&q=80' },
+  { artist: 'Lady Gaga & Bruno Mars', title: 'Die With A Smile', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80', youtubeId: 'kPa7bsKwL-8' },
+  { artist: 'FloyyMenor & Cris MJ', title: 'Gata Only', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=600&auto=format&fit=crop&q=80', youtubeId: 'sMdf_V_3Vl8' },
   { artist: 'Myke Towers', title: 'LALA', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'The Weeknd', title: 'Blinding Lights', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=600&auto=format&fit=crop&q=80' },
+  { artist: 'The Weeknd', title: 'Blinding Lights', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=600&auto=format&fit=crop&q=80', youtubeId: '4NRXx6U8ABQ' },
   { artist: 'Rauw Alejandro', title: 'Todo De Ti', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=600&auto=format&fit=crop&q=80' },
   { artist: 'Shakira & Bizarrap', title: 'Bzrp Music Sessions, Vol. 53', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80' },
   { artist: 'Quevedo & Bizarrap', title: 'Bzrp Music Sessions, Vol. 52', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80' },
   { artist: 'Dua Lipa', title: 'Levitating', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Miley Cyrus', title: 'Flowers', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=600&auto=format&fit=crop&q=80' },
+  { artist: 'Miley Cyrus', title: 'Flowers', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=600&auto=format&fit=crop&q=80', youtubeId: 'G7KNmW9a75Y' },
 
   // Reggaetón & Urbano
-  { artist: 'KAROL G, Judeline & rusowsky', title: 'BbY WOW', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'KAROL G', title: 'AMARGURA', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Karol G & Shakira', title: 'TQG', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Karol G', title: 'Provenza', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Karol G & Peso Pluma', title: 'Qlona', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Bad Bunny', title: 'Tití Me Preguntó', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Bad Bunny & Chencho Corleone', title: 'Me Porto Bonito', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80' },
-  { artist: 'Bad Bunny & JHAYCO', title: 'DÁKITI', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80' },
+  { artist: 'KAROL G, Judeline & rusowsky', title: 'BbY WOW', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80', youtubeId: 'fRIhCiUVaKs' },
+  { artist: 'KAROL G', title: 'AMARGURA', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80', youtubeId: 'q8Dk8O_F1lA' },
+  { artist: 'Karol G & Shakira', title: 'TQG', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80', youtubeId: 'jZGnkIkvDT8' },
+  { artist: 'Karol G', title: 'Provenza', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80', youtubeId: 'ca48oMV5GwU' },
+  { artist: 'Karol G & Peso Pluma', title: 'Qlona', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80', youtubeId: 'm4XJ8rP4zLg' },
+  { artist: 'Bad Bunny', title: 'Tití Me Preguntó', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80', youtubeId: '10EX-_h4pYc' },
+  { artist: 'Bad Bunny & Chencho Corleone', title: 'Me Porto Bonito', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80', youtubeId: 'saGYMhAprLM' },
+  { artist: 'Bad Bunny & JHAYCO', title: 'DÁKITI', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80', youtubeId: 'TmKh7lAwnBI' },
   { artist: 'Feid', title: 'Feliz Cumpleaños Ferxxo', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80' },
   { artist: 'Feid & Young Miko', title: 'Classy 101', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80' },
   { artist: 'Daddy Yankee', title: 'Gasolina', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=600&auto=format&fit=crop&q=80' },
@@ -442,7 +442,8 @@ async function resolveViaSoundCloudBuffer(artist, title) {
     const wantsRemix = /(remix|live|en vivo|cover|instrumental|karaoke)/i.test(q);
     const cleanOrig = wantsRemix
       ? candidates
-      : candidates.filter((t) => !/(remix|mashup|edit|cover|karaoke|instrumental|slowed|reverb|tributo|remake|bootleg|sped|en vivo|live|circuit|dj )/i.test(t.title || ''));
+      : candidates.filter((t) => !/(remix|mashup|edit|cover|karaoke|instrumental|slowed|reverb|tributo|remake|bootleg|sped|en vivo|live|circuit|dj |\bmix\b|\bclub\b|\bflip\b)/i.test(t.title || ''));
+    if (!wantsRemix && cleanOrig.length === 0) return null;
     const best = cleanOrig[0] || candidates[0];
 
     const tr = best.media.transcodings.find((x) => !x.snipped && x.preset === 'aac_160k') ||
@@ -1260,8 +1261,8 @@ async function handleMusicStream(req, res, pathname, query) {
       audioBufferCache.delete(trackKey);
     }
 
-    // 2b. Fuente primaria (100% inmune a bloqueo de IP de Render/AWS): SoundCloud Full Track -> M4A Clásico Fast-Start
-    if (artist || title) {
+    // 2b. Fuente primaria: si no se especificó youtubeId de estudio oficial, intentar SoundCloud libre de remixes
+    if (!youtubeId && (artist || title)) {
       const scTrack = await resolveViaSoundCloudBuffer(artist, title);
       if (scTrack && scTrack.buffer && scTrack.buffer.length > 0) {
         setBoundedBufferCache(trackKey, {
