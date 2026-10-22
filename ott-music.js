@@ -255,7 +255,7 @@ async function getSoundCloudClientId(forceRefresh = false) {
     return cachedScClientId;
   }
   const ctl = new AbortController();
-  const timer = setTimeout(() => ctl.abort(), 6000);
+  const timer = setTimeout(() => ctl.abort(), 2500);
   try {
     const pageRes = await fetch('https://soundcloud.com/discover', {
       signal: ctl.signal,
@@ -914,13 +914,16 @@ async function searchYouTubeCandidatesHtml(query, expectedDurationSec = 0, requi
 }
 
 function isTrustedSoundCloudOriginal(track, artist, title) {
-  if (!track || !track.user || !track.user.verified || !artist || !title) return false;
+  if (!track || !track.user || !artist || !title) return false;
   const metadata = [track.title, track.description, track.user.username].join(' ');
   if (!isOriginalCandidate(metadata, title)) return false;
   const primaryArtist = String(artist).split(/\s*(?:&|,| feat\.? | ft\.? )\s*/i)[0];
   const artistWords = cleanTitleWords(primaryArtist);
   const ownerWords = cleanTitleWords([track.user.username, track.user.full_name].join(' '));
-  return artistWords.length > 0 && artistWords.every((word) => ownerWords.includes(word)) &&
+  const titleWords = cleanTitleWords(track.title);
+  const artistInTitle = artistWords.every((w) => titleWords.includes(w));
+  const artistInOwner = artistWords.every((w) => ownerWords.includes(w));
+  return artistWords.length > 0 && (artistInOwner || artistInTitle) &&
     matchesSongTitle(track.title, title);
 }
 
@@ -930,7 +933,7 @@ function isOriginalCandidate(title, requestedTitle = '') {
 }
 
 async function searchViaPiped(query, requestedTitle = '') {
-  for (const instance of PIPED_INSTANCES) {
+  for (const instance of PIPED_INSTANCES.slice(0, 1)) {
     try {
       const data = await fetchJsonWithTimeout(
         instance + '/search?q=' + encodeURIComponent(query) + '&filter=music_songs',
@@ -950,7 +953,7 @@ async function searchViaPiped(query, requestedTitle = '') {
 }
 
 async function searchViaInvidious(query, requestedTitle = '') {
-  for (const instance of INVIDIOUS_INSTANCES) {
+  for (const instance of INVIDIOUS_INSTANCES.slice(0, 1)) {
     try {
       const items = await fetchJsonWithTimeout(
         instance + '/api/v1/search?q=' + encodeURIComponent(query) + '&type=video',
@@ -1116,7 +1119,7 @@ async function audioViaYouTubeI(youtubeId) {
 async function audioViaPiped(youtubeId) {
   for (const instance of PIPED_INSTANCES) {
     try {
-      const data = await fetchJsonWithTimeout(instance + '/streams/' + encodeURIComponent(youtubeId), {}, 5000);
+      const data = await fetchJsonWithTimeout(instance + '/streams/' + encodeURIComponent(youtubeId), {}, 2500);
       const streams = Array.isArray(data && data.audioStreams) ? data.audioStreams : [];
       if (!streams.length) continue;
       const m4a = streams.find((s) => s.url && (s.mimeType || '').includes('mp4')) ||
@@ -1136,7 +1139,7 @@ async function audioViaPiped(youtubeId) {
 async function audioViaInvidious(youtubeId) {
   for (const instance of INVIDIOUS_INSTANCES) {
     try {
-      const data = await fetchJsonWithTimeout(instance + '/api/v1/videos/' + encodeURIComponent(youtubeId), {}, 5000);
+      const data = await fetchJsonWithTimeout(instance + '/api/v1/videos/' + encodeURIComponent(youtubeId), {}, 2500);
       const streams = Array.isArray(data && data.adaptiveFormats) ? data.adaptiveFormats : [];
       const m4a = streams.find((s) => s.url && (s.type || '').startsWith('audio/mp4')) ||
                   streams.find((s) => s.url && (s.type || '').startsWith('audio/'));
@@ -1218,7 +1221,7 @@ function audioViaYtDlp(youtubeId) {
         '-f', '140/bestaudio[ext=m4a]/bestaudio',
         ...ytDlpArgs(),
         target
-      ], { timeout: 7000 }, (err, stdout, stderr) => {
+      ], { timeout: 3500 }, (err, stdout, stderr) => {
         if (err || !stdout || !stdout.trim()) { noteYtDlpError(err, stderr); return resolve(null); }
         const url = stdout.trim().split(/\r?\n/)[0].trim();
         if (!url || !url.startsWith('http')) return resolve(null);
@@ -1647,7 +1650,27 @@ async function handleMusicStream(req, res, pathname, query) {
       audioBufferCache.delete(youtubeId.toLowerCase());
     }
 
-    // 2b. Fuente primaria ultra-rápida (~1.2s): Stream oficial de estudio resuelto vía YouTube Innertube
+    // 2b. Fuente primaria ultra-rápida y garantizada (~1.8s): SoundCloud directo (libre de bot challenges)
+    if (artist || title) {
+      const scTrack = await resolveViaSoundCloudBuffer(artist, title);
+      if (scTrack && scTrack.buffer && scTrack.buffer.length > 0) {
+        setBoundedBufferCache(trackKey, {
+          buffer: scTrack.buffer,
+          mimeType: scTrack.mimeType || 'video/mp4',
+          ts: Date.now()
+        });
+        if (youtubeId) {
+          setBoundedBufferCache(youtubeId.toLowerCase(), {
+            buffer: scTrack.buffer,
+            mimeType: scTrack.mimeType || 'video/mp4',
+            ts: Date.now()
+          });
+        }
+        return serveAudioBufferWithRange(req, res, scTrack.buffer, scTrack.mimeType || 'video/mp4');
+      }
+    }
+
+    // 2c. Respaldo secundario: Stream resuelto vía YouTube / yt-dlp
     const expectedDurationSec = parseInt(query.dur || 0, 10);
     const stream = await resolveAudioStream({ youtubeId, artist, title, expectedDurationSec });
     if (stream && stream.url) {
@@ -1655,19 +1678,6 @@ async function handleMusicStream(req, res, pathname, query) {
         return redirectDirectStream(res, stream.url);
       }
       return proxyUpstreamAudio(stream.url, req, res, 'video/mp4', stream.contentLength || null, 5, stream.userAgent || '');
-    }
-
-    // 2c. Respaldo secundario: SoundCloud (solo si YouTube no resolvió y estrictamente libre de remixes y edits)
-    if (artist || title) {
-      const scTrack = await resolveViaSoundCloudBuffer(artist, title);
-      if (scTrack && scTrack.buffer && scTrack.buffer.length > 0) {
-        setBoundedBufferCache(trackKey, {
-          buffer: scTrack.buffer,
-          mimeType: 'video/mp4',
-          ts: Date.now()
-        });
-        return serveAudioBufferWithRange(req, res, scTrack.buffer, 'video/mp4');
-      }
     }
 
     // 2d. Respaldo terciario: Extracción vía yt-dlp local si está presente en disco
@@ -2057,5 +2067,6 @@ module.exports = {
   isEmbedPlayable,
   ytDlpCookieArgs,
   parseLrcToCues,
-  isIpBoundUrl
+  isIpBoundUrl,
+  resolveViaSoundCloudBuffer
 };

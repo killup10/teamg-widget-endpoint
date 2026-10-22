@@ -6677,7 +6677,11 @@ function playItem(c, recovering) {
     loadSongLyrics(c);
   }
 
-  if ((isBitel || isCloudfront || isMusicStream) && isLegacyNetcast && !isPageHttps) {
+  if ((isBitel || isCloudfront) && isLegacyNetcast && !isPageHttps) {
+    if (playUrl.indexOf('https://') === 0) {
+      playUrl = 'http://' + playUrl.substring(8);
+    }
+  } else if (isMusicStream && isLegacyNetcast) {
     // Bitel y CloudFront soportan HTTP nativo en puerto 80 sin TLS; para NetCast antiguo y páginas HTTP
     // usamos http:// directamente para compatibilidad 100% nativa evitando fallos de TLS 1.0 (Alert 70).
     if (playUrl.indexOf('https://') === 0) {
@@ -7378,7 +7382,7 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c, androidFallbackEngine) 
   state.tuningWatchdog = setInterval(function() {
     if (musicOnDemand && state.playerGeneration === musicGeneration &&
         !state.musicPlaybackFailed && v.currentTime === 0 &&
-        (new Date()).getTime() - musicLoadStarted > 45000) {
+        (new Date()).getTime() - musicLoadStarted > 18000) {
       failMusicPlayback();
       return;
     }
