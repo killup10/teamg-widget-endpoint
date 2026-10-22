@@ -167,6 +167,56 @@ const server = http.createServer((req, res) => {
   if (pathname.indexOf('/api/ott/android-audio/') === 0 && (req.method === 'GET' || req.method === 'HEAD')) {
     return require('./android-audio').serve(req, res, pathname);
   }
+  if (pathname === '/api/ott/music/debug') {
+    const { execFile, execFileSync } = require('child_process');
+    const { getYtDlpPath, ensureYtDlp } = require('./scripts/ensure-yt-dlp');
+    return (async () => {
+      const logs = {};
+      const bin = getYtDlpPath();
+      logs.binPath = bin;
+      logs.binExists = fs.existsSync(bin);
+      if (fs.existsSync('./bin')) {
+        logs.binDirContents = fs.readdirSync('./bin');
+      } else {
+        logs.binDirContents = 'no ./bin directory';
+      }
+      try {
+        logs.platform = process.platform;
+        logs.arch = process.arch;
+      } catch (e) {}
+
+      if (!logs.binExists) {
+        try {
+          const fresh = await ensureYtDlp();
+          logs.ensured = fresh;
+          logs.freshExists = fs.existsSync(fresh);
+        } catch (e) {
+          logs.ensureErr = e.message;
+        }
+      }
+
+      const activeBin = fs.existsSync(bin) ? bin : (logs.ensured && fs.existsSync(logs.ensured) ? logs.ensured : null);
+      if (activeBin) {
+        try {
+          logs.version = execFileSync(activeBin, ['--version'], { encoding: 'utf8', timeout: 5000 }).trim();
+        } catch (e) {
+          logs.verErr = e.message;
+        }
+        try {
+          logs.execTest = await new Promise(r => {
+            execFile(activeBin, ['-g', '-f', '140/bestaudio[ext=m4a]/bestaudio', '--no-warnings', '--no-playlist', 'https://www.youtube.com/watch?v=zokUHAyGh2Y'], { timeout: 12000 }, (err, stdout, stderr) => {
+              r({ err: err ? err.message : null, stdout: stdout ? stdout.substring(0, 100) : null, stderr: stderr ? stderr.substring(0, 100) : null });
+            });
+          });
+        } catch (e) {
+          logs.execCatch = e.message;
+        }
+      }
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(logs, null, 2));
+    })();
+  }
   if (pathname.indexOf('/api/ott/music/lyrics') === 0) {
     return require('./ott-music').handleMusicLyrics(req, res, pathname, query);
   }
