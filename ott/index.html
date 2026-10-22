@@ -6051,7 +6051,7 @@ function loadSongLyrics(item) {
   var syncVal = $('lyrics-sync-val');
   if (syncVal) syncVal.textContent = '0.0s';
   var badge = $('player-music-badge');
-  if (badge) badge.textContent = '🎵 TEAMG MUSIC';
+  if (badge) badge.textContent = '🎵 TEAMG MUSIC · AUDIO ORIGINAL';
   if (!item || !item.url || item.url.indexOf('/api/ott/music/radio') !== -1) return;
   var info = extractTrackInfo(item);
   var artist = info.artist;
@@ -6072,7 +6072,7 @@ function loadSongLyrics(item) {
           state.lyricsOffset = 0;
           if (box) box.style.display = (state.lyricsEnabled !== false) ? 'block' : 'none';
           if (syncBox) syncBox.style.display = (state.lyricsEnabled !== false) ? 'inline-block' : 'none';
-          if (badge) badge.textContent = '🎤 KARAOKE EN VIVO';
+          if (badge) badge.textContent = '🎤 KARAOKE EN VIVO · AUDIO ORIGINAL';
           var curSec = 0;
           var v = $('video-el');
           if (v && v.currentTime > 0) curSec = v.currentTime;
@@ -6660,7 +6660,8 @@ function playItem(c, recovering) {
     }
     var mYt = streamUrl.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
     var musicYtId = (c && c.youtubeId) || (mYt ? mYt[1] : '');
-    $('player-res').textContent = (streamUrl.indexOf('/api/ott/music/radio') !== -1) ? 'RADIO 24/7' : 'AUDIO HD';
+    var isRadio = (streamUrl.indexOf('/api/ott/music/radio') !== -1);
+    $('player-res').textContent = isRadio ? 'RADIO 24/7' : 'ORIGINAL DE ESTUDIO';
     var mStage = $('player-music-stage');
     if (mStage) {
       var mCov = $('player-music-cover');
@@ -6671,7 +6672,7 @@ function playItem(c, recovering) {
       var mTit = $('player-music-title');
       if (mTit) mTit.textContent = c.name || '';
       var mSub = $('player-music-sub');
-      if (mSub) mSub.textContent = c.group || '🎵 TeamG Music';
+      if (mSub) mSub.textContent = (c.group ? (c.group + ' · ') : '') + 'Audio Original Oficial';
       mStage.style.display = 'block';
     }
     loadSongLyrics(c);

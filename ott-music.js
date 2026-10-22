@@ -1202,8 +1202,13 @@ function noteYtDlpError(err, stderr) {
 }
 
 function ytDlpArgs() {
+  const cookieArgs = ytDlpCookieArgs();
+  const args = ['--no-warnings', '--no-playlist'];
+  if (cookieArgs.length > 0) {
+    return args.concat(cookieArgs);
+  }
   const clients = process.env.YTDLP_CLIENTS || 'visionos,mweb';
-  return ['--extractor-args', 'youtube:player_client=' + clients, '--no-warnings', '--no-playlist'].concat(ytDlpCookieArgs());
+  return ['--extractor-args', 'youtube:player_client=' + clients].concat(args);
 }
 
 function audioViaYtDlp(youtubeId) {
@@ -1650,7 +1655,22 @@ async function handleMusicStream(req, res, pathname, query) {
       audioBufferCache.delete(youtubeId.toLowerCase());
     }
 
-    // 2b. Fuente primaria ultra-rápida y garantizada (~1.8s): SoundCloud directo (libre de bot challenges)
+    const expectedDurationSec = parseInt(query.dur || 0, 10);
+    const hasCookies = ytDlpCookieArgs().length > 0;
+
+    // 2b. Con cookies configuradas o ID conocido, YouTube entrega la versión de estudio oficial original
+    if (hasCookies || youtubeId) {
+      const stream = await resolveAudioStream({ youtubeId, artist, title, expectedDurationSec });
+      if (stream && stream.url) {
+        if (!forceProxy && !legacyNetcast && !isIpBoundUrl(stream.url)) {
+          return redirectDirectStream(res, stream.url);
+        }
+        try { res.setHeader('X-Audio-Source', 'YouTube Studio Master'); } catch (_) {}
+        return proxyUpstreamAudio(stream.url, req, res, 'video/mp4', stream.contentLength || null, 5, stream.userAgent || '');
+      }
+    }
+
+    // 2c. Respaldo: SoundCloud (si YouTube no está disponible o falla)
     if (artist || title) {
       const scTrack = await resolveViaSoundCloudBuffer(artist, title);
       if (scTrack && scTrack.buffer && scTrack.buffer.length > 0) {
@@ -1666,18 +1686,9 @@ async function handleMusicStream(req, res, pathname, query) {
             ts: Date.now()
           });
         }
+        try { res.setHeader('X-Audio-Source', 'SoundCloud Buffer'); } catch (_) {}
         return serveAudioBufferWithRange(req, res, scTrack.buffer, scTrack.mimeType || 'video/mp4');
       }
-    }
-
-    // 2c. Respaldo secundario: Stream resuelto vía YouTube / yt-dlp
-    const expectedDurationSec = parseInt(query.dur || 0, 10);
-    const stream = await resolveAudioStream({ youtubeId, artist, title, expectedDurationSec });
-    if (stream && stream.url) {
-      if (!forceProxy && !legacyNetcast && !isIpBoundUrl(stream.url)) {
-        return redirectDirectStream(res, stream.url);
-      }
-      return proxyUpstreamAudio(stream.url, req, res, 'video/mp4', stream.contentLength || null, 5, stream.userAgent || '');
     }
 
     // 2d. Respaldo terciario: Extracción vía yt-dlp local si está presente en disco
