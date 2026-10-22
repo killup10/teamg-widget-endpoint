@@ -168,15 +168,34 @@ const server = http.createServer((req, res) => {
     return require('./android-audio').serve(req, res, pathname);
   }
   if (pathname === '/api/ott/music/debug') {
-    const ottMusic = require('./ott-music');
     return (async () => {
       const logs = [];
       const testVid = 'doLMt10ytHY';
       try {
-        const stream = await ottMusic.resolveAudioStream({ youtubeId: testVid, artist: 'Bad Bunny', title: 'Yonaguni' });
-        logs.push({ step: 'resolveAudioStream', ok: !!stream, stream: stream ? { mime: stream.mimeType, len: stream.contentLength, url: stream.url.substring(0, 80) } : null });
+        // Test InnerTube directly
+        const res = await fetch('https://www.youtube.com/youtubei/v1/player?prettyPrint=false', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'User-Agent': 'com.google.android.youtube/20.10.38 (Linux; U; Android 11) gzip'
+          },
+          body: JSON.stringify({
+            videoId: testVid,
+            context: { client: { clientName: 'ANDROID', clientVersion: '20.10.38', hl: 'en', gl: 'US' } }
+          })
+        });
+        const d = await res.json();
+        const playability = d.playabilityStatus;
+        const formats = (d.streamingData?.adaptiveFormats || []).map(f => ({ itag: f.itag, mime: f.mimeType, hasUrl: !!f.url, urlLen: f.url ? f.url.length : 0 }));
+        logs.push({ step: 'innertube', status: res.status, playability, formatCount: formats.length, first3: formats.slice(0, 3) });
+
+        const m4a = (d.streamingData?.adaptiveFormats || []).find(f => f.itag === 140 || (f.mimeType && f.mimeType.includes('audio/mp4')));
+        if (m4a && m4a.url) {
+          const gRes = await fetch(m4a.url, { headers: { Range: 'bytes=0-1023', 'User-Agent': 'com.google.android.youtube/20.10.38 (Linux; U; Android 11) gzip' } });
+          logs.push({ step: 'googlevideo', status: gRes.status, type: gRes.headers.get('content-type') });
+        }
       } catch (e) {
-        logs.push({ step: 'resolveAudioStream', err: e.message });
+        logs.push({ step: 'error', msg: e.message });
       }
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(logs, null, 2));
