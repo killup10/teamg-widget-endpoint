@@ -10,6 +10,17 @@
 
 const http = require('http');
 const https = require('https');
+const { spawn } = require('child_process');
+let getYtDlpPath;
+try {
+  getYtDlpPath = require('./scripts/ensure-yt-dlp').getYtDlpPath;
+} catch (_) {
+  try {
+    getYtDlpPath = require('./ensure-yt-dlp').getYtDlpPath;
+  } catch (__) {
+    getYtDlpPath = () => (process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp');
+  }
+}
 
 const UA_BROWSER = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
 
@@ -125,7 +136,7 @@ const LIVE_RADIOS = [
 // ── Catálogo Base Curado de Respuesta Instantánea (0ms latencia en TV) ───────
 const CURATED_TRACKS = [
   // Más Escuchado (Top Global)
-  { artist: 'KAROL G, Judeline & rusowsky', title: 'BbY WOW', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80', youtubeId: 'bXBXlrsE0fI' },
+  { artist: 'KAROL G, Judeline & rusowsky', title: 'BbY WOW', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80', youtubeId: 'fRIhCiUVaKs' },
   { artist: 'KAROL G', title: 'LATINA FOREVA', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80', youtubeId: 'm_WdNBHsJLE' },
   { artist: 'Karol G', title: 'Si Antes Te Hubiera Conocido', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80', youtubeId: 'zokUHAyGh2Y' },
   { artist: 'Bad Bunny', title: 'MONACO', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80', youtubeId: 'YBi7d3wav5Q' },
@@ -145,7 +156,7 @@ const CURATED_TRACKS = [
   { artist: 'Miley Cyrus', title: 'Flowers', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=600&auto=format&fit=crop&q=80', youtubeId: 'SWpAYbgHmTo' },
 
   // Reggaetón & Urbano
-  { artist: 'KAROL G, Judeline & rusowsky', title: 'BbY WOW', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80', youtubeId: 'bXBXlrsE0fI' },
+  { artist: 'KAROL G, Judeline & rusowsky', title: 'BbY WOW', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80', youtubeId: 'fRIhCiUVaKs' },
   { artist: 'KAROL G', title: 'AMARGURA', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80', youtubeId: '99iTRF__BuM' },
   { artist: 'Karol G & Shakira', title: 'TQG', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80', youtubeId: '24o_iGVXlG0' },
   { artist: 'Karol G', title: 'Provenza', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80', youtubeId: 'kNgGWDn1zY4' },
@@ -1201,6 +1212,65 @@ async function resolveAudioStream({ youtubeId, artist, title, expectedDurationSe
 }
 
 // ── Proxy de Streaming de Audio y Radio para Smart TVs ──────────────────────
+const pendingAudioFetches = new Map();
+
+async function fetchAudioBufferWithYtDlp({ youtubeId, artist, title }) {
+  const cleanId = String(youtubeId || '').trim();
+  const cleanArtist = String(artist || '').trim();
+  const cleanTitle = String(title || '').trim();
+  const cacheKey = (cleanArtist + '|' + cleanTitle + '|' + cleanId).toLowerCase();
+  if (pendingAudioFetches.has(cacheKey)) {
+    return pendingAudioFetches.get(cacheKey);
+  }
+
+  const p = (async () => {
+    try {
+      const binPath = getYtDlpPath();
+      const hasId = /^[a-zA-Z0-9_-]{11}$/.test(cleanId);
+      const target = hasId
+        ? 'https://www.youtube.com/watch?v=' + cleanId
+        : 'ytsearch1:' + [cleanArtist, cleanTitle, 'audio oficial'].filter(Boolean).join(' - ').trim();
+
+      return await new Promise((resolve) => {
+        const proc = spawn(binPath, [
+          '-o', '-',
+          '-f', '140/bestaudio[ext=m4a]/bestaudio',
+          '--no-warnings',
+          '--no-playlist',
+          target
+        ]);
+        const chunks = [];
+        const timer = setTimeout(() => {
+          try { proc.kill('SIGKILL'); } catch (_) {}
+          resolve(null);
+        }, 25000);
+
+        proc.stdout.on('data', (c) => chunks.push(c));
+        proc.stderr.on('data', () => {});
+        proc.on('close', (code) => {
+          clearTimeout(timer);
+          if (code === 0 && chunks.length > 0) {
+            resolve(Buffer.concat(chunks));
+          } else {
+            resolve(null);
+          }
+        });
+        proc.on('error', () => {
+          clearTimeout(timer);
+          resolve(null);
+        });
+      });
+    } catch (e) {
+      return null;
+    } finally {
+      pendingAudioFetches.delete(cacheKey);
+    }
+  })();
+
+  pendingAudioFetches.set(cacheKey, p);
+  return p;
+}
+
 async function isPlayableAudioStream(stream) {
   try {
     const response = await fetch(stream.url, {
@@ -1247,21 +1317,26 @@ function proxyUpstreamAudio(targetUrl, req, res, defaultMime = 'audio/mp4', tota
   const clientRange = req.headers && req.headers.range;
   const isGoogleVideo = parsed.hostname.includes('googlevideo.com');
   if (clientRange) {
-    if (isGoogleVideo && totalLength) {
+    if (isGoogleVideo && totalLength && totalLength > 0) {
       const m = /^bytes=(\d+)-(\d*)$/.exec(String(clientRange).trim());
       if (m) {
-        const start = parseInt(m[1], 10);
-        const rawEnd = m[2] ? parseInt(m[2], 10) : Math.min(start + 2 * 1024 * 1024 - 1, totalLength - 1);
+        const start = parseInt(m[1], 10) || 0;
+        const maxChunk = 512 * 1024 - 1;
+        const rawEnd = m[2] ? parseInt(m[2], 10) : Math.min(start + maxChunk, totalLength - 1);
         const end = Math.min(rawEnd, totalLength - 1);
-        reqHeaders.Range = 'bytes=' + start + '-' + end;
+        if (end >= start) {
+          reqHeaders.Range = 'bytes=' + start + '-' + end;
+        } else {
+          reqHeaders.Range = 'bytes=' + start + '-';
+        }
       } else {
         reqHeaders.Range = clientRange;
       }
     } else {
       reqHeaders.Range = clientRange;
     }
-  } else if (isGoogleVideo && totalLength) {
-    reqHeaders.Range = 'bytes=0-' + (totalLength - 1);
+  } else if (isGoogleVideo && totalLength && totalLength > 0) {
+    reqHeaders.Range = 'bytes=0-' + Math.min(512 * 1024 - 1, totalLength - 1);
   }
 
   const upReq = mod.request(targetUrl, {
@@ -1378,7 +1453,18 @@ async function handleMusicStream(req, res, pathname, query) {
       audioBufferCache.delete(trackKey);
     }
 
-    // 2b. Fuente primaria: Audio Original de Estudio vía YouTube (100% puro, sin intros habladas ni remixes)
+    // 2b. Fuente primaria: Extracción completa y robusta vía yt-dlp (audio 100% original de estudio sin 403 ni 1MB gate)
+    const ytdlpBuf = await fetchAudioBufferWithYtDlp({ youtubeId, artist, title });
+    if (ytdlpBuf && ytdlpBuf.length > 0) {
+      setBoundedBufferCache(trackKey, {
+        buffer: ytdlpBuf,
+        mimeType: 'audio/mp4',
+        ts: Date.now()
+      });
+      return serveAudioBufferWithRange(req, res, ytdlpBuf, 'audio/mp4');
+    }
+
+    // 2c. Respaldo secundario: Stream resuelto vía YouTube Innertube
     const expectedDurationSec = parseInt(query.dur || 0, 10);
     const stream = await resolveAudioStream({ youtubeId, artist, title, expectedDurationSec });
     if (stream && stream.url) {
@@ -1585,6 +1671,24 @@ async function handleMusicLyrics(req, res, pathname, query) {
   }
 }
 
+function warmTopCuratedTracks() {
+  setTimeout(async () => {
+    const topTracks = CURATED_TRACKS.slice(0, 6);
+    for (const t of topTracks) {
+      const trackKey = (t.artist + '|' + t.title + '|' + (t.youtubeId || '')).toLowerCase();
+      if (!audioBufferCache.has(trackKey)) {
+        try {
+          const buf = await fetchAudioBufferWithYtDlp({ youtubeId: t.youtubeId, artist: t.artist, title: t.title });
+          if (buf && buf.length > 0) {
+            setBoundedBufferCache(trackKey, { buffer: buf, mimeType: 'audio/mp4', ts: Date.now() });
+          }
+        } catch (_) {}
+      }
+    }
+  }, 2500);
+}
+warmTopCuratedTracks();
+
 module.exports = {
   LIVE_RADIOS,
   CURATED_TRACKS,
@@ -1592,6 +1696,7 @@ module.exports = {
   searchItunesTracks,
   resolveYouTubeId,
   resolveAudioStream,
+  fetchAudioBufferWithYtDlp,
   handleMusicStream,
   handleMusicLyrics,
   parseLrcToCues,

@@ -341,5 +341,9 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`HTTP server running on port ${PORT}`);
+  console.log('HTTP server running on port ' + PORT);
+  try {
+    const { ensureYtDlp } = require('./scripts/ensure-yt-dlp');
+    ensureYtDlp().catch((e) => console.warn('[yt-dlp] Init warning:', e.message));
+  } catch (_) {}
 });

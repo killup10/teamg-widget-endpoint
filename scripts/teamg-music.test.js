@@ -193,6 +193,9 @@ const ottMusic = require('../ott-music');
   assert.ok(playHtml5Code.includes("var isLegacyNetcast = (ua.indexOf('NetCast') !== -1 && ua.indexOf('Web0S') === -1 && ua.indexOf('webOS') === -1);"), 'playHtml5 debe definir isLegacyNetcast');
   assert.ok(playHtml5Code.includes('_triedMusicProxy'), 'playHtml5 debe incluir lógica de fallback con proxy para música');
 
+  // 8. Validar extractor robusto de canciones completas yt-dlp
+  assert.equal(typeof ottMusic.fetchAudioBufferWithYtDlp, 'function', 'ottMusic debe exportar fetchAudioBufferWithYtDlp');
+
   console.log('TeamG Music OTT integration unit tests pass.');
 })().catch((err) => {
   console.error(err);

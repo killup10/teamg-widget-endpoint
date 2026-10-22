@@ -5,3 +5,6 @@ node_modules/
 .private-artwork/
 __pycache__/
 scratch/
+bin/
+yt-dlp
+yt-dlp.exe
