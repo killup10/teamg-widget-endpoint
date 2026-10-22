@@ -1852,6 +1852,92 @@ async function handleMusicLyrics(req, res, pathname, query) {
   }
 }
 
+// ── Resolución de Track Candidate para Smart TVs y Clientes Web ──────────────
+async function resolveTrackCandidate(artist, title, expectedDurationSec = 0) {
+  let cleanA = String(artist || '').trim();
+  let cleanT = String(title || '').trim();
+  const dur = parseInt(expectedDurationSec || 0, 10);
+
+  // Descartar si el artista recibido es una categoría con emojis
+  if (/[\uD800-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27BF]|Más Escuchado|Reggaetón|Salsa|Cumbia|Rock|Pop|Favoritos|Todos|Resultados de Búsqueda/i.test(cleanA)) {
+    cleanA = '';
+  }
+
+  // Si el título contiene em-dash (—), en-dash (–) o guion (-), separar título y artista
+  if (cleanT.includes('—') || cleanT.includes('–') || cleanT.includes(' - ')) {
+    const parts = cleanT.split(/\s*[\u2014\u2013-]\s*/);
+    if (parts.length >= 2) {
+      if (!cleanA) cleanA = parts.slice(1).join(' - ').trim();
+      cleanT = parts[0].trim();
+    }
+  }
+
+  const cacheKey = (cleanA + '|' + cleanT).toLowerCase();
+  if (resolveCache.has(cacheKey)) {
+    const entry = resolveCache.get(cacheKey);
+    if (Date.now() - entry.ts < RESOLVE_TTL_MS && entry.youtubeId) {
+      return entry.youtubeId;
+    }
+  }
+
+  // 1. Coincidencia exacta en CURATED_TRACKS (0ms)
+  const tNorm = cleanT.toLowerCase();
+  const aNorm = cleanA.toLowerCase();
+  for (const cur of CURATED_TRACKS) {
+    if (cur.youtubeId && cur.title.toLowerCase() === tNorm) {
+      if (!cleanA || cur.artist.toLowerCase().includes(aNorm) || aNorm.includes(cur.artist.toLowerCase())) {
+        setBoundedCache(resolveCache, cacheKey, { youtubeId: cur.youtubeId, ts: Date.now() });
+        return cur.youtubeId;
+      }
+    }
+  }
+  for (const cur of CURATED_TRACKS) {
+    if (cur.youtubeId && (cur.title.toLowerCase().includes(tNorm) || tNorm.includes(cur.title.toLowerCase()))) {
+      if (!cleanA || cur.artist.toLowerCase().includes(aNorm) || aNorm.includes(cur.artist.toLowerCase())) {
+        setBoundedCache(resolveCache, cacheKey, { youtubeId: cur.youtubeId, ts: Date.now() });
+        return cur.youtubeId;
+      }
+    }
+  }
+
+  // 2. Búsqueda HTML en YouTube oficial (filtra remixes, versiones en vivo y edits)
+  const q = [cleanA, cleanT, 'audio oficial'].filter(Boolean).join(' - ').trim();
+  if (q) {
+    try {
+      const foundId = await searchViaYouTubeHtml(q, dur, cleanT);
+      if (foundId) {
+        setBoundedCache(resolveCache, cacheKey, { youtubeId: foundId, ts: Date.now() });
+        return foundId;
+      }
+    } catch (eSearch) {}
+  }
+  return null;
+}
+
+async function handleMusicResolve(req, res, query) {
+  const artist = String(query.artist || '').trim();
+  const title = String(query.title || '').trim();
+  const dur = parseInt(query.dur || 0, 10);
+
+  if (!artist && !title) {
+    res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
+    return res.end(JSON.stringify({ ok: false, error: 'missing_params' }));
+  }
+
+  try {
+    const youtubeId = await resolveTrackCandidate(artist, title, dur);
+    res.writeHead(200, {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Access-Control-Allow-Origin': '*',
+      'Cache-Control': 'public, max-age=86400'
+    });
+    return res.end(JSON.stringify({ ok: !!youtubeId, youtubeId: youtubeId || null }));
+  } catch (err) {
+    res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
+    return res.end(JSON.stringify({ ok: false, error: err.message }));
+  }
+}
+
 function warmTopCuratedTracks() {
   setTimeout(async () => {
     const topTracks = CURATED_TRACKS.slice(0, 10);
@@ -1874,6 +1960,8 @@ module.exports = {
   fetchAudioBufferWithYtDlp,
   handleMusicStream,
   handleMusicLyrics,
+  handleMusicResolve,
+  resolveTrackCandidate,
   parseLrcToCues,
   isIpBoundUrl
 };

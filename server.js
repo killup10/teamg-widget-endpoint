@@ -220,6 +220,9 @@ const server = http.createServer((req, res) => {
   if (pathname.indexOf('/api/ott/music/lyrics') === 0) {
     return require('./ott-music').handleMusicLyrics(req, res, pathname, query);
   }
+  if (pathname.indexOf('/api/ott/music/resolve') === 0) {
+    return require('./ott-music').handleMusicResolve(req, res, query);
+  }
   if (pathname.indexOf('/api/ott/music/stream') === 0 || pathname.indexOf('/api/ott/music/radio') === 0) {
     return require('./ott-music').handleMusicStream(req, res, pathname, query);
   }
