@@ -136,8 +136,11 @@ const ottMusic = require('../ott-music');
   assert.equal(parsedCues[1].text, 'Segunda línea');
 
   assert.ok(html.includes('id="player-music-lyrics-box"'), 'ott/index.html debe incluir la caja de Karaoke para TV');
-  assert.ok(html.includes('id="player-music-lyric-active"'), 'ott/index.html debe incluir el elemento de línea activa');
+  assert.ok(html.includes('id="player-music-lyric-prev"'), 'ott/index.html debe incluir el elemento de línea previa');
+  assert.ok(html.includes('id="player-music-lyric-active"'), 'ott/index.html debe incluir el elemento de línea activa ampliada');
   assert.ok(html.includes('id="player-music-lyric-next"'), 'ott/index.html debe incluir el elemento de línea siguiente');
+  assert.ok(html.includes('id="player-music-lyric-next2"'), 'ott/index.html debe incluir el elemento de línea siguiente 2');
+  assert.ok(html.includes('function startLyricsTimer('), 'ott/index.html debe implementar temporizador de precisión startLyricsTimer');
   assert.ok(html.includes('function loadSongLyrics('), 'ott/index.html debe implementar loadSongLyrics');
   assert.ok(html.includes('function updateMusicLyrics('), 'ott/index.html debe implementar updateMusicLyrics');
   assert.ok(html.includes('function extractTrackInfo('), 'ott/index.html debe implementar extractTrackInfo');
