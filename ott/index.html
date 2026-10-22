@@ -5816,6 +5816,7 @@ function cleanPlayerEngines() {
   var ytCont = $('player-music-yt-container');
   if (ytCont) ytCont.style.display = 'none';
   state.currentMusicItem = null;
+  state.activeMusicYtId = '';
   state.musicYtActive = false;
   state.musicYtPaused = true;
   stopLyricsTimer();
@@ -6977,6 +6978,11 @@ function initYtPlayer(videoId) {
             hideTuning();
             state.musicYtPaused = false;
             $('btnPlayPause').textContent = '▶❚❚';
+            var cur = state.currentMusicItem || state.recoveryItem;
+            if (cur) {
+              cur._ytFailures = [];
+              cur._fallbackInProgress = false;
+            }
             startLyricsTimer();
           } else if (event.data === 2) {
             state.musicYtPaused = true;
@@ -6988,17 +6994,20 @@ function initYtPlayer(videoId) {
           if (event.data === 101 || event.data === 150 || event.data === 100 || event.data === 2) {
             var c = state.currentMusicItem || state.recoveryItem;
             if (c) {
+              if (c._fallbackInProgress) return;
+              c._fallbackInProgress = true;
               c._ytFailures = c._ytFailures || [];
-              var curId = c.youtubeId || (typeof ytMusicPlayer !== 'undefined' && ytMusicPlayer && ytMusicPlayer.getVideoData ? ytMusicPlayer.getVideoData().video_id : '');
+              var curId = state.activeMusicYtId || c.youtubeId || (typeof ytMusicPlayer !== 'undefined' && ytMusicPlayer && ytMusicPlayer.getVideoData ? ytMusicPlayer.getVideoData().video_id : '');
               if (curId && c._ytFailures.indexOf(curId) === -1) c._ytFailures.push(curId);
               
-              if (c._ytFailures.length <= 3) {
+              if (c._ytFailures.length <= 4) {
                 showToast('Buscando versión compatible sin restricciones...');
                 var info = extractTrackInfo(c);
                 var excludedStr = c._ytFailures.join(',');
                 var resolveUrl = (API_BASE || '') + '/api/ott/music/resolve?artist=' + encodeURIComponent(info.artist) +
                   '&title=' + encodeURIComponent(info.title) + '&exclude=' + encodeURIComponent(excludedStr) + '&alt=1';
                 apiCall('GET', resolveUrl, null, function(st, data) {
+                  c._fallbackInProgress = false;
                   if (st === 200 && data && data.ok && data.youtubeId && c._ytFailures.indexOf(data.youtubeId) === -1) {
                     c.youtubeId = data.youtubeId;
                     playMusicViaYt(data.youtubeId, c);
@@ -7011,6 +7020,7 @@ function initYtPlayer(videoId) {
                 });
                 return;
               }
+              c._fallbackInProgress = false;
             }
             showToast('Pista protegida por derechos de autor, pasando a la siguiente…');
             setTimeout(function() {
@@ -7030,6 +7040,7 @@ function initYtPlayer(videoId) {
 
 function playMusicViaYt(videoId, c) {
   state.currentMusicItem = c;
+  state.activeMusicYtId = videoId || '';
   state.musicYtActive = true;
   state.musicYtPaused = false;
   state.activeMusicCurrentTime = 0;
