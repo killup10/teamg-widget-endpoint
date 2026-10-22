@@ -1177,7 +1177,7 @@ function audioViaYtDlp(youtubeId) {
         '--no-warnings',
         '--no-playlist',
         target
-      ], { timeout: 12000 }, (err, stdout) => {
+      ], { timeout: 25000 }, (err, stdout) => {
         if (err || !stdout || !stdout.trim()) return resolve(null);
         const url = stdout.trim().split(/\r?\n/)[0].trim();
         if (!url || !url.startsWith('http')) return resolve(null);
@@ -1249,7 +1249,7 @@ function resolveViaYtDlpSearch(artist, title) {
         '--no-warnings',
         '--no-playlist',
         searchQuery
-      ], { timeout: 14000 }, (err, stdout) => {
+      ], { timeout: 25000 }, (err, stdout) => {
         if (err || !stdout || !stdout.trim()) {
           // 2. Segundo intento: official audio
           const fallbackQ = 'ytsearch1:' + [cleanA, cleanT, 'official audio'].filter(Boolean).join(' ');
@@ -1260,7 +1260,7 @@ function resolveViaYtDlpSearch(artist, title) {
             '--no-warnings',
             '--no-playlist',
             fallbackQ
-          ], { timeout: 12000 }, (err2, stdout2) => {
+          ], { timeout: 25000 }, (err2, stdout2) => {
             if (err2 || !stdout2 || !stdout2.trim()) return resolve(null);
             parseYtDlpSearchOutput(stdout2, resolve);
           });

@@ -204,7 +204,7 @@ const server = http.createServer((req, res) => {
         }
         try {
           logs.execTest = await new Promise(r => {
-            execFile(activeBin, ['-g', '-f', '140/bestaudio[ext=m4a]/bestaudio', '--no-warnings', '--no-playlist', 'https://www.youtube.com/watch?v=zokUHAyGh2Y'], { timeout: 12000 }, (err, stdout, stderr) => {
+            execFile(activeBin, ['-g', '-f', '140/bestaudio[ext=m4a]/bestaudio', '--no-warnings', '--no-playlist', 'https://www.youtube.com/watch?v=zokUHAyGh2Y'], { timeout: 25000 }, (err, stdout, stderr) => {
               r({ err: err ? err.message : null, stdout: stdout ? stdout.substring(0, 100) : null, stderr: stderr ? stderr.substring(0, 100) : null });
             });
           });

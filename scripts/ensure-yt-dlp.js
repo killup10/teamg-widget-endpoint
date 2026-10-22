@@ -50,11 +50,22 @@ async function ensureYtDlp() {
   // Si ya existe y es ejecutable, verificar versión
   if (fs.existsSync(binPath)) {
     try {
-      const ver = execFileSync(binPath, ['--version'], { encoding: 'utf8', timeout: 5000 }).trim();
+      const sz = fs.statSync(binPath).size;
+      if (sz > 20 * 1024 * 1024) {
+        if (!isWin) {
+          try { fs.chmodSync(binPath, 0o755); } catch (_) {}
+        }
+        return binPath;
+      }
+    } catch (_) {}
+    try {
+      const ver = execFileSync(binPath, ['--version'], { encoding: 'utf8', timeout: 30000 }).trim();
       return binPath;
     } catch (e) {
-      console.warn('[yt-dlp] Binario existente inválido, descargando versión fresca...');
-      try { fs.unlinkSync(binPath); } catch (_) {}
+      console.warn('[yt-dlp] Error al ejecutar binario existente:', e.message);
+      try {
+        if (fs.statSync(binPath).size < 1024 * 1024) fs.unlinkSync(binPath);
+      } catch (_) {}
     }
   }
 
@@ -72,7 +83,7 @@ async function ensureYtDlp() {
   await downloadFile(downloadUrl, binPath);
   if (!isWin) fs.chmodSync(binPath, 0o755);
 
-  const ver = execFileSync(binPath, ['--version'], { encoding: 'utf8', timeout: 5000 }).trim();
+  const ver = execFileSync(binPath, ['--version'], { encoding: 'utf8', timeout: 30000 }).trim();
   console.log('[yt-dlp] Descarga e instalación completada con éxito. Versión:', ver);
   return binPath;
 }
