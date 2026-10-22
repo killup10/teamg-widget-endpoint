@@ -207,16 +207,21 @@ const server = http.createServer((req, res) => {
         const clientList = String(query.clients || 'default').split(',').map(s => s.trim()).filter(Boolean).slice(0, 8);
         const cookieArgs = require('./ott-music').ytDlpCookieArgs();
         logs.cookiesConfigured = cookieArgs.length > 0;
+        if (fs.existsSync('/tmp/teamg-yt-cookies.txt')) {
+          const stats = fs.statSync('/tmp/teamg-yt-cookies.txt');
+          const sample = fs.readFileSync('/tmp/teamg-yt-cookies.txt', 'utf8').substring(0, 150);
+          logs.cookieFile = { size: stats.size, sample: sample.replace(/\t/g, '[TAB]').replace(/\r?\n/g, '[NL]') };
+        }
         logs.execTests = {};
         for (const client of clientList) {
           try {
             logs.execTests[client] = await new Promise(r => {
-              const testArgs = ['--js-runtimes', 'node:' + process.execPath, '-g', '-f', '140/bestaudio[ext=m4a]/ba/b/best', '--no-warnings', '--no-playlist'];
+              const testArgs = ['--verbose', '--js-runtimes', 'node:' + process.execPath, '-g', '-f', '140/bestaudio[ext=m4a]/ba/b/best', '--no-playlist'];
               if (client !== 'default') {
                 testArgs.push('--extractor-args', 'youtube:player_client=' + client);
               }
               execFile(activeBin, testArgs.concat(cookieArgs, ['https://www.youtube.com/watch?v=zokUHAyGh2Y']), { timeout: 25000 }, (err, stdout, stderr) => {
-                r({ ok: !err && !!stdout && stdout.indexOf('http') === 0, url: stdout ? stdout.substring(0, 60) : null, err: err ? err.message : null, stderr: stderr ? stderr.substring(0, 200) : null });
+                r({ ok: !err && !!stdout && stdout.indexOf('http') === 0, url: stdout ? stdout.substring(0, 60) : null, err: err ? err.message : null, stderr: stderr ? stderr.substring(0, 1000) : null });
               });
             });
           } catch (e) {
