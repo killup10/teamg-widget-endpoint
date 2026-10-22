@@ -6557,7 +6557,7 @@ function playItem(c, recovering) {
     loadSongLyrics(c);
   }
 
-  if ((isBitel || isCloudfront || isMusicStream) && (!isPageHttps || isLegacyNetcast)) {
+  if ((isBitel || isCloudfront || isMusicStream) && isLegacyNetcast && !isPageHttps) {
     // Bitel y CloudFront soportan HTTP nativo en puerto 80 sin TLS; para NetCast antiguo y páginas HTTP
     // usamos http:// directamente para compatibilidad 100% nativa evitando fallos de TLS 1.0 (Alert 70).
     if (playUrl.indexOf('https://') === 0) {
@@ -6601,6 +6601,8 @@ function playItem(c, recovering) {
   var v = $('video-el');
   var netcastObj = $('netcast-player');
   var engine = state.auth.playerEngine || 'auto';
+  // Ignore a NetCast preference restored on a different TV.
+  if (engine === 'mediaplayer' && !isLegacyNetcast) engine = 'auto';
   var useNative = window.TeamGNative && TeamGNative.available() &&
     (engine === 'avplay' || engine === 'auto');
   if (!state.recoveryVod && state.auth.iptvPlayer === 'HTML5 player') { engine = 'html5'; useNative = false; }
@@ -6942,7 +6944,8 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c, androidFallbackEngine) 
     }
   }
   if (useJsHls) {
-    var stableLgHls = /NetCast|webOS|Web0S/i.test(navigator.userAgent || '');
+    // Only legacy NetCast needs fixed 1080p startup; webOS/Tizen keep ABR, including 4K.
+    var stableLgHls = isLegacyNetcast;
     state.hlsInstance = new Hls({ maxBufferLength: 15, enableWorker: false, autoStartLoad: !stableLgHls });
     state.hlsInstance.loadSource(playUrl);
     state.hlsInstance.attachMedia(v);
