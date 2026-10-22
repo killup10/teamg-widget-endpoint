@@ -185,6 +185,14 @@ const ottMusic = require('../ott-music');
   assert.equal(parsedRes.synced, true);
   assert.ok(Array.isArray(parsedRes.cues) && parsedRes.cues.length > 20);
 
+  // 7. Validar que playHtml5 define isPageHttps y isLegacyNetcast para recuperación con proxy en onerror
+  const playHtml5Start = html.indexOf('function playHtml5(');
+  const playHtml5End = html.indexOf('function stopPlayer()');
+  const playHtml5Code = html.slice(playHtml5Start, playHtml5End);
+  assert.ok(playHtml5Code.includes("var isPageHttps = (window.location && window.location.protocol === 'https:');"), 'playHtml5 debe definir isPageHttps');
+  assert.ok(playHtml5Code.includes("var isLegacyNetcast = (ua.indexOf('NetCast') !== -1 && ua.indexOf('Web0S') === -1 && ua.indexOf('webOS') === -1);"), 'playHtml5 debe definir isLegacyNetcast');
+  assert.ok(playHtml5Code.includes('_triedMusicProxy'), 'playHtml5 debe incluir lógica de fallback con proxy para música');
+
   console.log('TeamG Music OTT integration unit tests pass.');
 })().catch((err) => {
   console.error(err);
