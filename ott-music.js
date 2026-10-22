@@ -125,7 +125,7 @@ const LIVE_RADIOS = [
 // ── Catálogo Base Curado de Respuesta Instantánea (0ms latencia en TV) ───────
 const CURATED_TRACKS = [
   // Más Escuchado (Top Global)
-  { artist: 'KAROL G, Judeline & rusowsky', title: 'BbY WOW', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80', youtubeId: 'aiRayi2XpfE' },
+  { artist: 'KAROL G, Judeline & rusowsky', title: 'BbY WOW', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80', youtubeId: 'bXBXlrsE0fI' },
   { artist: 'KAROL G', title: 'LATINA FOREVA', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80', youtubeId: 'm_WdNBHsJLE' },
   { artist: 'Karol G', title: 'Si Antes Te Hubiera Conocido', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80', youtubeId: 'zokUHAyGh2Y' },
   { artist: 'Bad Bunny', title: 'MONACO', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80', youtubeId: 'YBi7d3wav5Q' },
@@ -145,7 +145,7 @@ const CURATED_TRACKS = [
   { artist: 'Miley Cyrus', title: 'Flowers', group: '🔥 Más Escuchado', cover: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=600&auto=format&fit=crop&q=80', youtubeId: 'SWpAYbgHmTo' },
 
   // Reggaetón & Urbano
-  { artist: 'KAROL G, Judeline & rusowsky', title: 'BbY WOW', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80', youtubeId: 'aiRayi2XpfE' },
+  { artist: 'KAROL G, Judeline & rusowsky', title: 'BbY WOW', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80', youtubeId: 'bXBXlrsE0fI' },
   { artist: 'KAROL G', title: 'AMARGURA', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80', youtubeId: '99iTRF__BuM' },
   { artist: 'Karol G & Shakira', title: 'TQG', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80', youtubeId: '24o_iGVXlG0' },
   { artist: 'Karol G', title: 'Provenza', group: '💃 Reggaetón & Urbano', cover: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80', youtubeId: 'kNgGWDn1zY4' },
@@ -1005,6 +1005,15 @@ async function getYouTubeVisitorData() {
 
 const YT_CLIENTS = [
   {
+    clientName: 'ANDROID',
+    clientVersion: '20.10.38',
+    deviceMake: 'Google',
+    deviceModel: 'Pixel 5',
+    osName: 'Android',
+    osVersion: '11',
+    ua: 'com.google.android.youtube/20.10.38 (Linux; U; Android 11) gzip'
+  },
+  {
     clientName: 'IOS',
     clientVersion: '20.03.02',
     deviceMake: 'Apple',
@@ -1068,13 +1077,15 @@ async function audioViaYouTubeI(youtubeId) {
                   all.find((f) => f.mimeType.startsWith('audio/')) ||
                   all.find((f) => f.mimeType.startsWith('video/mp4'));
       if (!m4a) continue;
-      return {
+      const stream = {
         url: m4a.url,
         mimeType: m4a.mimeType.split(';')[0] || 'audio/mp4',
         contentLength: m4a.contentLength ? Number(m4a.contentLength) : null,
         durationMs: m4a.approxDurationMs ? Number(m4a.approxDurationMs) : null,
         userAgent: clientCfg.ua
       };
+      // Una API exitosa puede entregar un enlace bloqueado para ese cliente.
+      if (await isPlayableAudioStream(stream)) return stream;
     } catch (e) {
     } finally {
       clearTimeout(timer);

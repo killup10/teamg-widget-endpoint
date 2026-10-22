@@ -22,6 +22,45 @@ vm.runInContext(fs.readFileSync(require.resolve('../ott-music'), 'utf8'), ctx);
   assert.equal(await ctx.isPlayableAudioStream({ url: 'https://audio.invalid' }), false);
   assert.equal(cancelled, true);
 
+  // Si un cliente entrega audio bloqueado, probar el siguiente cliente.
+  vm.runInContext('getYouTubeVisitorData = async () => "";', ctx);
+  let clientRequests = 0;
+  ctx.fetch = async (url) => {
+    if (url.includes('/youtubei/')) {
+      clientRequests++;
+      return { ok: true, json: async () => ({ streamingData: { adaptiveFormats: [
+        { itag: 140, url: 'https://audio.invalid/' + clientRequests, mimeType: 'audio/mp4' }
+      ] } }) };
+    }
+    return { ok: url.endsWith('/2'), headers: new Headers({ 'content-type': 'audio/mp4' }),
+      body: { cancel: async () => {} } };
+  };
+  assert.equal((await ctx.audioViaYouTubeI('abcdefghijk')).url, 'https://audio.invalid/2');
+  assert.equal(clientRequests, 2);
+
+  const html = fs.readFileSync(require.resolve('../ott/index.html'), 'utf8');
+  const elements = {};
+  const video = { pause() { this.paused = true; }, removeAttribute() {}, load() {} };
+  elements['video-el'] = video;
+  let scheduled = 0, bufferingCleared = false, lyricsStopped = false;
+  const player = {
+    state: { screen: 'player', recoveryItem: { url: '/api/ott/music/stream.mp4?v=abcdefghijk' } },
+    $: (id) => elements[id] || (elements[id] = { style: {} }),
+    clearTimeout() {}, clearInterval() {},
+    setTimeout() { scheduled++; }, isMusicPlaying: () => true,
+    hideTuning() { bufferingCleared = true; },
+    stopLyricsTimer() { lyricsStopped = true; }
+  };
+  vm.runInNewContext(html.slice(html.indexOf('function failMusicPlayback()'),
+    html.indexOf('function monitorPlaybackRecovery(')), player);
+  player.recoverPlayback();
+  assert.equal(scheduled, 0, 'No reconectar indefinidamente una canción no disponible');
+  assert.equal(player.state.musicPlaybackFailed, true);
+  assert.equal(bufferingCleared, true);
+  assert.equal(lyricsStopped, true);
+  assert.equal(video.paused, true);
+  assert.equal(elements['player-time-text'].textContent, 'NO DISPONIBLE');
+
   vm.runInContext(`
     searchYouTubeCandidatesHtml = async () => ['abcdefghijk'];
     audioViaYouTubeI = async () => ({url:'https://audio.invalid/expired'});

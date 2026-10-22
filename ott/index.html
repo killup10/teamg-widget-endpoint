@@ -5650,6 +5650,7 @@ function switchCategoryTab(dir) {
    Soporte Dual: LG NetCast MediaPlayer por hardware + HTML5 Video + Proxy HTTP
    ========================================================================== */
 function setBuffering(isBuffering) {
+  if (isBuffering && state.musicPlaybackFailed) return;
   var bTag = $('player-buffering-indicator');
   if (bTag) {
     if (isBuffering) bTag.classList.add('active');
@@ -5940,6 +5941,7 @@ function stopLyricsTimer() {
 }
 
 function loadSongLyrics(item) {
+  var lyricsGeneration = state.playerGeneration;
   state.activeLyrics = null;
   state.lyricsOffset = 0;
   state._lastActiveLyricText = null;
@@ -5966,7 +5968,8 @@ function loadSongLyrics(item) {
   var xhr = new XMLHttpRequest();
   xhr.open('GET', apiUrl, true);
   xhr.onreadystatechange = function() {
-    if (xhr.readyState === 4 && xhr.status === 200) {
+    if (xhr.readyState === 4 && xhr.status === 200 &&
+        state.playerGeneration === lyricsGeneration && !state.musicPlaybackFailed) {
       try {
         var data = JSON.parse(xhr.responseText);
         if (data && data.ok && data.synced && data.cues && data.cues.length > 0) {
@@ -6002,6 +6005,7 @@ function adjustLyricsSync(delta) {
 }
 
 function updateMusicLyrics(currentTime) {
+  if (state.musicPlaybackFailed) return;
   if (!state.activeLyrics || state.lyricsEnabled === false || state.activeLyrics.length === 0) return;
   var cues = state.activeLyrics;
   var offset = (typeof state.lyricsOffset === 'number' && !isNaN(state.lyricsOffset)) ? state.lyricsOffset : 0;
@@ -6083,6 +6087,7 @@ function updateMusicLyrics(currentTime) {
 }
 
 function updateDurationDisplay(v) {
+  if (state.musicPlaybackFailed) return;
   var timeEl = $('player-time-text');
   if (!timeEl) return;
   var dur = state.activeDuration || (v && v.duration && isFinite(v.duration) && v.duration > 0 ? v.duration : 0);
@@ -6120,7 +6125,7 @@ function updateProgressDisplay(v) {
 function startPlaybackTicker() {
   stopPlaybackTicker();
   state.playbackTicker = setInterval(function() {
-    if (state.screen !== 'player') return;
+    if (state.screen !== 'player' || state.musicPlaybackFailed) return;
     
     var v = $('video-el');
     var netcastObj = $('netcast-player');
@@ -6206,8 +6211,46 @@ function startPlaybackTicker() {
   }, 250);
 }
 
+function failMusicPlayback() {
+  state.musicPlaybackFailed = true;
+  if (state.recoveryTimer) clearTimeout(state.recoveryTimer);
+  state.recoveryTimer = null;
+  if (state.tuningWatchdog) clearInterval(state.tuningWatchdog);
+  state.tuningWatchdog = null;
+  var v = $('video-el');
+  if (v) {
+    v.onerror = null;
+    v.onwaiting = null;
+    v.oncanplay = null;
+    v.onloadedmetadata = null;
+    try { v.pause(); v.removeAttribute('src'); v.load(); } catch (musicStopError) {}
+  }
+  stopLyricsTimer();
+  hideTuning();
+  var box = $('player-music-lyrics-box');
+  if (box) box.style.display = 'block';
+  var active = $('player-music-lyric-active');
+  if (active) active.textContent = 'No se pudo cargar esta canción';
+  var next = $('player-music-lyric-next');
+  if (next) next.textContent = 'Selecciona otra canción para continuar';
+  var prev = $('player-music-lyric-prev');
+  if (prev) prev.textContent = '';
+  var next2 = $('player-music-lyric-next2');
+  if (next2) next2.textContent = '';
+  var next3 = $('player-music-lyric-next3');
+  if (next3) next3.textContent = '';
+  var time = $('player-time-text');
+  if (time) time.textContent = 'NO DISPONIBLE';
+  var button = $('btnPlayPause');
+  if (button) button.textContent = '▶';
+}
+
 function recoverPlayback() {
   if (state.screen !== 'player' || !state.recoveryItem || state.recoveryTimer) return;
+  if (isMusicPlaying() && state.recoveryItem.url.indexOf('/api/ott/music/stream') !== -1) {
+    failMusicPlayback();
+    return;
+  }
   var item = state.recoveryItem;
   state.recoveryAttempts = (state.recoveryAttempts || 0) + 1;
   var delay = Math.min(30000, 2000 * Math.pow(2, Math.min(state.recoveryAttempts - 1, 4)));
@@ -6475,6 +6518,7 @@ function playItem(c, recovering) {
   c._triedHtml5Direct = false;
   c._triedHtml5Proxy = false;
   c._triedMusicProxy = false;
+  state.musicPlaybackFailed = false;
 
   // 1. Resolver URL de reproducción
   var streamUrl = c.url || '';
@@ -6780,6 +6824,9 @@ function startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c, forceProxy) {
 }
 
 function playHtml5(v, netcastObj, playUrl, streamUrl, c, androidFallbackEngine) {
+  var musicGeneration = state.playerGeneration;
+  var musicLoadStarted = (new Date()).getTime();
+  var musicOnDemand = streamUrl && streamUrl.indexOf('/api/ott/music/stream') !== -1;
   var isPageHttps = (window.location && window.location.protocol === 'https:');
   var ua = (typeof navigator !== 'undefined' && navigator.userAgent) || '';
   var isLegacyNetcast = (ua.indexOf('NetCast') !== -1 && ua.indexOf('Web0S') === -1 && ua.indexOf('webOS') === -1);
@@ -6990,6 +7037,12 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c, androidFallbackEngine) 
   // Watchdog de seguridad para HTML5
   if (state.tuningWatchdog) clearInterval(state.tuningWatchdog);
   state.tuningWatchdog = setInterval(function() {
+    if (musicOnDemand && state.playerGeneration === musicGeneration &&
+        !state.musicPlaybackFailed && v.currentTime === 0 &&
+        (new Date()).getTime() - musicLoadStarted > 45000) {
+      failMusicPlayback();
+      return;
+    }
     if (v && !v.paused && v.currentTime > 0) {
       hideTuning();
       clearInterval(state.tuningWatchdog);
