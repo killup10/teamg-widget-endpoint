@@ -202,6 +202,7 @@ const server = http.createServer((req, res) => {
         } catch (e) {
           logs.verErr = e.message;
         }
+        logs.nodePath = process.execPath;
         // Probar varios clientes de YouTube desde la IP del servidor (?clients=a,b,c).
         const clientList = String(query.clients || 'default').split(',').map(s => s.trim()).filter(Boolean).slice(0, 8);
         const cookieArgs = require('./ott-music').ytDlpCookieArgs();
@@ -215,12 +216,22 @@ const server = http.createServer((req, res) => {
                 testArgs.push('--extractor-args', 'youtube:player_client=' + client);
               }
               execFile(activeBin, testArgs.concat(cookieArgs, ['https://www.youtube.com/watch?v=zokUHAyGh2Y']), { timeout: 25000 }, (err, stdout, stderr) => {
-                r({ ok: !err && !!stdout && stdout.indexOf('http') === 0, url: stdout ? stdout.substring(0, 60) : null, stderr: stderr ? stderr.substring(0, 120) : null });
+                r({ ok: !err && !!stdout && stdout.indexOf('http') === 0, url: stdout ? stdout.substring(0, 60) : null, err: err ? err.message : null, stderr: stderr ? stderr.substring(0, 200) : null });
               });
             });
           } catch (e) {
             logs.execTests[client] = { ok: false, stderr: e.message };
           }
+        }
+        try {
+          logs.execTests['nocookies'] = await new Promise(r => {
+            const testArgs = ['--js-runtimes', 'node:' + process.execPath, '-g', '-f', '140/bestaudio[ext=m4a]/ba/b/best', '--no-warnings', '--no-playlist', 'https://www.youtube.com/watch?v=zokUHAyGh2Y'];
+            execFile(activeBin, testArgs, { timeout: 25000 }, (err, stdout, stderr) => {
+              r({ ok: !err && !!stdout && stdout.indexOf('http') === 0, url: stdout ? stdout.substring(0, 60) : null, err: err ? err.message : null, stderr: stderr ? stderr.substring(0, 200) : null });
+            });
+          });
+        } catch (e) {
+          logs.execTests['nocookies'] = { ok: false, stderr: e.message };
         }
       }
 
