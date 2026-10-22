@@ -203,15 +203,19 @@ const server = http.createServer((req, res) => {
           logs.verErr = e.message;
         }
         // Probar varios clientes de YouTube desde la IP del servidor (?clients=a,b,c).
-        const clientList = String(query.clients || 'visionos,mweb').split(',').map(s => s.trim()).filter(Boolean).slice(0, 8);
+        const clientList = String(query.clients || 'default').split(',').map(s => s.trim()).filter(Boolean).slice(0, 8);
         const cookieArgs = require('./ott-music').ytDlpCookieArgs();
         logs.cookiesConfigured = cookieArgs.length > 0;
         logs.execTests = {};
         for (const client of clientList) {
           try {
             logs.execTests[client] = await new Promise(r => {
-              execFile(activeBin, ['-g', '-f', '140/bestaudio[ext=m4a]/bestaudio', '--extractor-args', 'youtube:player_client=' + client, '--no-warnings', '--no-playlist'].concat(cookieArgs, ['https://www.youtube.com/watch?v=zokUHAyGh2Y']), { timeout: 25000 }, (err, stdout, stderr) => {
-                r({ ok: !err && !!stdout && stdout.indexOf('http') === 0, stderr: stderr ? stderr.substring(0, 120) : null });
+              const testArgs = ['--js-runtimes', 'node:' + process.execPath, '-g', '-f', '140/bestaudio[ext=m4a]/ba/b/best', '--no-warnings', '--no-playlist'];
+              if (client !== 'default') {
+                testArgs.push('--extractor-args', 'youtube:player_client=' + client);
+              }
+              execFile(activeBin, testArgs.concat(cookieArgs, ['https://www.youtube.com/watch?v=zokUHAyGh2Y']), { timeout: 25000 }, (err, stdout, stderr) => {
+                r({ ok: !err && !!stdout && stdout.indexOf('http') === 0, url: stdout ? stdout.substring(0, 60) : null, stderr: stderr ? stderr.substring(0, 120) : null });
               });
             });
           } catch (e) {

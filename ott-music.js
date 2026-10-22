@@ -1193,7 +1193,10 @@ function ytDlpCookieArgs() {
 
 // Si YouTube exige verificación anti-bot, no repetir intentos de 25s en cada canción.
 let ytBotBlockedUntil = 0;
-function ytDlpBlocked() { return Date.now() < ytBotBlockedUntil; }
+function ytDlpBlocked() {
+  if (ytDlpCookieArgs().length > 0) return false;
+  return Date.now() < ytBotBlockedUntil;
+}
 function noteYtDlpError(err, stderr) {
   const combined = String(stderr || '') + ' ' + String((err && err.message) || '');
   if (/confirm you.?re not a bot|Sign in to confirm/i.test(combined)) {
@@ -1226,7 +1229,7 @@ function audioViaYtDlp(youtubeId) {
         '-f', '140/bestaudio[ext=m4a]/ba/b/best',
         ...ytDlpArgs(),
         target
-      ], { timeout: 3500 }, (err, stdout, stderr) => {
+      ], { timeout: 12000 }, (err, stdout, stderr) => {
         if (err || !stdout || !stdout.trim()) { noteYtDlpError(err, stderr); return resolve(null); }
         const url = stdout.trim().split(/\r?\n/)[0].trim();
         if (!url || !url.startsWith('http')) return resolve(null);
@@ -1662,7 +1665,7 @@ async function handleMusicStream(req, res, pathname, query) {
     if (hasCookies || youtubeId) {
       const stream = await Promise.race([
         resolveAudioStream({ youtubeId, artist, title, expectedDurationSec }),
-        new Promise((resolve) => setTimeout(() => resolve(null), 4000))
+        new Promise((resolve) => setTimeout(() => resolve(null), 12000))
       ]);
       if (stream && stream.url) {
         if (!forceProxy && !legacyNetcast && !isIpBoundUrl(stream.url)) {
