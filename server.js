@@ -167,6 +167,21 @@ const server = http.createServer((req, res) => {
   if (pathname.indexOf('/api/ott/android-audio/') === 0 && (req.method === 'GET' || req.method === 'HEAD')) {
     return require('./android-audio').serve(req, res, pathname);
   }
+  if (pathname === '/api/ott/music/debug') {
+    const ottMusic = require('./ott-music');
+    return (async () => {
+      const logs = [];
+      const testVid = 'doLMt10ytHY';
+      try {
+        const stream = await ottMusic.resolveAudioStream({ youtubeId: testVid, artist: 'Bad Bunny', title: 'Yonaguni' });
+        logs.push({ step: 'resolveAudioStream', ok: !!stream, stream: stream ? { mime: stream.mimeType, len: stream.contentLength, url: stream.url.substring(0, 80) } : null });
+      } catch (e) {
+        logs.push({ step: 'resolveAudioStream', err: e.message });
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(logs, null, 2));
+    })();
+  }
   if (pathname.indexOf('/api/ott/music/lyrics') === 0) {
     return require('./ott-music').handleMusicLyrics(req, res, pathname, query);
   }
