@@ -1163,6 +1163,36 @@ async function getValidYtDlpBin() {
   return (bin && fs.existsSync(bin)) ? bin : null;
 }
 
+// YouTube pide "confirma que no eres un bot" a las IPs de datacenter (Render).
+// Con cookies de una cuenta (YT_COOKIES = cookies.txt en texto o base64, o
+// YT_COOKIES_FILE = ruta, p. ej. Secret File de Render) yt-dlp vuelve a funcionar.
+let _ytCookiePath = null;
+function ytDlpCookieArgs() {
+  if (_ytCookiePath && fs.existsSync(_ytCookiePath)) return ['--cookies', _ytCookiePath];
+  try {
+    let text = '';
+    const filePath = process.env.YT_COOKIES_FILE || (fs.existsSync('/etc/secrets/cookies.txt') ? '/etc/secrets/cookies.txt' : '');
+    if (filePath && fs.existsSync(filePath)) text = fs.readFileSync(filePath, 'utf8');
+    else if (process.env.YT_COOKIES) {
+      text = process.env.YT_COOKIES.trim();
+      if (!/\t/.test(text)) text = Buffer.from(text, 'base64').toString('utf8');
+    }
+    if (!text || !/youtube\.com/.test(text)) return [];
+    // yt-dlp reescribe el archivo: usar copia en /tmp (los Secret Files son solo lectura).
+    const out = require('path').join(require('os').tmpdir(), 'teamg-yt-cookies.txt');
+    fs.writeFileSync(out, text);
+    _ytCookiePath = out;
+    return ['--cookies', out];
+  } catch (_) {
+    return [];
+  }
+}
+
+function ytDlpArgs() {
+  const clients = process.env.YTDLP_CLIENTS || 'visionos,mweb';
+  return ['--extractor-args', 'youtube:player_client=' + clients, '--no-warnings', '--no-playlist'].concat(ytDlpCookieArgs());
+}
+
 function audioViaYtDlp(youtubeId) {
   return new Promise(async (resolve) => {
     try {
@@ -1175,9 +1205,7 @@ function audioViaYtDlp(youtubeId) {
       execFile(bin, [
         '-g',
         '-f', '140/bestaudio[ext=m4a]/bestaudio',
-        '--extractor-args', 'youtube:player_client=visionos,mweb',
-        '--no-warnings',
-        '--no-playlist',
+        ...ytDlpArgs(),
         target
       ], { timeout: 25000 }, (err, stdout) => {
         if (err || !stdout || !stdout.trim()) return resolve(null);
@@ -1248,9 +1276,7 @@ function resolveViaYtDlpSearch(artist, title) {
         '--print', 'id',
         '-g',
         '-f', '140/bestaudio[ext=m4a]/bestaudio',
-        '--extractor-args', 'youtube:player_client=visionos,mweb',
-        '--no-warnings',
-        '--no-playlist',
+        ...ytDlpArgs(),
         searchQuery
       ], { timeout: 25000 }, (err, stdout) => {
         if (err || !stdout || !stdout.trim()) {
@@ -1260,9 +1286,7 @@ function resolveViaYtDlpSearch(artist, title) {
             '--print', 'id',
             '-g',
             '-f', '140/bestaudio[ext=m4a]/bestaudio',
-            '--extractor-args', 'youtube:player_client=visionos,mweb',
-        '--no-warnings',
-            '--no-playlist',
+            ...ytDlpArgs(),
             fallbackQ
           ], { timeout: 25000 }, (err2, stdout2) => {
             if (err2 || !stdout2 || !stdout2.trim()) return resolve(null);
@@ -1385,9 +1409,7 @@ async function fetchAudioBufferWithYtDlp({ youtubeId, artist, title }) {
         const proc = spawn(binPath, [
           '-o', '-',
           '-f', '140/bestaudio[ext=m4a]/bestaudio',
-          '--extractor-args', 'youtube:player_client=visionos,mweb',
-        '--no-warnings',
-          '--no-playlist',
+          ...ytDlpArgs(),
           target
         ]);
         const chunks = [];
@@ -2021,6 +2043,7 @@ module.exports = {
   handleMusicResolve,
   resolveTrackCandidate,
   isEmbedPlayable,
+  ytDlpCookieArgs,
   parseLrcToCues,
   isIpBoundUrl
 };
