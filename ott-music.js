@@ -1681,11 +1681,37 @@ async function handleMusicStream(req, res, pathname, query) {
       audioBufferCache.delete(youtubeId.toLowerCase());
     }
 
+    // 2b. Deezer Studio Master (pista oficial de discográfica 100% original en ~1.2s, sin bloqueos AWS)
+    if (artist || title) {
+      try {
+        const { resolveViaDeezerBuffer } = require('./deezer-service');
+        const dz = await resolveViaDeezerBuffer(artist, title);
+        if (dz && dz.buffer && dz.buffer.length > 50000) {
+          setBoundedBufferCache(trackKey, {
+            buffer: dz.buffer,
+            mimeType: 'video/mp4',
+            ts: Date.now()
+          });
+          if (youtubeId) {
+            setBoundedBufferCache(youtubeId.toLowerCase(), {
+              buffer: dz.buffer,
+              mimeType: 'video/mp4',
+              ts: Date.now()
+            });
+          }
+          try { res.setHeader('X-Audio-Source', 'Deezer Studio Master'); } catch (_) {}
+          return serveAudioBufferWithRange(req, res, dz.buffer, 'video/mp4');
+        }
+      } catch (eDz) {
+        console.warn('[Deezer] Resolution error in handleMusicStream:', eDz.message);
+      }
+    }
+
     const expectedDurationSec = parseInt(query.dur || 0, 10);
     const hasCookies = areCookiesValid();
     const canTryYoutube = (hasCookies || youtubeId) && !ytDlpBlocked();
 
-    // 2b. Con cookies configuradas o ID conocido, YouTube entrega la versión de estudio oficial original (máx 12s)
+    // 2c. Con cookies configuradas o ID conocido, YouTube entrega la versión de estudio oficial original (máx 12s)
     if (canTryYoutube) {
       const stream = await Promise.race([
         resolveAudioStream({ youtubeId, artist, title, expectedDurationSec }),
@@ -2083,12 +2109,20 @@ async function handleMusicResolve(req, res, query) {
 
 function warmTopCuratedTracks() {
   setTimeout(async () => {
-    const topTracks = CURATED_TRACKS.slice(0, 10);
-    for (const t of topTracks) {
-      try {
-        await resolveAudioStream({ youtubeId: t.youtubeId, artist: t.artist, title: t.title, expectedDurationSec: t.durationSec || 0 });
-      } catch (_) {}
-    }
+    try {
+      const { resolveViaDeezerBuffer } = require('./deezer-service');
+      const topTracks = CURATED_TRACKS.slice(0, 5);
+      for (const t of topTracks) {
+        try {
+          const dz = await resolveViaDeezerBuffer(t.artist, t.title);
+          if (dz && dz.buffer) {
+            const trackKey = (t.artist + '|' + t.title).toLowerCase();
+            setBoundedBufferCache(trackKey, { buffer: dz.buffer, mimeType: 'video/mp4', ts: Date.now() });
+            if (t.youtubeId) setBoundedBufferCache(t.youtubeId.toLowerCase(), { buffer: dz.buffer, mimeType: 'video/mp4', ts: Date.now() });
+          }
+        } catch (_) {}
+      }
+    } catch (_) {}
   }, 2000);
 }
 warmTopCuratedTracks();
