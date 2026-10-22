@@ -454,10 +454,21 @@ async function resolveViaSoundCloudBuffer(artist, title) {
     const cleanOrig = wantsRemix
       ? candidates
       : candidates.filter((t) => !/(remix|mashup|edit|cover|karaoke|instrumental|slowed|reverb|tributo|remake|bootleg|sped|en vivo|live|circuit|dj |\bmix\b|\bclub\b|\bflip\b)/i.test(t.title || ''));
-    if (!wantsRemix && cleanOrig.length === 0) return null;
-    const matching = cleanOrig.filter((t) => matchesSongTitle(t.title, title) &&
+    
+    const candidatesToTry = (cleanOrig.length > 0)
+      ? cleanOrig
+      : candidates.filter((t) => !/(karaoke|instrumental|slowed|reverb|tributo|sped|acapella)/i.test(t.title || ''));
+
+    if (candidatesToTry.length === 0) return null;
+    let matching = candidatesToTry.filter((t) => matchesSongTitle(t.title, title) &&
       cleanTitleWords(artist).some((word) => cleanTitleWords(
         [t.title, t.user?.username, t.user?.full_name].join(' ')).includes(word)));
+    if (matching.length === 0) {
+      matching = candidatesToTry.filter((t) => matchesSongTitle(t.title, title));
+    }
+    if (matching.length === 0) {
+      matching = candidatesToTry;
+    }
     for (const best of matching) {
     try {
 
@@ -1225,7 +1236,14 @@ async function fetchAudioBufferWithYtDlp({ youtubeId, artist, title }) {
 
   const p = (async () => {
     try {
-      const binPath = getYtDlpPath();
+      let binPath = getYtDlpPath();
+      if (!fs.existsSync(binPath)) {
+        try {
+          const { ensureYtDlp } = require('./scripts/ensure-yt-dlp');
+          binPath = await ensureYtDlp();
+        } catch (_) {}
+      }
+      if (!fs.existsSync(binPath)) return null;
       const hasId = /^[a-zA-Z0-9_-]{11}$/.test(cleanId);
       const target = hasId
         ? 'https://www.youtube.com/watch?v=' + cleanId
@@ -1485,6 +1503,17 @@ async function handleMusicStream(req, res, pathname, query) {
         });
         return serveAudioBufferWithRange(req, res, scTrack.buffer, scTrack.mimeType || 'audio/mp4');
       }
+    }
+
+    // 2d. Último respaldo de seguridad: Vista previa de alta fidelidad desde iTunes (evita 404 en Smart TV)
+    if (artist || title) {
+      try {
+        const itunesTracks = await searchItunesTracks(artist + ' ' + title, 5);
+        const it = itunesTracks.find((x) => x.previewUrl && matchesSongTitle(x.title, title)) || itunesTracks[0];
+        if (it && it.previewUrl) {
+          return redirectDirectStream(res, it.previewUrl);
+        }
+      } catch (_) {}
     }
 
     res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
