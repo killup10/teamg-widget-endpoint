@@ -168,34 +168,36 @@ const server = http.createServer((req, res) => {
     return require('./android-audio').serve(req, res, pathname);
   }
   if (pathname === '/api/ott/music/debug') {
+    const ottMusic = require('./ott-music');
     return (async () => {
       const logs = [];
-      const testVid = 'doLMt10ytHY';
       try {
-        // Test InnerTube directly
-        const res = await fetch('https://www.youtube.com/youtubei/v1/player?prettyPrint=false', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'User-Agent': 'com.google.android.youtube/20.10.38 (Linux; U; Android 11) gzip'
-          },
-          body: JSON.stringify({
-            videoId: testVid,
-            context: { client: { clientName: 'ANDROID', clientVersion: '20.10.38', hl: 'en', gl: 'US' } }
-          })
-        });
-        const d = await res.json();
-        const playability = d.playabilityStatus;
-        const formats = (d.streamingData?.adaptiveFormats || []).map(f => ({ itag: f.itag, mime: f.mimeType, hasUrl: !!f.url, urlLen: f.url ? f.url.length : 0 }));
-        logs.push({ step: 'innertube', status: res.status, playability, formatCount: formats.length, first3: formats.slice(0, 3) });
-
-        const m4a = (d.streamingData?.adaptiveFormats || []).find(f => f.itag === 140 || (f.mimeType && f.mimeType.includes('audio/mp4')));
-        if (m4a && m4a.url) {
-          const gRes = await fetch(m4a.url, { headers: { Range: 'bytes=0-1023', 'User-Agent': 'com.google.android.youtube/20.10.38 (Linux; U; Android 11) gzip' } });
-          logs.push({ step: 'googlevideo', status: gRes.status, type: gRes.headers.get('content-type') });
+        const sc = await ottMusic.resolveViaSoundCloudBuffer ? await ottMusic.resolveViaSoundCloudBuffer('Bad Bunny', 'Yonaguni') : null;
+        logs.push({ step: 'soundCloudViaExport', ok: !!sc });
+      } catch (e) {
+        logs.push({ step: 'scExportErr', msg: e.message });
+      }
+      try {
+        const ctl = new AbortController();
+        const pageRes = await fetch('https://soundcloud.com/discover', { headers: { 'User-Agent': 'Mozilla/5.0' } });
+        const html = await pageRes.text();
+        const scripts = [...html.matchAll(/src="https:\/\/a-v2\.sndcdn\.com\/assets\/([^"]+\.js)"/g)].map(m => m[1]);
+        logs.push({ step: 'scDiscover', ok: pageRes.ok, scriptsCount: scripts.length });
+        
+        let clientId = '';
+        for (const scUrl of scripts.slice(-3)) {
+          const js = await (await fetch('https://a-v2.sndcdn.com/assets/' + scUrl)).text();
+          const m = js.match(/client_id:"([a-zA-Z0-9]{32})"/);
+          if (m && m[1]) { clientId = m[1]; break; }
+        }
+        logs.push({ step: 'scClientId', clientId });
+        if (clientId) {
+          const sRes = await fetch('https://api-v2.soundcloud.com/search/tracks?q=' + encodeURIComponent('Bad Bunny Yonaguni') + '&client_id=' + clientId + '&limit=5');
+          const sJson = await sRes.json();
+          logs.push({ step: 'scSearch', status: sRes.status, count: sJson.collection ? sJson.collection.length : 0, firstTitle: sJson.collection && sJson.collection[0] ? sJson.collection[0].title : null, duration: sJson.collection && sJson.collection[0] ? sJson.collection[0].duration : 0 });
         }
       } catch (e) {
-        logs.push({ step: 'error', msg: e.message });
+        logs.push({ step: 'scDirectErr', msg: e.message });
       }
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(logs, null, 2));
