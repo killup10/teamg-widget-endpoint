@@ -146,6 +146,7 @@ const ottMusic = require('../ott-music');
   assert.ok(html.includes('id="player-music-lyric-active"'), 'ott/index.html debe incluir el elemento de línea activa ampliada');
   assert.ok(html.includes('id="player-music-lyric-next"'), 'ott/index.html debe incluir el elemento de línea siguiente');
   assert.ok(html.includes('id="player-music-lyric-next2"'), 'ott/index.html debe incluir el elemento de línea siguiente 2');
+  assert.ok(html.includes('id="player-music-lyric-next3"'), 'ott/index.html debe incluir el elemento de línea siguiente 3');
   assert.ok(html.includes('function startLyricsTimer('), 'ott/index.html debe implementar temporizador de precisión startLyricsTimer');
   assert.ok(html.includes('function loadSongLyrics('), 'ott/index.html debe implementar loadSongLyrics');
   assert.ok(html.includes('function updateMusicLyrics('), 'ott/index.html debe implementar updateMusicLyrics');

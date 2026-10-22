@@ -2113,25 +2113,26 @@ body.text-large .drawer-num { font-size: 25px !important; }
     <object id="samsung-player" type="application/avplayer" style="display:none;" tabindex="-1"></object>
     <!-- Renderizado Universal de Subtítulos en Pantalla -->
     <div id="player-subtitles-overlay"></div>
-    <div id="player-music-stage" style="display:none;position:absolute;top:0;left:0;width:100%;height:100%;background:#120710;z-index:2;text-align:center;padding-top:4.5vh;">
-      <div style="display:inline-block;width:16vh;height:16vh;border:3px solid #e6b75a;border-radius:10px;overflow:hidden;background:#241116;vertical-align:middle;box-shadow:0 4px 16px rgba(0,0,0,0.6);">
+    <div id="player-music-stage" style="display:none;position:absolute;top:0;left:0;width:100%;height:100%;background:#120710;z-index:2;text-align:center;padding-top:2.8vh;">
+      <div style="display:inline-block;width:13vh;height:13vh;border:3px solid #e6b75a;border-radius:10px;overflow:hidden;background:#241116;vertical-align:middle;box-shadow:0 4px 16px rgba(0,0,0,0.6);">
         <img id="player-music-cover" src="" style="width:100%;height:100%;display:none;" />
       </div>
-      <div style="margin-top:1.2vh;text-align:center;">
-        <span id="player-music-badge" style="display:inline-block;font-size:1.8vh;color:#e6b75a;font-weight:bold;letter-spacing:2px;cursor:pointer;vertical-align:middle;" title="Clic para alternar Karaoke">🎵 TEAMG MUSIC</span>
+      <div style="margin-top:0.8vh;text-align:center;">
+        <span id="player-music-badge" style="display:inline-block;font-size:1.7vh;color:#e6b75a;font-weight:bold;letter-spacing:2px;cursor:pointer;vertical-align:middle;" title="Clic para alternar Karaoke">🎵 TEAMG MUSIC</span>
         <span id="player-music-sync-box" style="display:none;margin-left:1.5vw;font-size:1.5vh;color:#cbb8c3;vertical-align:middle;">
           <span id="lyrics-sync-minus" style="display:inline-block;padding:2px 8px;margin-right:4px;background:#241116;border:1px solid #e6b75a;border-radius:4px;color:#e6b75a;cursor:pointer;font-weight:bold;vertical-align:middle;" title="Retrasar letra 0.5s">-0.5s</span>
           <span id="lyrics-sync-val" style="display:inline-block;min-width:3.5vw;color:#ffffff;font-weight:bold;text-align:center;vertical-align:middle;">0.0s</span>
           <span id="lyrics-sync-plus" style="display:inline-block;padding:2px 8px;margin-left:4px;background:#241116;border:1px solid #e6b75a;border-radius:4px;color:#e6b75a;cursor:pointer;font-weight:bold;vertical-align:middle;" title="Adelantar letra 0.5s">+0.5s</span>
         </span>
       </div>
-      <div id="player-music-title" style="margin:0.5vh auto 0 auto;max-width:84vw;font-size:2.8vh;color:#ffffff;font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
-      <div id="player-music-sub" style="margin-top:0.3vh;font-size:1.8vh;color:#cbb8c3;"></div>
-      <div id="player-music-lyrics-box" style="display:none;margin:2vh auto 0 auto;max-width:92vw;width:92vw;text-align:center;">
-        <div id="player-music-lyric-prev" style="font-size:2.4vh;color:#9f8996;opacity:0.5;line-height:1.25;min-height:3vh;white-space:normal;text-shadow:0 2px 6px rgba(0,0,0,0.9);"></div>
-        <div id="player-music-lyric-active" style="font-size:5.8vh;font-weight:900;color:#ffdd00;text-shadow:0 4px 16px rgba(0,0,0,0.95), 0 0 30px rgba(255,221,0,0.4);line-height:1.2;min-height:7.2vh;margin-top:0.8vh;white-space:normal;letter-spacing:0.5px;"></div>
-        <div id="player-music-lyric-next" style="font-size:3.6vh;font-weight:bold;color:#ffffff;opacity:0.9;line-height:1.25;min-height:4.5vh;margin-top:1.6vh;white-space:normal;text-shadow:0 2px 8px rgba(0,0,0,0.95);"></div>
-        <div id="player-music-lyric-next2" style="font-size:2.6vh;color:#cbb8c3;opacity:0.55;line-height:1.25;min-height:3.2vh;margin-top:1vh;white-space:normal;text-shadow:0 2px 6px rgba(0,0,0,0.9);"></div>
+      <div id="player-music-title" style="margin:0.4vh auto 0 auto;max-width:86vw;font-size:2.6vh;color:#ffffff;font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
+      <div id="player-music-sub" style="margin-top:0.2vh;font-size:1.6vh;color:#cbb8c3;"></div>
+      <div id="player-music-lyrics-box" style="display:none;margin:1.8vh auto 0 auto;max-width:94vw;width:94vw;text-align:center;padding-bottom:3vh;">
+        <div id="player-music-lyric-prev" style="font-size:2.8vh;color:#a894a1;opacity:0.6;line-height:1.25;min-height:3.5vh;white-space:normal;text-shadow:0 2px 6px rgba(0,0,0,0.9);"></div>
+        <div id="player-music-lyric-active" style="font-size:7.2vh;font-weight:900;color:#ffdd00;text-shadow:0 4px 20px rgba(0,0,0,0.98), 0 0 35px rgba(255,221,0,0.45);line-height:1.22;min-height:9vh;margin:1.2vh 0;white-space:normal;letter-spacing:0.5px;"></div>
+        <div id="player-music-lyric-next" style="font-size:4.6vh;font-weight:bold;color:#ffffff;opacity:0.95;line-height:1.25;min-height:5.8vh;margin-top:1.8vh;white-space:normal;text-shadow:0 3px 10px rgba(0,0,0,0.98);"></div>
+        <div id="player-music-lyric-next2" style="font-size:3.5vh;color:#ded0d9;opacity:0.65;line-height:1.25;min-height:4.4vh;margin-top:1.4vh;white-space:normal;text-shadow:0 2px 8px rgba(0,0,0,0.9);"></div>
+        <div id="player-music-lyric-next3" style="font-size:2.6vh;color:#bbaab5;opacity:0.4;line-height:1.25;min-height:3.2vh;margin-top:1vh;white-space:normal;text-shadow:0 2px 6px rgba(0,0,0,0.9);"></div>
       </div>
     </div>
     
@@ -5785,6 +5786,7 @@ function cleanPlayerEngines() {
     state._lastActiveLyricText = null;
     state._lastNextLyricText = null;
     state._lastNext2LyricText = null;
+    state._lastNext3LyricText = null;
     state._lastPrevLyricText = null;
     stopLyricsTimer();
     try { v.pause(); } catch (e1) {}
@@ -5923,6 +5925,7 @@ function loadSongLyrics(item) {
   state._lastActiveLyricText = null;
   state._lastNextLyricText = null;
   state._lastNext2LyricText = null;
+  state._lastNext3LyricText = null;
   state._lastPrevLyricText = null;
   var box = $('player-music-lyrics-box');
   if (box) box.style.display = 'none';
@@ -5994,15 +5997,18 @@ function updateMusicLyrics(currentTime) {
   var activeText = '';
   var nextText = '';
   var next2Text = '';
+  var next3Text = '';
   var prevText = '';
   if (idx === -1) {
     activeText = '♪ ♪ ♪';
     nextText = (cues[0] && cues[0].text) ? cues[0].text : '';
     next2Text = (cues[1] && cues[1].text) ? cues[1].text : '';
+    next3Text = (cues[2] && cues[2].text) ? cues[2].text : '';
   } else {
     var active = cues[idx];
     var next = cues[idx + 1] || null;
     var next2 = cues[idx + 2] || null;
+    var next3 = cues[idx + 3] || null;
     var prev = cues[idx - 1] || null;
     var isInstrumentalBreak = false;
     if (next && (next.time - active.time > 8.0) && (t > active.time + 6.0)) {
@@ -6011,11 +6017,13 @@ function updateMusicLyrics(currentTime) {
     activeText = isInstrumentalBreak ? '♪ ♪ ♪' : (active.text || (next ? '♪ ♪ ♪' : ''));
     nextText = isInstrumentalBreak ? (next ? next.text : '') : (next ? next.text : '');
     next2Text = isInstrumentalBreak ? (next2 ? next2.text : '') : (next2 ? next2.text : '');
+    next3Text = isInstrumentalBreak ? (next3 ? next3.text : '') : (next3 ? next3.text : '');
     prevText = isInstrumentalBreak ? (active.text || '') : (prev ? prev.text : '');
-    if (activeText && activeText.indexOf('^') !== -1) activeText = activeText.split('^')[0];
-    if (nextText && nextText.indexOf('^') !== -1) nextText = nextText.split('^')[0];
-    if (next2Text && next2Text.indexOf('^') !== -1) next2Text = next2Text.split('^')[0];
-    if (prevText && prevText.indexOf('^') !== -1) prevText = prevText.split('^')[0];
+    if (activeText && activeText.indexOf('^') !== -1) activeText = activeText.split('^')[0].trim();
+    if (nextText && nextText.indexOf('^') !== -1) nextText = nextText.split('^')[0].trim();
+    if (next2Text && next2Text.indexOf('^') !== -1) next2Text = next2Text.split('^')[0].trim();
+    if (next3Text && next3Text.indexOf('^') !== -1) next3Text = next3Text.split('^')[0].trim();
+    if (prevText && prevText.indexOf('^') !== -1) prevText = prevText.split('^')[0].trim();
   }
   if (state._lastActiveLyricText !== activeText) {
     state._lastActiveLyricText = activeText;
@@ -6031,6 +6039,11 @@ function updateMusicLyrics(currentTime) {
     state._lastNext2LyricText = next2Text;
     var elNxt2 = $('player-music-lyric-next2');
     if (elNxt2) elNxt2.textContent = next2Text;
+  }
+  if (state._lastNext3LyricText !== next3Text) {
+    state._lastNext3LyricText = next3Text;
+    var elNxt3 = $('player-music-lyric-next3');
+    if (elNxt3) elNxt3.textContent = next3Text;
   }
   if (state._lastPrevLyricText !== prevText) {
     state._lastPrevLyricText = prevText;
