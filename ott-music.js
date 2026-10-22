@@ -444,37 +444,45 @@ async function resolveViaSoundCloudBuffer(artist, title) {
       ? candidates
       : candidates.filter((t) => !/(remix|mashup|edit|cover|karaoke|instrumental|slowed|reverb|tributo|remake|bootleg|sped|en vivo|live|circuit|dj |\bmix\b|\bclub\b|\bflip\b)/i.test(t.title || ''));
     if (!wantsRemix && cleanOrig.length === 0) return null;
-    const best = cleanOrig[0] || candidates[0];
+    const matching = cleanOrig.filter((t) => matchesSongTitle(t.title, title) &&
+      cleanTitleWords(artist).some((word) => cleanTitleWords(
+        [t.title, t.user?.username, t.user?.full_name].join(' ')).includes(word)));
+    for (const best of matching) {
+    try {
 
     const tr = best.media.transcodings.find((x) => !x.snipped && x.preset === 'aac_160k') ||
                best.media.transcodings.find((x) => !x.snipped && x.preset === 'aac_96k') ||
                best.media.transcodings.find((x) => !x.snipped && x.format?.protocol === 'progressive') ||
                best.media.transcodings.find((x) => !x.snipped && x.format?.protocol === 'hls' && (x.format?.mime_type || '').includes('mpeg')) ||
                best.media.transcodings.find((x) => !x.snipped);
-    if (!tr || !tr.url) return null;
+    if (!tr || !tr.url) continue;
 
     const sep = tr.url.includes('?') ? '&' : '?';
     const authUrl = tr.url + sep + 'client_id=' + clientId +
       (best.track_authorization ? '&track_authorization=' + encodeURIComponent(best.track_authorization) : '');
     const mediaInfo = await fetchJsonWithTimeout(authUrl, {}, 6000);
-    if (!mediaInfo || !mediaInfo.url) return null;
+    if (!mediaInfo || !mediaInfo.url) continue;
 
     if (tr.format?.protocol === 'progressive') {
       const mp3Res = await fetch(mediaInfo.url, { headers: { 'User-Agent': UA_BROWSER } });
-      if (!mp3Res.ok) return null;
+      if (!mp3Res.ok) continue;
       const buf = Buffer.from(await mp3Res.arrayBuffer());
       return { buffer: buf, mimeType: 'audio/mpeg', durationMs: best.duration };
     }
 
     const m3u8Res = await fetch(mediaInfo.url, { headers: { 'User-Agent': UA_BROWSER } });
-    if (!m3u8Res.ok) return null;
+    if (!m3u8Res.ok) continue;
     const m3u8 = await m3u8Res.text();
     const initMatch = m3u8.match(/#EXT-X-MAP:URI="([^"]+)"/);
     const segUrls = m3u8.split(/\r?\n/).map((s) => s.trim()).filter((s) => /^https?:\/\//.test(s));
-    if (segUrls.length === 0) return null;
+    if (segUrls.length === 0) continue;
 
     const segBufs = await Promise.all(
-      segUrls.map(async (u) => Buffer.from(await (await fetch(u, { headers: { 'User-Agent': UA_BROWSER } })).arrayBuffer()))
+      segUrls.map(async (u) => {
+        const response = await fetch(u, { headers: { 'User-Agent': UA_BROWSER }, signal: AbortSignal.timeout(10000) });
+        if (!response.ok) throw new Error('Audio segment unavailable');
+        return Buffer.from(await response.arrayBuffer());
+      })
     );
 
     if (initMatch && initMatch[1]) {
@@ -484,6 +492,9 @@ async function resolveViaSoundCloudBuffer(artist, title) {
     }
 
     return { buffer: Buffer.concat(segBufs), mimeType: 'audio/mpeg', durationMs: best.duration };
+    } catch (e) { /* Probar otra coincidencia original si falla esta fuente. */ }
+    }
+    return null;
   } catch (e) {
     return null;
   }
@@ -818,10 +829,7 @@ async function searchYouTubeCandidatesHtml(query, expectedDurationSec = 0, requi
     const html = await res.text();
     const match = html.match(/var ytInitialData = (\{.+?\});<\/script>/s) ||
                   html.match(/ytInitialData\s*=\s*(\{.+?\});<\/script>/s);
-    if (!match) {
-      const simple = html.match(/"videoId":"([a-zA-Z0-9_-]{11})"/);
-      return simple ? [simple[1]] : [];
-    }
+    if (!match) return []; // Sin metadatos no se puede verificar la versión.
     const data = JSON.parse(match[1]);
     const contents = data?.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents || [];
     const candidates = [];
@@ -897,7 +905,12 @@ async function searchYouTubeCandidatesHtml(query, expectedDurationSec = 0, requi
   }
 }
 
-async function searchViaPiped(query) {
+function isOriginalCandidate(title, requestedTitle = '') {
+  return matchesSongTitle(title, requestedTitle) &&
+    !/\b(remix|mashup|edit|cover|karaoke|instrumental|slowed|reverb|nightcore|tributo|remake|bootleg|sped|live|mix|extended|acoustic|acustico)\b|en\s+vivo/i.test(title || '');
+}
+
+async function searchViaPiped(query, requestedTitle = '') {
   for (const instance of PIPED_INSTANCES) {
     try {
       const data = await fetchJsonWithTimeout(
@@ -906,7 +919,8 @@ async function searchViaPiped(query) {
         4500
       );
       const items = Array.isArray(data && data.items) ? data.items : [];
-      const hit = items.find((i) => i.url && i.url.includes('watch?v=') && (i.duration > 60 || !i.duration));
+      const hit = items.find((i) => i.url && i.url.includes('watch?v=') &&
+        isOriginalCandidate(i.title, requestedTitle) && (i.duration > 60 || !i.duration));
       if (hit) {
         const m = hit.url.match(/v=([a-zA-Z0-9_-]{11})/);
         if (m) return m[1];
@@ -916,7 +930,7 @@ async function searchViaPiped(query) {
   return null;
 }
 
-async function searchViaInvidious(query) {
+async function searchViaInvidious(query, requestedTitle = '') {
   for (const instance of INVIDIOUS_INSTANCES) {
     try {
       const items = await fetchJsonWithTimeout(
@@ -925,7 +939,8 @@ async function searchViaInvidious(query) {
         4500
       );
       if (!Array.isArray(items)) continue;
-      const hit = items.find((i) => i.videoId && !i.liveNow && (i.lengthSeconds > 60 || !i.lengthSeconds));
+      const hit = items.find((i) => i.videoId && !i.liveNow &&
+        isOriginalCandidate(i.title, requestedTitle) && (i.lengthSeconds > 60 || !i.lengthSeconds));
       if (hit) return hit.videoId;
     } catch (e) {}
   }
@@ -947,7 +962,7 @@ async function resolveYouTubeId(artist, title, expectedDurationSec = 0) {
     videoId = await searchViaYouTubeHtml(topicQ, expectedDurationSec, title);
   }
   if (!videoId) {
-    videoId = (await searchViaPiped(q)) || (await searchViaInvidious(q));
+    videoId = (await searchViaPiped(q, title)) || (await searchViaInvidious(q, title));
   }
   if (videoId) {
     setBoundedCache(resolveCache, key, { youtubeId: videoId, ts: Date.now() });
@@ -1123,7 +1138,7 @@ async function resolveAudioStream({ youtubeId, artist, title, expectedDurationSe
       }
     }
     const q = [artist, title, 'audio oficial'].filter(Boolean).join(' - ').trim();
-    if (candidates.length === 0 && q) {
+    if (q) {
       const htmlIds = await searchYouTubeCandidatesHtml(q, expectedDurationSec || 0, title);
       for (const id of htmlIds) {
         if (!candidates.includes(id)) candidates.push(id);
@@ -1137,7 +1152,7 @@ async function resolveAudioStream({ youtubeId, artist, title, expectedDurationSe
         }
       }
       if (candidates.length === 0) {
-        const fallbackId = (await searchViaPiped(q)) || (await searchViaInvidious(q));
+        const fallbackId = (await searchViaPiped(q, title)) || (await searchViaInvidious(q, title));
         if (fallbackId) candidates.push(fallbackId);
       }
       if (candidates[0]) {
@@ -1151,13 +1166,19 @@ async function resolveAudioStream({ youtubeId, artist, title, expectedDurationSe
     if (audioUrlCache.has(vid)) {
       const cached = audioUrlCache.get(vid);
       if (Date.now() - cached.ts < AUDIO_URL_TTL_MS) {
-        return cached;
+        if (await isPlayableAudioStream(cached)) return cached;
       }
+      audioUrlCache.delete(vid);
     }
     // Canción 100% completa (nunca preview de 30s): IOS/VISIONOS YouTube player -> Piped -> Invidious
-    const resolved = (await audioViaYouTubeI(vid)) ||
-                     (await audioViaPiped(vid)) ||
-                     (await audioViaInvidious(vid));
+    let resolved = null;
+    for (const provider of [audioViaYouTubeI, audioViaPiped, audioViaInvidious]) {
+      const stream = await provider(vid);
+      if (stream && await isPlayableAudioStream(stream)) {
+        resolved = stream;
+        break;
+      }
+    }
     if (resolved && resolved.url) {
       const entry = { ...resolved, youtubeId: vid, ts: Date.now() };
       setBoundedCache(audioUrlCache, vid, entry);
@@ -1169,6 +1190,21 @@ async function resolveAudioStream({ youtubeId, artist, title, expectedDurationSe
 }
 
 // ── Proxy de Streaming de Audio y Radio para Smart TVs ──────────────────────
+async function isPlayableAudioStream(stream) {
+  try {
+    const response = await fetch(stream.url, {
+      headers: { 'User-Agent': stream.userAgent || UA_BROWSER, Range: 'bytes=0-1023' },
+      signal: AbortSignal.timeout(5000)
+    });
+    const type = response.headers.get('content-type') || '';
+    const playable = response.ok && !/text\/|json|mpegurl/i.test(type);
+    if (response.body) await response.body.cancel();
+    return playable;
+  } catch (e) {
+    return false;
+  }
+}
+
 function proxyUpstreamAudio(targetUrl, req, res, defaultMime = 'audio/mp4', totalLength = null, redirectsLeft = 5, customUa = '') {
   if (redirectsLeft <= 0) {
     if (!res.headersSent) {
@@ -1267,8 +1303,8 @@ function proxyUpstreamAudio(targetUrl, req, res, defaultMime = 'audio/mp4', tota
     }
   });
 
-  if (req && typeof req.on === 'function') {
-    req.on('close', () => {
+  if (res && typeof res.on === 'function') {
+    res.on('close', () => {
       try { upReq.destroy(); } catch (e) {}
     });
   }

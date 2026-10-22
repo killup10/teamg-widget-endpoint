@@ -1898,6 +1898,26 @@ body.text-large .tab-skew { font-size: 3.8vh; }
 body.text-large .drawer-name { font-size: 25px !important; }
 body.text-large .drawer-epg { font-size: 17px !important; }
 body.text-large .drawer-num { font-size: 25px !important; }
+/* Karaoke legible a distancia, con espacio reservado para los controles de TV. */
+#player-music-stage { box-sizing:border-box; overflow:hidden; }
+#player-music-stage > div:first-child { width:8vh !important; height:8vh !important; }
+#player-music-lyrics-box {
+  position:absolute; top:26vh; bottom:9vh; left:3vw;
+  width:94vw !important; max-width:94vw !important;
+  margin:0 !important; padding:0 !important;
+}
+#player-music-lyric-prev { font-size:3.5vh !important; min-height:4vh !important; }
+#player-music-lyric-active {
+  font-size:10.5vh !important; line-height:1.12 !important;
+  min-height:12vh !important; margin:2vh 0 !important;
+  overflow-wrap:break-word;
+}
+#player-music-lyric-next {
+  font-size:6vh !important; line-height:1.15 !important;
+  min-height:7vh !important; margin-top:2vh !important;
+}
+#player-music-lyric-next2 { font-size:3.8vh !important; margin-top:2vh !important; }
+#player-music-lyric-next3 { display:none; }
 </style>
 </head>
 <body>
@@ -6028,7 +6048,17 @@ function updateMusicLyrics(currentTime) {
   if (state._lastActiveLyricText !== activeText) {
     state._lastActiveLyricText = activeText;
     var elAct = $('player-music-lyric-active');
-    if (elAct) elAct.textContent = activeText;
+    if (elAct) {
+      elAct.textContent = activeText;
+      // Mantener las frases largas dentro del espacio disponible en televisores.
+      var lyricSize = 10.5;
+      elAct.style.setProperty('font-size', lyricSize + 'vh', 'important');
+      var lyricHeight = (window.innerHeight || document.documentElement.clientHeight) * 0.27;
+      while (lyricSize > 5 && elAct.scrollHeight > lyricHeight) {
+        lyricSize -= 0.5;
+        elAct.style.setProperty('font-size', lyricSize + 'vh', 'important');
+      }
+    }
   }
   if (state._lastNextLyricText !== nextText) {
     state._lastNextLyricText = nextText;
