@@ -6041,7 +6041,7 @@ function stopLyricsTimer() {
 // Pixel sizing also works on old TV engines with unreliable viewport units.
 function sizeMusicLyrics() {
   var height = (typeof window !== 'undefined' && window.innerHeight) || (typeof document !== 'undefined' && document.documentElement && document.documentElement.clientHeight) || 720;
-  var sizes = [['player-music-lyric-active', 0.115], ['player-music-lyric-next', 0.065], ['player-music-lyric-prev', 0.035]];
+  var sizes = [['player-music-lyric-active', 0.13], ['player-music-lyric-next', 0.075], ['player-music-lyric-next2', 0.048]];
   for (var i = 0; i < sizes.length; i++) {
     var el = $(sizes[i][0]);
     if (el) el.style.setProperty('font-size', Math.round(height * sizes[i][1]) + 'px', 'important');
