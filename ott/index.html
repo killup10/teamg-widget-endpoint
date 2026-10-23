@@ -2247,6 +2247,7 @@ body.smart-tv #player-music-yt-container { display:none !important; }
 <script src="/ott/vendor/hls.min.js"></script>
 <script src="/ott/native-player.js?v=2.5.55"></script>
 <script src="/ott/hls-variant.js?v=2.5.55"></script>
+<script src="/ott/catalog-images.js?v=1"></script>
 <script>
 (function() {
 'use strict';
@@ -4390,6 +4391,7 @@ function parseM3U(text) {
 }
 
 function loadPlaylistContent(pl, forceFresh, onReady) {
+  if (window.TeamGCatalogImages) window.TeamGCatalogImages.stop();
   try { if (typeof isPlExpired === 'function' ? isPlExpired(pl) : (pl && pl.expired === true)) { showToast('Esta lista especial ya terminó.'); renderPlaylistsView(); return; } } catch (eExp) {}
   state.feedLoadId = (state.feedLoadId || 0) + 1;
   var loadId = (state.playlistLoadId || 0) + 1;
@@ -4795,6 +4797,7 @@ function armHomeRenewalNotice() {
 }
 
 function restorePlaylistSurface() {
+  if (window.TeamGCatalogImages) window.TeamGCatalogImages.stop();
   $('view-series-detail').style.display = 'none';
   $('view-playlists').style.display = 'block';
   $('content-area').style.display = '';
@@ -5082,6 +5085,9 @@ function renderTabs() {
 var PAGE_SIZE = 18;
 
 function renderChannels() {
+  var musicImages = window.TeamGCatalogImages;
+  if (musicImages) musicImages.stop();
+  var legacyMusicGrid = musicImages && musicImages.legacy() && state.currentPlaylist && state.currentPlaylist.id === '__music';
   if (typeof stopMarquee === 'function' && state.currentFocusedEl) {
     stopMarquee(state.currentFocusedEl);
   }
@@ -5130,9 +5136,9 @@ function renderChannels() {
     var is4k = !c.isSeries && (/\b(4k|uhd)\b/i.test(c.name) || (c.group && /\b(4k|uhd)\b/i.test(c.group)) || (state.currentPlaylist && /\b(4k|uhd)\b/i.test(state.currentPlaylist.name)));
     var badge4k = is4k ? '<div class="tile-4k-badge">4K UHD</div>' : '';
     
-    var logoSrc = resolveIconUrl(c.logo);
+    var logoSrc = resolveIconUrl(legacyMusicGrid ? musicImages.thumbnail(c.logo) : c.logo);
     var thumbContent = logoSrc
-      ? '<img src="' + escapeHtml(logoSrc) + '" onload="fitChannelImage(this)" onerror="this.style.display=\'none\';" />'
+      ? (legacyMusicGrid ? '<img data-music-src="' + escapeHtml(logoSrc) + '" />' : '<img src="' + escapeHtml(logoSrc) + '" onload="fitChannelImage(this)" onerror="this.style.display=\'none\';" />')
       : fallbackSvg;
 
     tile.innerHTML = '<div class="tile-thumb">' +
@@ -5154,6 +5160,7 @@ function renderChannels() {
     frag.appendChild(tile);
   }
   area.appendChild(frag);
+  if (legacyMusicGrid) musicImages.start(area, fitChannelImage);
 
   // Barra vertical de progreso de páginas en el extremo derecho (Foto 2)
   var sbTrack = $('grid-scrollbar');
@@ -6586,6 +6593,7 @@ function playChannelAt(idx) {
 }
 
 function playItem(c, recovering) {
+  if (window.TeamGCatalogImages) window.TeamGCatalogImages.stop();
   var nowTime = (new Date()).getTime();
   if (nowTime - lastChannelChangeTime < 350) return;
   lastChannelChangeTime = nowTime;
