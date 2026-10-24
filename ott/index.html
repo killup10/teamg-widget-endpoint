@@ -4666,7 +4666,7 @@ function rememberRecentContent(c) {
   var pl = state.currentPlaylist;
   if (!pl || !pl.id || !c) return;
   var series = state.currentSeries;
-  var entry = { playlistId: pl.id, id: c.id, name: c.name, title: series ? series.name : c.name,
+  var entry = { playlistId: pl.id, id: c.id, url: c.url || '', group: c.group || '', name: c.name, title: series ? series.name : c.name,
     logo: (series && series.logo) || c.logo || '', seriesId: series ? series.id : '',
     season: c.season || 0, episode: c.episode || 0 };
   var recent = state.recentContent || [];
@@ -4704,6 +4704,36 @@ function resolveRecentContent() {
   if (!entry) return;
   state.pendingRecentContent = null;
   state.categoryConfirmed = true;
+  if (!entry.seriesId) {
+    // Recent IDs and raw indices change when the source or movie order changes.
+    var matched = null, matches = 0;
+    for (var r = 0; r < state.channels.length; r++) {
+      var candidate = state.channels[r];
+      if (candidate.isSeries) continue;
+      if (entry.url && candidate.url === entry.url) { matched = candidate; matches = 1; break; }
+      if (candidate.name === entry.name && (!entry.group || candidate.group === entry.group)) {
+        matched = candidate; matches++;
+      }
+    }
+    if (matches === 1 && matched) {
+      state.currentSeries = null;
+      state.activeSeriesEpisodes = null;
+      state.currentGroup = '__all';
+      state.searchQuery = '';
+      var visible = getFilteredChannels();
+      for (var v = 0; v < visible.length; v++) {
+        if (visible[v] !== matched) continue;
+        state.currentFocusArea = 'content';
+        state.currentChannelIdx = v;
+        state.tileIdx = v % PAGE_SIZE;
+        state.currentPage = Math.floor(v / PAGE_SIZE);
+        renderTabs();
+        renderChannels();
+        playItem(matched);
+        return;
+      }
+    }
+  }
   for (var i = 0; i < state.channels.length; i++) {
     var c = state.channels[i];
     if (entry.seriesId && c.isSeries && c.id === entry.seriesId) {
@@ -4715,15 +4745,6 @@ function resolveRecentContent() {
           return;
         }
       }
-    } else if (!entry.seriesId && c.id === entry.id && c.name === entry.name) {
-      state.currentSeries = null;
-      state.activeSeriesEpisodes = null;
-      state.currentFocusArea = 'content';
-      state.tileIdx = i % PAGE_SIZE;
-      state.currentPage = Math.floor(i / PAGE_SIZE);
-      renderChannels();
-      playChannelAt(i);
-      return;
     }
   }
   state.categoryConfirmed = false;
@@ -5910,8 +5931,10 @@ function cleanPlayerEngines() {
 
   if (v) {
     try {
+      var hadVideoSource = !!v.getAttribute('src');
       v.removeAttribute('src');
-      v.src = '';
+      // load() with no source releases the decoder; src='' requests this page.
+      if (hadVideoSource && typeof v.load === 'function') v.load();
     } catch (eV) {}
   }
 
@@ -5919,6 +5942,7 @@ function cleanPlayerEngines() {
   if (netcastObj) {
     try { netcastObj.onPlayStateChange = null; } catch (eN1) {}
     try { netcastObj.stop(); } catch (eN2) {}
+    try { netcastObj.data = ''; } catch (eN3) {}
     netcastObj.style.display = 'none';
   }
 
@@ -7202,6 +7226,7 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c, androidFallbackEngine) 
   if (netcastObj) {
     try { netcastObj.onPlayStateChange = null; } catch(e0) {}
     try { netcastObj.stop(); } catch(e02) {}
+    try { netcastObj.data = ''; } catch(e03) {}
     netcastObj.style.display = 'none';
   }
   v.style.display = 'block';
@@ -7425,6 +7450,8 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c, androidFallbackEngine) 
 }
 
 function stopPlayer() {
+  // Invalidate callbacks before stopping native engines (some fire synchronously).
+  state.screen = 'stopping-player';
   stopPlayerHeartbeat();
   if (state.recoveryTimer) clearTimeout(state.recoveryTimer);
   state.recoveryTimer = null;
@@ -7885,6 +7912,16 @@ function onGlobalKeyDown(e) {
   var eObj = e || window.event;
   var kc = eObj.keyCode || eObj.which || 0;
   var now = (new Date()).getTime();
+  if (isBackKey(kc, eObj)) {
+    if (eObj.preventDefault) eObj.preventDefault();
+    if (eObj.stopPropagation) eObj.stopPropagation();
+    var backHeld = state.backKeyHeld;
+    state.backKeyHeld = true;
+    clearTimeout(state.backKeyReleaseTimer);
+    // NetCast may omit keyup/repeat. Keep a held press within one screen.
+    state.backKeyReleaseTimer = setTimeout(function() { state.backKeyHeld = false; }, 500);
+    if (backHeld) return false;
+  }
   if (eObj.repeat && isBackKey(kc, eObj)) {
     if (eObj.preventDefault) eObj.preventDefault();
     return false;
@@ -7933,7 +7970,13 @@ function onGlobalKeyDown(e) {
 }
 
 if (document.addEventListener) {
-  document.addEventListener('keydown', onGlobalKeyDown, false);
+  document.addEventListener('keydown', onGlobalKeyDown, true);
+  document.addEventListener('keyup', function(e) {
+    if (isBackKey(e.keyCode || e.which || 0, e)) {
+      state.backKeyHeld = false;
+      clearTimeout(state.backKeyReleaseTimer);
+    }
+  }, true);
 } else {
   document.onkeydown = onGlobalKeyDown;
 }
