@@ -127,7 +127,8 @@ function parseM3uText(text) {
     if (!ln) continue;
     if (ln.indexOf('#EXTINF') === 0) {
       const parts = ln.split(',');
-      const name = (parts.length > 1 ? parts.slice(1).join(',') : 'Canal').trim();
+      const fallbackName = ln.replace(/^#EXTINF:\s*/i, '').replace(/^-?\d+(?:\.\d+)?(?:\s+|$)/, '').trim();
+      const name = (parts.length > 1 ? parts.slice(1).join(',') : fallbackName || 'Canal').trim();
       let logo = '';
       let group = 'General';
       let adult = false;

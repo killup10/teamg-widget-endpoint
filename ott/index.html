@@ -4355,7 +4355,8 @@ function parseM3U(text) {
     if (!ln) continue;
     if (ln.indexOf('#EXTINF') === 0) {
       var parts = ln.split(',');
-      var name = (parts.length > 1 ? parts.slice(1).join(',') : 'Canal').trim();
+      var fallbackName = ln.replace(/^#EXTINF:\s*/i, '').replace(/^-?\d+(?:\.\d+)?(?:\s+|$)/, '').trim();
+      var name = (parts.length > 1 ? parts.slice(1).join(',') : fallbackName || 'Canal').trim();
       var logo = '', group = 'General', subs = '';
       var mLogo = ln.match(/tvg-logo="([^"]*)"/i); if (mLogo) logo = resolveIconUrl(mLogo[1]);
       var mGroup = ln.match(/group-title="([^"]*)"/i); if (mGroup && mGroup[1].trim()) group = mGroup[1].trim();
