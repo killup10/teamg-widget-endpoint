@@ -45,6 +45,16 @@ movie.ctx.startNetcastPlayer(null,movie.native,chatran,chatran,{});
 assert.deepEqual(movie.calls,['http://teamg.store/aventurchatr86.mkv'],'Use the verified HTTP movie host on native NetCast');
 movie.native.playState=6;movie.native.onPlayStateChange();movie.advance(300);
 assert.deepEqual(movie.calls,['http://teamg.store/aventurchatr86.mkv',chatran],'Keep HTTPS as the second attempt');
+movie.native.playState=6;movie.native.onPlayStateChange();movie.advance(300);
+assert.deepEqual(movie.calls,['http://teamg.store/aventurchatr86.mkv',chatran],'Never fall back to HTML5 for MKV movies on NetCast');
+
+const playingMovie=setup({vod:true});
+playingMovie.ctx.startNetcastPlayer(null,playingMovie.native,chatran,chatran,{});
+playingMovie.native.playState=1;playingMovie.native.onPlayStateChange();
+assert.equal(playingMovie.timers.size,0,'Playing movies must immediately disarm the startup watchdog');
+playingMovie.advance(20000);
+assert.deepEqual(playingMovie.calls,['http://teamg.store/aventurchatr86.mkv'],'Healthy movies must never be interrupted by the watchdog');
+
 const external=setup({vod:true});external.ctx.startNetcastPlayer(null,external.native,'https://external.test/movie.mkv','https://external.test/movie.mkv',{});
 assert.deepEqual(external.calls,['https://external.test/movie.mkv'],'Never downgrade unverified external hosts');
 for(const options of [{vod:true},{}]) {

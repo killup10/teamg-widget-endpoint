@@ -6335,6 +6335,12 @@ function startPlaybackTicker() {
       if (timeEl) timeEl.textContent = (cur > 0 ? formatTime(cur) : '00:00:00') + ' / EN VIVO';
     }
 
+    if (cur > 0 && state.tuningWatchdog) {
+      hideTuning();
+      clearInterval(state.tuningWatchdog);
+      state.tuningWatchdog = null;
+    }
+
     monitorPlaybackRecovery(cur, dur, v, netcastObj);
     if (isMusicPlaying()) {
       updateMusicLyrics(cur);
@@ -6936,11 +6942,11 @@ function startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c, forceProxy) {
       if (!current()) return;
       if (selectedUrl !== playUrl) {
         startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c, true);
-      } else if (!c._triedHtml5) {
+      } else if (!c._triedHtml5 && !state.recoveryVod) {
         playHtml5(v, netcastObj, playUrl, streamUrl, c);
       } else {
         hideTuning();
-        showToast('NetCast no pudo abrir la señal (directo/proxy).');
+        showToast(state.recoveryVod ? 'NetCast no pudo abrir esta película.' : 'NetCast no pudo abrir la señal (directo/proxy).');
       }
     }, 300);
   }
@@ -6962,14 +6968,23 @@ function startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c, forceProxy) {
       if (ps === 1 || ps === 4) { // Reproduciendo o Buffering
         hideTuning();
         $('btnPlayPause').textContent = '▶❚❚';
+        if (ps === 1 && state.tuningWatchdog) {
+          clearInterval(state.tuningWatchdog);
+          state.tuningWatchdog = null;
+        }
         var mi = netcastObj.mediaInformation;
         if (mi && mi.width && mi.height) {
           $('player-res').textContent = mi.width + 'x' + mi.height;
         }
       } else if (ps === 2) {
         $('btnPlayPause').textContent = '▶';
-      } else if (ps === 5 && isMusicPlaying()) {
-        advanceMusicTrack();
+      } else if (ps === 5) {
+        if (isMusicPlaying()) {
+          advanceMusicTrack();
+        } else if (state.recoveryVod) {
+          hideTuning();
+          stopPlayer();
+        }
       } else if (ps === 6) { // Error
         fail();
       }
@@ -6980,11 +6995,21 @@ function startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c, forceProxy) {
   if (state.tuningWatchdog) clearInterval(state.tuningWatchdog);
   state.tuningWatchdog = setInterval(function() {
     if (!current() || failed) return;
-    if (netcastObj && netcastObj.playState === 1) {
+    var isPlaying = false;
+    try {
+      if (netcastObj) {
+        var ps = netcastObj.playState;
+        var pos = Number(netcastObj.playPosition || 0);
+        if (ps === 1 || pos > 0) isPlaying = true;
+      }
+    } catch (eCheck) {}
+    if (isPlaying) {
       hideTuning();
       clearInterval(state.tuningWatchdog);
       state.tuningWatchdog = null;
-    } else if (new Date().getTime() - startedAt >= 15000) {
+      return;
+    }
+    if (new Date().getTime() - startedAt >= 15000) {
       fail();
     }
   }, 400);
