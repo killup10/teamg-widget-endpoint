@@ -338,6 +338,25 @@ const pub = (p) => {
   };
 };
 
+function buildAssignedPlaylists(pls, devPls) {
+  const ids = (devPls || []).map(String);
+  const mine = pls.filter((p) => ids.indexOf(String(p._id)) > -1 && !playlistExpired(p)).map(pub);
+  if (ids.indexOf('__music') > -1) {
+    mine.push({
+      id: '__music',
+      name: '🎵 TeamG Music',
+      isMusic: true,
+      epg: '',
+      color: '',
+      badge: '',
+      expiresAt: '',
+      expired: false,
+      seriesCovers: [],
+    });
+  }
+  return mine;
+}
+
 async function authedDevice(body, query) {
   const cols = await store.init();
   const uid = verify(body.token || query.token);
@@ -515,7 +534,7 @@ async function handle(req, res, pathname, query, body) {
         activated: true,
         token: item.token,
         user: item.user,
-        playlists: playlists.filter(p => ids.includes(String(p._id)) && !playlistExpired(p)).map(pub),
+        playlists: buildAssignedPlaylists(playlists, ids),
         paymentDueDate: dev.paymentDueDate || '',
         serverDate: require('./payment-ledger').limaDate()
       });
@@ -559,7 +578,7 @@ async function handle(req, res, pathname, query, body) {
     const dev = await findById(cols.devices, devId);
     const pls = await cols.playlists.find({}, PLAYLIST_METADATA_PROJECTION);
     const devPls = (dev && dev.playlists ? dev.playlists : []).map(String);
-    const mine = pls.filter((p) => devPls.indexOf(String(p._id)) > -1 && !playlistExpired(p)).map(pub);
+    const mine = buildAssignedPlaylists(pls, devPls);
     return json(res, 200, { ok: true, device: { id: dev._id, name: dev.name }, playlists: mine,
       paymentDueDate: dev.paymentDueDate || '', serverDate: require('./payment-ledger').limaDate() });
   }
@@ -571,7 +590,7 @@ async function handle(req, res, pathname, query, body) {
     await a.cols.devices.updateOne({ _id: a.dev._id }, { $set: { lastSeen: store.nowIso() } });
     const pls = await a.cols.playlists.find({}, PLAYLIST_METADATA_PROJECTION);
     const devPls = (a.dev.playlists || []).map(String);
-    const mine = pls.filter((p) => devPls.indexOf(String(p._id)) > -1 && !playlistExpired(p)).map(pub);
+    const mine = buildAssignedPlaylists(pls, devPls);
     return json(res, 200, { ok: true, playlists: mine, paymentDueDate: a.dev.paymentDueDate || '',
       serverDate: require('./payment-ledger').limaDate() });
   }
@@ -584,6 +603,7 @@ async function handle(req, res, pathname, query, body) {
     const a = await authedDevice(body, query);
     if (a.err) return json(res, 401, { ok: false, error: a.err });
     const ottMusic = require('./ott-music');
+    if ((a.dev.playlists || []).map(String).indexOf('__music') < 0) return json(res, 403, { ok: false, error: 'TeamG Music no habilitado en este dispositivo' });
     const isNetcast = (req.headers && req.headers['user-agent'] && req.headers['user-agent'].indexOf('NetCast') !== -1 && req.headers['user-agent'].indexOf('Web0S') === -1);
     const fwdProto = isNetcast ? 'http' : ((req.headers && req.headers['x-forwarded-proto']) ? String(req.headers['x-forwarded-proto']).split(',')[0].trim() : ((req.connection && req.connection.encrypted) ? 'https' : 'http'));
     const fwdHost = (req.headers && (req.headers['x-forwarded-host'] || req.headers.host)) ? String(req.headers['x-forwarded-host'] || req.headers.host).split(',')[0].trim() : 'ott.teamg.store';
@@ -941,6 +961,7 @@ function fetchWithRedirects(targetUrl, options, maxRedirects, callback) {
       const ids = body.playlistIds.map(String);
       if (ids.length) {
         const available = new Set((await cols.playlists.find({}, { _id: 1 })).map((p) => String(p._id)));
+        available.add('__music');
         if (ids.some((id) => !available.has(id))) return json(res, 404, { ok: false, error: 'Lista no encontrada' });
       }
       await cols.devices.updateOne({ _id: dev._id }, { $set: { playlists: ids } });
@@ -999,6 +1020,7 @@ function fetchWithRedirects(targetUrl, options, maxRedirects, callback) {
       const playlistIds = Array.isArray(body.playlistIds) ? body.playlistIds.map(String) : [];
       if (playlistIds.length > 0) {
         const available = new Set((await cols.playlists.find({}, { _id: 1 })).map((p) => String(p._id)));
+        available.add('__music');
         if (playlistIds.some((id) => !available.has(id))) {
           return json(res, 404, { ok: false, error: 'Una de las listas asignadas no existe' });
         }
@@ -1036,7 +1058,7 @@ function fetchWithRedirects(targetUrl, options, maxRedirects, callback) {
 
       const devToken = sign(user._id);
       const pls = await cols.playlists.find({}, PLAYLIST_METADATA_PROJECTION);
-      const mine = pls.filter((p) => playlistIds.indexOf(String(p._id)) > -1 && !playlistExpired(p)).map(pub);
+      const mine = buildAssignedPlaylists(pls, playlistIds);
 
       await cols.codes.updateOne({ _id: record._id }, {
         $set: {

@@ -49,6 +49,20 @@ const ottMusic = require('../ott-music');
   );
   assert.equal(status, 200);
 
+  // Sin asignar __music desde el panel, el endpoint debe rechazar con 403
+  let unauthM3uStatus = 0;
+  await handle(
+    { method: 'GET', headers: { host: 'ott.teamg.store', 'x-forwarded-proto': 'https' } },
+    { writeHead(s) { unauthM3uStatus = s; }, end() {} },
+    '/api/ott/m3u',
+    { token, deviceId: 'tv_netcast_music', pid: '__music' },
+    {}
+  );
+  assert.equal(unauthM3uStatus, 403, 'Sin habilitar TeamG Music desde el panel, /api/ott/m3u?pid=__music debe responder 403');
+
+  // Al asignar __music al dispositivo desde el panel, se habilita
+  await cols.devices.updateOne({ _id: 'tv_netcast_music' }, { $set: { playlists: ['__music'] } });
+
   let m3uStatus = 0, m3uBody = '';
   await handle(
     { method: 'GET', headers: { host: 'ott.teamg.store', 'x-forwarded-proto': 'https' } },
@@ -57,18 +71,32 @@ const ottMusic = require('../ott-music');
     { token, deviceId: 'tv_netcast_music', pid: '__music' },
     {}
   );
-  assert.equal(m3uStatus, 200, 'El endpoint /api/ott/m3u?pid=__music debe responder 200 para cualquier TV vinculada');
+  assert.equal(m3uStatus, 200, 'El endpoint /api/ott/m3u?pid=__music debe responder 200 cuando está asignado en el panel');
   assert.ok(m3uBody.includes('#EXTM3U') && m3uBody.includes('Radio La Zona 90.5 FM'));
 
-  // 3. Validar integración en ott/index.html (pestaña en Home y buscador en tiempo real)
+  // 3. Validar integración en ott/index.html (solo con usuario y cuando __music está asignado)
   const html = fs.readFileSync(path.join(__dirname, '..', 'ott', 'index.html'), 'utf8');
-  assert.ok(html.includes("var musicPl = { id: '__music', name: '🎵 TeamG Music', isMusic: true };"), 'getHomeTabsList debe incluir la pestaña 🎵 TeamG Music');
+  assert.ok(html.includes("var musicPl = { id: '__music', name: '🎵 TeamG Music', isMusic: true };"), 'getHomeTabsList debe soportar la pestaña 🎵 TeamG Music cuando está asignada');
   assert.ok(html.includes('id="player-music-stage"'), 'El reproductor debe incluir la carátula visual ligera para TeamG Music');
 
   const getHomeTabsStart = html.indexOf('function visiblePlaylists()');
   const getHomeTabsEnd = html.indexOf('function getTabsList()');
+  const noUserCtx = {
+    state: { auth: { token: '' }, playlists: [] },
+    isPlExpired() { return false; }
+  };
+  vm.runInNewContext(html.slice(getHomeTabsStart, getHomeTabsEnd), noUserCtx);
+  assert.equal(noUserCtx.getHomeTabsList().length, 0, 'Sin usuario vinculado no debe mostrarse TeamG Music ni ninguna pestaña');
+
+  const withoutMusicCtx = {
+    state: { auth: { token: 't1' }, playlists: [{ id: 'cine', name: 'Cine por Género' }] },
+    isPlExpired() { return false; }
+  };
+  vm.runInNewContext(html.slice(getHomeTabsStart, getHomeTabsEnd), withoutMusicCtx);
+  assert.deepEqual(Array.from(withoutMusicCtx.getHomeTabsList(), t => t.id), ['cine', '__fav'], 'Sin __music habilitado desde el panel no debe aparecer TeamG Music');
+
   const homeTabsCtx = {
-    state: { playlists: [{ id: 'cine', name: 'Cine por Género' }] },
+    state: { auth: { token: 't1' }, playlists: [{ id: 'cine', name: 'Cine por Género' }, { id: '__music', name: '🎵 TeamG Music', isMusic: true }] },
     isPlExpired() { return false; }
   };
   vm.runInNewContext(html.slice(getHomeTabsStart, getHomeTabsEnd), homeTabsCtx);

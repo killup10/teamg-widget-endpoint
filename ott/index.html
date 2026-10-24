@@ -4940,12 +4940,17 @@ function visiblePlaylists() {
 }
 function getHomeTabsList() {
   var homeTabs = [];
+  if (state.auth && state.auth.token === '') return homeTabs;
   var pls = visiblePlaylists();
-  for (var p = 0; p < pls.length; p++) {
-    homeTabs.push({ id: pls[p].id, name: pls[p].name, pl: pls[p] });
-  }
+  if (!pls || pls.length === 0) return homeTabs;
   var musicPl = { id: '__music', name: '🎵 TeamG Music', isMusic: true };
-  homeTabs.push({ id: musicPl.id, name: musicPl.name, pl: musicPl });
+  for (var p = 0; p < pls.length; p++) {
+    if (pls[p].id === '__music') {
+      homeTabs.push({ id: musicPl.id, name: musicPl.name, pl: musicPl });
+    } else {
+      homeTabs.push({ id: pls[p].id, name: pls[p].name, pl: pls[p] });
+    }
+  }
   homeTabs.push({ id: '__fav', name: 'Favoritos' });
   return homeTabs;
 }
@@ -5052,6 +5057,10 @@ function renderTabs() {
   var isInside = (state.currentPlaylist || (state.channels && state.channels.length > 0));
   if (!isInside) {
     var homeTabs = getHomeTabsList();
+    if (!homeTabs.length) {
+      bar.innerHTML = '';
+      return;
+    }
     if (state.tabIdx >= homeTabs.length) state.tabIdx = 0;
     // Turbo: reusar elementos existentes si la cantidad no cambió
     if (bar.children && bar.children.length === homeTabs.length) {

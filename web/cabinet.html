@@ -432,6 +432,8 @@ function render() {
         var on = (d.playlists || []).map(String).indexOf(String(p.id)) > -1;
         h += "<label class='chk'><input type='checkbox' data-dev='" + d.id + "' value='" + p.id + "'" + (on ? " checked" : "") + "/>" + esc(p.name) + "</label>";
       });
+      var musicOn = (d.playlists || []).map(String).indexOf("__music") > -1;
+      h += "<label class='chk'><input type='checkbox' data-dev='" + d.id + "' value='__music'" + (musicOn ? " checked" : "") + "/>🎵 TeamG Music</label>";
       h += "<br/><button class='act' data-save='" + d.id + "'>OK</button></div>";
     });
     a.innerHTML = h + "</div>";
@@ -495,6 +497,7 @@ function renderActivarTV(a, un) {
           DATA.playlists.map(function(p) {
             return "<label class='chk' style='display:block;margin:4px 0;'><input type='checkbox' class='act-pl-chk' value='" + p.id + "' checked/> " + esc(p.name) + "</label>";
           }).join("") +
+          "<label class='chk' style='display:block;margin:4px 0;'><input type='checkbox' class='act-pl-chk' value='__music'/> 🎵 TeamG Music</label>" +
         "</div>" +
       "</div>" +
       "<div>" +
