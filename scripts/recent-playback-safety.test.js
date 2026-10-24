@@ -28,6 +28,27 @@ ctx.rememberRecentContent({id:'m_1',name:'Cancion Test',url:'/api/ott/music/stre
 assert.equal(ctx.state.recentContent.length,1,'TeamG Music tracks must never be added to recentContent');
 assert.equal(ctx.state.recentContent[0].name,chatran.name);
 ctx.state.currentPlaylist={id:'cine',name:'Cine por Genero'};
+
+// Auto-advance to the next movie when a VOD movie finishes.
+let advancedIdx = -1;
+const vodAdvCtx = {
+  state: {
+    recoveryVod: true,
+    currentPlaylist: { id: 'cine', name: 'Cine por Genero' },
+    currentChannelIdx: 0,
+    recoveryItem: other,
+    _advancingVod: false
+  },
+  PAGE_SIZE: 18,
+  lastChannelChangeTime: 500,
+  setTimeout: fn => fn(),
+  getFilteredChannels: () => [other, chatran],
+  playChannelAt: idx => { advancedIdx = idx; },
+  stopPlayer: () => {}
+};
+vm.runInNewContext(html.slice(html.indexOf('function isMusicPlaying()'), html.indexOf('function extractTrackInfo(')), vodAdvCtx);
+vodAdvCtx.advanceVodContent();
+assert.equal(advancedIdx, 1, 'Finishing a VOD movie must automatically play the next movie in the catalog');
 played=null;
 ctx.state.channels=[other];
 ctx.state.pendingRecentContent={id:'c_1',name:chatran.name,url:chatran.url};

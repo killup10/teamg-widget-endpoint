@@ -6025,6 +6025,54 @@ function advanceMusicTrack() {
   playChannelAt(nextIdx);
 }
 
+function advanceVodContent() {
+  if (!state.recoveryVod || isMusicPlaying()) return;
+  if (state._advancingVod) return;
+  state._advancingVod = true;
+  setTimeout(function() { state._advancingVod = false; }, 2000);
+  var isSeries = !!(state.activeSeriesEpisodes && state.activeSeriesEpisodes.length > 0);
+  var list = isSeries ? state.activeSeriesEpisodes : (typeof getFilteredChannels === 'function' ? getFilteredChannels() : state.channels);
+  if (!list || list.length === 0) {
+    if (typeof stopPlayer === 'function') stopPlayer();
+    return;
+  }
+  var curIdx = state.currentChannelIdx || 0;
+  if (state.recoveryItem) {
+    for (var i = 0; i < list.length; i++) {
+      if (list[i] === state.recoveryItem || (list[i].url && list[i].url === state.recoveryItem.url && list[i].name === state.recoveryItem.name)) {
+        curIdx = i;
+        break;
+      }
+    }
+  }
+  if (isSeries) {
+    var nextEpIdx = curIdx + 1;
+    if (nextEpIdx >= list.length) {
+      if (typeof stopPlayer === 'function') stopPlayer();
+      return;
+    }
+    lastChannelChangeTime = 0;
+    playChannelAt(nextEpIdx);
+    return;
+  }
+  var nextIdx = (curIdx + 1) % list.length;
+  var guard = 0;
+  while (list[nextIdx] && list[nextIdx].isSeries && guard < list.length) {
+    nextIdx = (nextIdx + 1) % list.length;
+    guard++;
+  }
+  if (!list[nextIdx] || list[nextIdx].isSeries) {
+    if (typeof stopPlayer === 'function') stopPlayer();
+    return;
+  }
+  if (typeof PAGE_SIZE === 'number' && PAGE_SIZE > 0) {
+    state.currentPage = Math.floor(nextIdx / PAGE_SIZE);
+    state.tileIdx = nextIdx % PAGE_SIZE;
+  }
+  lastChannelChangeTime = 0;
+  playChannelAt(nextIdx);
+}
+
 function extractTrackInfo(item) {
   var artist = '';
   var title = '';
@@ -6497,6 +6545,8 @@ function monitorPlaybackRecovery(cur, dur, v, netcastObj) {
     state.recoveryLastTime = now;
     if (isMusicPlaying() && dur > 0 && (cur >= dur - 0.45 || (v && v.ended))) {
       advanceMusicTrack();
+    } else if (state.recoveryVod && !isMusicPlaying() && dur > 30 && ((v && v.ended && cur >= dur - 15) || cur >= dur - 0.8)) {
+      advanceVodContent();
     }
     return;
   }
@@ -6924,7 +6974,7 @@ function startSamsungPlayer(v, netcastObj, playUrl, streamUrl, c, forceProxy) {
     ready: function() { if (current()) { hideTuning(); $('btnPlayPause').textContent = '▶❚❚'; } },
     buffer: function(waiting) { if (current()) setBuffering(waiting); },
     error: function() { if (current()) { hideTuning(); recoverPlayback(); } },
-    ended: function() { if (current()) { hideTuning(); if (!state.recoveryVod) recoverPlayback(); } },
+    ended: function() { if (current()) { hideTuning(); if (state.recoveryVod) { if (typeof advanceVodContent === 'function') advanceVodContent(); } else recoverPlayback(); } },
     failed: function() {
       if (!current()) return;
       if (selectedUrl !== playUrl) {
@@ -7029,7 +7079,8 @@ function startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c, forceProxy) {
           // Solo finalizar si la duración es conocida (>10s) y la posición está en los últimos 5s
           if (totalMs > 10000 && curMs >= totalMs - 5000) {
             hideTuning();
-            stopPlayer();
+            if (typeof advanceVodContent === 'function') advanceVodContent();
+            else stopPlayer();
           } else {
             // Buffer underrun o transición temporal de contenedor: continuar sin botar al usuario
             try { netcastObj.play(1); } catch (eCont) {}
@@ -7324,6 +7375,14 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c, androidFallbackEngine) 
   v.onended = function() {
     if (isMusicPlaying()) {
       advanceMusicTrack();
+    } else if (state.recoveryVod) {
+      var durEnd = state.activeDuration || (v && v.duration && isFinite(v.duration) ? v.duration : 0);
+      var curEnd = (v && typeof v.currentTime === 'number' ? v.currentTime : 0) || state.recoveryPosition || 0;
+      if (durEnd > 60 && curEnd > 0 && curEnd < durEnd - 15) {
+        recoverPlayback();
+      } else {
+        advanceVodContent();
+      }
     }
   };
   v.onloadedmetadata = function() {
