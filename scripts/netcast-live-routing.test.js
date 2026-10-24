@@ -26,13 +26,14 @@ function setup(options = {}) {
 }
 const direct='http://186.148.196.67:8900/play/a0cj';
 const proxy='https://ott.teamg.store/api/ott/stream.ts?url='+encodeURIComponent(direct);
+const proxyHttp='http://ott.teamg.store/api/ott/stream.ts?url='+encodeURIComponent(direct);
 const normal=setup();normal.start();assert.deepEqual(normal.calls,[direct]);
 normal.native.playState=4;normal.advance(15001);
 assert.deepEqual(normal.calls,[direct],'Wait for the native decoder to release before retrying');
-assert.equal(normal.native.data,'');
-normal.advance(300);assert.deepEqual(normal.calls,[direct,proxy],'Buffering must not suppress the startup timeout');
-normal.advance(15001);normal.advance(300);assert.deepEqual(normal.calls,[direct,proxy,'html5']);
-const immediate=setup({failDirect:true});immediate.start();immediate.advance(300);assert.deepEqual(immediate.calls,[direct,proxy],'Handle synchronous native errors');
+assert.equal(normal.native.data,direct,'Never wipe native data with empty string which crashes NetCast WebKit');
+normal.advance(300);assert.deepEqual(normal.calls,[direct,proxyHttp],'Buffering must not suppress the startup timeout');
+normal.advance(15001);normal.advance(300);assert.deepEqual(normal.calls,[direct,proxyHttp,'html5']);
+const immediate=setup({failDirect:true});immediate.start();immediate.advance(300);assert.deepEqual(immediate.calls,[direct,proxyHttp],'Handle synchronous native errors');
 const converted=setup();
 converted.ctx.startNetcastPlayer(null,converted.native,'https://app.test/api/ott/android-audio/session/index.m3u8',direct,{});
 assert.deepEqual(converted.calls,['https://app.test/api/ott/android-audio/session/index.m3u8'],'Keep prepared HLS instead of reopening original TS');
@@ -44,9 +45,9 @@ const chatran='https://teamg.store/aventurchatr86.mkv';
 movie.ctx.startNetcastPlayer(null,movie.native,chatran,chatran,{});
 assert.deepEqual(movie.calls,['http://teamg.store/aventurchatr86.mkv'],'Use the verified HTTP movie host on native NetCast');
 movie.native.playState=6;movie.native.onPlayStateChange();movie.advance(300);
-assert.deepEqual(movie.calls,['http://teamg.store/aventurchatr86.mkv',chatran],'Keep HTTPS as the second attempt');
+assert.deepEqual(movie.calls,['http://teamg.store/aventurchatr86.mkv','http://teamg.store/aventurchatr86.mkv'],'Keep HTTP transport on retry for teamg.store to avoid TLS Alert 70');
 movie.native.playState=6;movie.native.onPlayStateChange();movie.advance(300);
-assert.deepEqual(movie.calls,['http://teamg.store/aventurchatr86.mkv',chatran],'Never fall back to HTML5 for MKV movies on NetCast');
+assert.deepEqual(movie.calls,['http://teamg.store/aventurchatr86.mkv','http://teamg.store/aventurchatr86.mkv'],'Never fall back to HTML5 for MKV movies on NetCast');
 
 const playingMovie=setup({vod:true});
 playingMovie.ctx.startNetcastPlayer(null,playingMovie.native,chatran,chatran,{});
@@ -57,8 +58,8 @@ assert.deepEqual(playingMovie.calls,['http://teamg.store/aventurchatr86.mkv'],'H
 
 const external=setup({vod:true});external.ctx.startNetcastPlayer(null,external.native,'https://external.test/movie.mkv','https://external.test/movie.mkv',{});
 assert.deepEqual(external.calls,['https://external.test/movie.mkv'],'Never downgrade unverified external hosts');
-for(const options of [{vod:true},{}]) {
-  const test=setup(options);test.start(options.vod?direct:'http://cdn.test/live.m3u8');
-  assert.deepEqual(test.calls,[proxy],'VOD and HLS must keep their resolved URL');
-}
+const hlsTest=setup();hlsTest.start('http://cdn.test/live.m3u8');
+assert.deepEqual(hlsTest.calls,[proxyHttp],'HLS must keep resolved proxy URL downgraded to HTTP');
+const vodDirectTest=setup({vod:true});vodDirectTest.start(direct);
+assert.deepEqual(vodDirectTest.calls,[direct],'VOD HTTP streams must play direct on NetCast native player');
 console.log('NetCast direct HTTP, proxy retry, synchronous errors, stalled startup and cancellation pass.');

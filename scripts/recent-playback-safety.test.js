@@ -40,7 +40,8 @@ vm.createContext(clean);
 vm.runInContext(html.slice(html.indexOf('function cleanPlayerEngines('),html.indexOf('function formatTime(')),clean);
 clean.cleanPlayerEngines();
 assert.ok(calls.indexOf('remove:src') < calls.indexOf('load'));
-assert.equal(native.data,'');
+assert.ok(calls.indexOf('stop-native') !== -1, 'Native stop must be called to release decoder');
+assert.equal(native.data, 'old.mp4', 'Never wipe data with empty string which crashes NetCast WebKit');
 assert.equal(video.src,undefined);
 assert.equal(native.onPlayStateChange,null);
 

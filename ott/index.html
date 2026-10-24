@@ -5935,8 +5935,9 @@ function cleanPlayerEngines() {
     try {
       var hadVideoSource = !!v.getAttribute('src');
       v.removeAttribute('src');
-      // load() with no source releases the decoder; src='' requests this page.
-      if (hadVideoSource && typeof v.load === 'function') v.load();
+      var isNetcastTv = typeof navigator !== 'undefined' && navigator.userAgent && navigator.userAgent.indexOf('NetCast') !== -1;
+      // load() with no source releases the decoder on modern engines; on NetCast WebKit it causes errors.
+      if (hadVideoSource && typeof v.load === 'function' && !isNetcastTv) v.load();
     } catch (eV) {}
   }
 
@@ -5944,7 +5945,6 @@ function cleanPlayerEngines() {
   if (netcastObj) {
     try { netcastObj.onPlayStateChange = null; } catch (eN1) {}
     try { netcastObj.stop(); } catch (eN2) {}
-    try { netcastObj.data = ''; } catch (eN3) {}
     netcastObj.style.display = 'none';
   }
 
@@ -6914,18 +6914,20 @@ function startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c, forceProxy) {
   }
   var generation = state.playerGeneration;
   var selectedUrl = playUrl;
-  // Our movie host serves the same file over HTTP without redirecting.
-  // Keep old NetCast firmware off TLS; preserve the resolved URL as fallback.
-  if (!forceProxy && state.recoveryVod && /^https:\/\/teamg\.store\/[^?#]+\.(?:mkv|mp4|avi|mov|webm)(?:[?#]|$)/i.test(streamUrl)) {
-    selectedUrl = 'http://' + streamUrl.substring(8);
+  // 1. Películas o archivos en teamg.store: usar HTTP directo sin TLS para evitar Alert 70 en NetCast.
+  if (!forceProxy && /^https?:\/\/teamg\.store\/[^?#]+\.(?:mkv|mp4|avi|mov|webm)(?:[?#]|$)/i.test(streamUrl)) {
+    selectedUrl = 'http://' + streamUrl.replace(/^https?:\/\//i, '');
   }
-  // Native NetCast live TS playback can use the original HTTP transport.
-  // Keep the proxy URL available as a second attempt, and leave VOD/HLS alone.
-  else if (!forceProxy && !state.recoveryVod && !/\.m3u8(?:[?#]|$)/i.test(playUrl) && /^http:\/\//i.test(streamUrl) &&
-      !/(?:\.m3u8|\/chunks|\/playlist|\.(?:mp4|mkv|webm|avi|mov)(?:[?#]|$))/i.test(streamUrl)) {
+  // 2. Flujos HTTP directos (TS en vivo y películas VOD): NetCast nativo decodifica directo por HTTP sin proxy.
+  // Dejar que HLS (.m3u8) use playUrl resuelto / proxy.
+  else if (!forceProxy && /^http:\/\//i.test(streamUrl) && !/(?:\.m3u8|\/chunks|\/playlist)(?:[?#]|$)/i.test(streamUrl) && !/\.m3u8(?:[?#]|$)/i.test(playUrl)) {
     selectedUrl = streamUrl;
   } else if (!forceProxy && !state.recoveryVod && /^https:\/\/[^\/]*teamg\.store\/api\/ott\/stream\.m3u8\?url=/i.test(playUrl) && /^http:\/\//i.test(streamUrl)) {
     selectedUrl = streamUrl;
+  }
+  // 3. Toda URL hacia teamg.store / ott.teamg.store enviada al reproductor nativo debe usar http:// en puerto 80
+  if (/^https:\/\/[^\/]*teamg\.store\//i.test(selectedUrl)) {
+    selectedUrl = 'http://' + selectedUrl.substring(8);
   }
   var failed = false, startedAt = new Date().getTime();
   function current() { return state.screen === 'player' && state.playerGeneration === generation; }
@@ -6934,13 +6936,13 @@ function startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c, forceProxy) {
     failed = true;
     if (state.tuningWatchdog) clearInterval(state.tuningWatchdog);
     state.tuningWatchdog = null;
-    try { netcastObj.onPlayStateChange = null; netcastObj.stop(); netcastObj.data = ''; } catch (stopError) {}
+    try { netcastObj.onPlayStateChange = null; netcastObj.stop(); } catch (stopError) {}
     // NetCast stop() does not synchronously release the hardware decoder.
     // Let it finish before opening another source or the HTML5 engine.
     state.netcastFallbackTimer = setTimeout(function() {
       state.netcastFallbackTimer = null;
       if (!current()) return;
-      if (selectedUrl !== playUrl) {
+      if (!forceProxy) {
         startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c, true);
       } else if (!c._triedHtml5 && !state.recoveryVod) {
         playHtml5(v, netcastObj, playUrl, streamUrl, c);
@@ -6982,8 +6984,19 @@ function startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c, forceProxy) {
         if (isMusicPlaying()) {
           advanceMusicTrack();
         } else if (state.recoveryVod) {
-          hideTuning();
-          stopPlayer();
+          var curMs = 0, totalMs = 0;
+          try {
+            curMs = Number(netcastObj.playPosition || 0);
+            totalMs = Number(netcastObj.playTime || 0);
+          } catch (eTime) {}
+          // Solo finalizar si la duración es conocida (>10s) y la posición está en los últimos 5s
+          if (totalMs > 10000 && curMs >= totalMs - 5000) {
+            hideTuning();
+            stopPlayer();
+          } else {
+            // Buffer underrun o transición temporal de contenedor: continuar sin botar al usuario
+            try { netcastObj.play(1); } catch (eCont) {}
+          }
         }
       } else if (ps === 6) { // Error
         fail();
@@ -7266,7 +7279,6 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c, androidFallbackEngine) 
   if (netcastObj) {
     try { netcastObj.onPlayStateChange = null; } catch(e0) {}
     try { netcastObj.stop(); } catch(e02) {}
-    try { netcastObj.data = ''; } catch(e03) {}
     netcastObj.style.display = 'none';
   }
   v.style.display = 'block';
