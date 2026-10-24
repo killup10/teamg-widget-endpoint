@@ -637,6 +637,7 @@ function renderPlaylistsList(a) {
     h += "<tr><td><b>" + dot + esc(p.name) + "</b>" + badge + exp + "</td><td class='small' style='max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'>" + esc(p.url) + "</td>" +
       "<td class='small'>" + esc(p.color || "-") + "</td>" +
       "<td><button class='act green' data-edit-pl='" + p.id + "'>✎ Editar Contenido</button> " +
+      "<button class='act' data-source-pl='" + p.id + "'>Cambiar M3U</button> " +
       "<button class='plain' data-mark-pl='" + p.id + "'>Marca</button> " +
       "<button class='danger' data-dp='" + p.id + "'>Borrar</button></td></tr>";
   });
@@ -653,6 +654,13 @@ function renderPlaylistsList(a) {
       expiresAt: document.getElementById("px").value
     };
     if (id) payload.id = id;
+    if (document.getElementById("pid").getAttribute("data-source") === "1") {
+      if (!/^https?:\/\/\S+$/i.test(payload.url)) {
+        document.getElementById("pm").textContent = "Ingresa una URL M3U válida (http o https).";
+        return;
+      }
+      payload = { id: id, url: payload.url, epgUrl: payload.epgUrl };
+    }
     api("/api/ott/admin/playlist", "POST", payload).then(function() {
       document.getElementById("pid").value = "";
       document.getElementById("bp").textContent = "Agregar";
@@ -662,6 +670,9 @@ function renderPlaylistsList(a) {
   };
 
   document.getElementById("bc").onclick = function() {
+    document.getElementById("pid").removeAttribute("data-source");
+    document.getElementById("pn").disabled = false;
+    document.getElementById("pm").textContent = "";
     document.getElementById("pid").value = "";
     document.getElementById("pn").value = "";
     document.getElementById("pu").value = "";
@@ -674,6 +685,7 @@ function renderPlaylistsList(a) {
   };
 
   document.getElementById("bh").onclick = function() {
+    document.getElementById("bc").onclick();
     var y = new Date().getFullYear();
     document.getElementById("pid").value = "";
     document.getElementById("pn").value = "🎃 Halloween";
@@ -698,13 +710,16 @@ function renderPlaylistsList(a) {
     };
   }
 
-  var mb = document.querySelectorAll("[data-mark-pl]");
+  var mb = document.querySelectorAll("[data-mark-pl], [data-source-pl]");
   for (var m = 0; m < mb.length; m++) {
     mb[m].onclick = function() {
-      var pid = this.getAttribute("data-mark-pl");
+      var sourceOnly = this.getAttribute("data-source-pl") !== null;
+      var pid = this.getAttribute("data-source-pl") || this.getAttribute("data-mark-pl");
       var pl = null;
       for (var k = 0; k < DATA.playlists.length; k++) if (DATA.playlists[k].id === pid) pl = DATA.playlists[k];
       if (!pl) return;
+      document.getElementById("pid").setAttribute("data-source", sourceOnly ? "1" : "0");
+      document.getElementById("pn").disabled = sourceOnly;
       document.getElementById("pid").value = pl.id;
       document.getElementById("pn").value = pl.name || "";
       document.getElementById("pu").value = pl.url || "";
@@ -712,8 +727,10 @@ function renderPlaylistsList(a) {
       document.getElementById("pc").value = /halloween/i.test(pl.name || "") ? "#ff6a00" : "";
       document.getElementById("pb").value = pl.badge || "";
       document.getElementById("px").value = pl.expiresAt || "";
-      document.getElementById("bp").textContent = "Guardar";
+      document.getElementById("bp").textContent = sourceOnly ? "Guardar M3U" : "Guardar";
+      document.getElementById("pm").textContent = sourceOnly ? "Cambia el enlace M3U. Se conserva el contenido editado y las asignaciones; no se importan ni reemplazan canales al guardar." : "";
       document.getElementById("bc").style.display = "";
+      if (sourceOnly) document.getElementById("pu").focus();
       window.scrollTo(0, 0);
     };
   }
