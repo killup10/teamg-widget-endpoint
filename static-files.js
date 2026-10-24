@@ -17,8 +17,7 @@ module.exports = async function serveStatic(filePath, req, res, mimeTypes) {
     const headers = {
       'Content-Type': mimeTypes[ext] || 'application/octet-stream',
       // Revalidate documents; versioned assets can be reused without a download.
-      'Cache-Control': /\.(m3u|m3u8)$/.test(ext) ? 'no-store'
-        : ext === '.html' || ext === '.json' ? 'public, no-cache' : 'public, max-age=86400',
+      'Cache-Control': /\.(m3u|m3u8|html|json)$/.test(ext) ? 'no-cache, no-store, must-revalidate, max-age=0' : 'public, max-age=86400',
       'ETag': etag,
       'Last-Modified': stat.mtime.toUTCString(),
       'Vary': 'Accept-Encoding'

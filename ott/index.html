@@ -4444,9 +4444,11 @@ function loadPlaylistContent(pl, forceFresh, onReady) {
         state.currentFocusArea = 'tabs';
         state.tabIdx = 0;
       }
-      renderChannels();
-      renderTabs();
-      updateMainFocus(true);
+      if (!state.pendingRecentContent) {
+        renderChannels();
+        renderTabs();
+        updateMainFocus(true);
+      }
       showToast(state.channels.length + ' títulos disponibles.');
       updateSearchVisibility();
       resolveRecentContent();
@@ -4492,9 +4494,11 @@ function loadPlaylistContent(pl, forceFresh, onReady) {
           state.currentFocusArea = 'tabs';
           state.tabIdx = 0;
         }
-        renderChannels();
-        renderTabs();
-        updateMainFocus(true);
+        if (!state.pendingRecentContent) {
+          renderChannels();
+          renderTabs();
+          updateMainFocus(true);
+        }
         showToast(state.channels.length + ' títulos.');
         updateSearchVisibility();
         resolveRecentContent();
@@ -4730,6 +4734,16 @@ function resolveRecentContent() {
         matched = candidate; matches++;
       }
     }
+    if (matches > 1 && entry.id) {
+      for (var rId = 0; rId < state.channels.length; rId++) {
+        var candId = state.channels[rId];
+        if (!candId.isSeries && candId.id === entry.id && candId.name === entry.name) {
+          matched = candId;
+          matches = 1;
+          break;
+        }
+      }
+    }
     if (matches === 1 && matched) {
       state.currentSeries = null;
       state.activeSeriesEpisodes = null;
@@ -4764,6 +4778,8 @@ function resolveRecentContent() {
   }
   state.categoryConfirmed = false;
   state.currentFocusArea = 'tabs';
+  renderTabs();
+  renderChannels();
   updateMainFocus(true);
   showToast('Este contenido ya no está disponible en la lista.');
 }
@@ -5125,7 +5141,7 @@ var PAGE_SIZE = 18;
 function renderChannels() {
   var musicImages = typeof window !== 'undefined' ? window.TeamGCatalogImages : null;
   if (musicImages) musicImages.stop();
-  var legacyMusicGrid = musicImages && musicImages.legacy() && state.currentPlaylist && state.currentPlaylist.id === '__music';
+  var legacyMusicGrid = !!(musicImages && musicImages.legacy());
   if (typeof stopMarquee === 'function' && state.currentFocusedEl) {
     stopMarquee(state.currentFocusedEl);
   }
@@ -6708,6 +6724,7 @@ function playItem(c, recovering) {
   c._triedHtml5 = false;
   c._triedHtml5Direct = false;
   c._triedHtml5Proxy = false;
+  c._triedHtml5Http = false;
   c._triedMusicProxy = false;
   state.musicPlaybackFailed = false;
 
@@ -6810,10 +6827,10 @@ function playItem(c, recovering) {
   if (!state.recoveryVod && state.auth.iptvPlayer === 'Native TV player' && window.TeamGNative && TeamGNative.available()) useNative = true;
   var preferNetcast = false;
   
-  if (engine === 'mediaplayer') {
+  if (engine === 'mediaplayer' && !state.recoveryVod) {
     preferNetcast = true;
   } else if (engine === 'auto') {
-    if (isLegacyNetcast && netcastObj && (typeof netcastObj.play === 'function' || !isHls)) {
+    if (!state.recoveryVod && isLegacyNetcast && netcastObj && (typeof netcastObj.play === 'function' || !isHls)) {
       preferNetcast = true;
     }
   }
@@ -7277,7 +7294,7 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c, androidFallbackEngine) 
 
   if (netcastObj) {
     try { netcastObj.onPlayStateChange = null; } catch(e0) {}
-    try { netcastObj.stop(); } catch(e02) {}
+    try { if (netcastObj.style.display !== 'none') netcastObj.stop(); } catch(e02) {}
     netcastObj.style.display = 'none';
   }
   v.style.display = 'block';
@@ -7292,7 +7309,7 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c, androidFallbackEngine) 
   v.oncanplay = function() {
     setBuffering(false);
     hideTuning();
-    if (v.paused && state.screen === 'player') {
+    if (musicOnDemand && v.paused && state.screen === 'player') {
       try {
         var pCan = v.play();
         if (pCan && typeof pCan.catch === 'function') pCan.catch(function() {});
@@ -7312,7 +7329,7 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c, androidFallbackEngine) 
       $('player-res').textContent = v.videoWidth + 'x' + v.videoHeight;
     }
     updateDurationDisplay(v);
-    if (v.paused && state.screen === 'player') {
+    if (musicOnDemand && v.paused && state.screen === 'player') {
       try {
         var pMeta = v.play();
         if (pMeta && typeof pMeta.catch === 'function') pMeta.catch(function() {});
@@ -7346,13 +7363,19 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c, androidFallbackEngine) 
       } catch (eRetryMusic) {}
       return;
     }
+    if (isLegacyNetcast && state.recoveryVod && c && !c._triedHtml5Http && /^https:\/\/[^\/]*teamg\.store\//i.test(v.src || playUrl)) {
+      c._triedHtml5Http = true;
+      v.src = 'http://' + (v.src || playUrl).replace(/^https?:\/\//i, '');
+      try { v.load(); v.play(); } catch (eRetryVodHttp) {}
+      return;
+    }
     if (isLegacyNetcast && c && c._triedHtml5Direct && !c._triedHtml5Proxy && playUrl && playUrl !== streamUrl) {
       c._triedHtml5Proxy = true;
       v.src = /^https:\/\/[^\/]*teamg\.store\//i.test(playUrl) ? ('http://' + playUrl.substring(8)) : playUrl;
       try { v.load(); v.play(); } catch (eRetryHtml5) {}
       return;
     }
-    if (isLegacyNetcast && netcastObj && (!c || !c._triedNetcast)) {
+    if (!state.recoveryVod && isLegacyNetcast && netcastObj && (!c || !c._triedNetcast)) {
       console.log('HTML5 error, conmutando a NetCast...');
       startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c);
     } else {
@@ -7464,17 +7487,19 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c, androidFallbackEngine) 
       var playPromise = v.play();
       if (playPromise && typeof playPromise.catch === 'function') {
         playPromise.catch(function(err) {
-        androidPlayError(err);
-        console.warn('v.play error:', err);
-        setTimeout(function() {
-          if (v.paused && state.screen === 'player') {
-            try {
-              var pRetry = v.play();
-              if (pRetry && typeof pRetry.catch === 'function') pRetry.catch(function() {});
-            } catch (eRetry) {}
+          androidPlayError(err);
+          console.warn('v.play error:', err);
+          if (musicOnDemand) {
+            setTimeout(function() {
+              if (v.paused && state.screen === 'player') {
+                try {
+                  var pRetry = v.play();
+                  if (pRetry && typeof pRetry.catch === 'function') pRetry.catch(function() {});
+                } catch (eRetry) {}
+              }
+            }, 150);
           }
-        }, 150);
-      });
+        });
       }
     } catch (e) {
       console.warn('Error al llamar v.play():', e);
