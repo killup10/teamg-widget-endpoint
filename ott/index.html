@@ -2131,7 +2131,7 @@ body.smart-tv #player-music-yt-container { display:none !important; }
   <!-- REPRODUCTOR DE VIDEO A PANTALLA COMPLETA (Foto 2 y 3) -->
   <div id="player-container">
     <video id="video-el" preload="auto" playsinline webkit-playsinline tabindex="-1"></video>
-    <object id="netcast-player" type="application/x-netcast-av" width="100%" height="100%" style="display:none;" tabindex="-1">
+    <object id="netcast-player" type="application/x-netcast-av" autoStart="false" width="100%" height="100%" style="display:none;" tabindex="-1">
       <param name="wmode" value="transparent">
     </object>
     <object id="samsung-player" type="application/avplayer" style="display:none;" tabindex="-1"></object>
@@ -5850,6 +5850,8 @@ function destroyYtPlayer() {
 function cleanPlayerEngines() {
   destroyYtPlayer();
   state.playerGeneration = (state.playerGeneration || 0) + 1;
+  clearTimeout(state.netcastFallbackTimer);
+  state.netcastFallbackTimer = null;
   if (state.androidAudioSession) {
     apiCall('POST', '/api/ott/android-audio/stop', { token: state.auth.token, deviceId: state.auth.deviceId, sessionId: state.androidAudioSession }, function() {});
     state.androidAudioSession = null;
@@ -6921,15 +6923,21 @@ function startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c, forceProxy) {
     failed = true;
     if (state.tuningWatchdog) clearInterval(state.tuningWatchdog);
     state.tuningWatchdog = null;
-    try { netcastObj.onPlayStateChange = null; netcastObj.stop(); } catch (stopError) {}
-    if (selectedUrl !== playUrl) {
-      startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c, true);
-    } else if (!c._triedHtml5) {
-      playHtml5(v, netcastObj, playUrl, streamUrl, c);
-    } else {
-      hideTuning();
-      showToast('NetCast no pudo abrir la señal (directo/proxy).');
-    }
+    try { netcastObj.onPlayStateChange = null; netcastObj.stop(); netcastObj.data = ''; } catch (stopError) {}
+    // NetCast stop() does not synchronously release the hardware decoder.
+    // Let it finish before opening another source or the HTML5 engine.
+    state.netcastFallbackTimer = setTimeout(function() {
+      state.netcastFallbackTimer = null;
+      if (!current()) return;
+      if (selectedUrl !== playUrl) {
+        startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c, true);
+      } else if (!c._triedHtml5) {
+        playHtml5(v, netcastObj, playUrl, streamUrl, c);
+      } else {
+        hideTuning();
+        showToast('NetCast no pudo abrir la señal (directo/proxy).');
+      }
+    }, 300);
   }
   c._triedNetcast = true;
   if (v) {
@@ -6977,6 +6985,8 @@ function startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c, forceProxy) {
   }, 400);
   try {
     if (netcastObj.offsetWidth) {}
+    // Assigning data must not auto-start and then race the explicit play(1).
+    netcastObj.autoStart = false;
     netcastObj.data = selectedUrl;
     if (typeof netcastObj.play === 'function' || typeof setTimeout !== 'function') {
       netcastObj.play(1);
