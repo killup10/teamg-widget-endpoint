@@ -59,6 +59,68 @@ for(const engine of ['auto','mediaplayer']){
  ctx.startNetcastPlayer(null,native,proxyUrl,hlsUrl,{});
  assert.deepEqual(opened,[hlsUrl],'Active NetCast opens HTTP HLS directly instead of HTTPS proxy');
 }
+{
+ const netcastSource=html.slice(html.indexOf('function startNetcastPlayer('),html.indexOf('var ytMusicPlayer = null;'));
+ const html5Source=html.slice(html.indexOf('function playHtml5('),html.indexOf('function stopPlayer('));
+ const borutoUrl='https://teamg.store/boruto1x257.mkv';
+ // Case 1: boruto1x257.mkv plays audio in HTML5 with black screen (videoWidth === 0 at currentTime >= 0.8) -> switches to NetCast MediaPlayer over HTTP
+ {
+  const netcastOpened=[];
+  const v={style:{},currentTime:0,videoWidth:0,videoHeight:0,pause(){},removeAttribute(){},load(){},play(){}};
+  const native={style:{},playState:0,stop(){},play(){netcastOpened.push(this.data);}};
+  const ctx={
+   state:{screen:'player',playerGeneration:1,recoveryVod:true,auth:{}},
+   window:{location:{protocol:'https:'}},
+   navigator:{userAgent:'Mozilla/5.0 (DirectFB; Linux; Ko-KR) AppleWebKit/534.26 (KHTML, like Gecko) NetCast.TV-2013'},
+   Date:class{getTime(){return 1000;}},setInterval(){return 1;},clearInterval(){},setTimeout(){return 1;},
+   hideTuning(){},showToast(){},setBuffering(){},updateProgressDisplay(){},updateDurationDisplay(){},isMusicPlaying(){return false;},recoverPlayback(){},
+   $(){return{style:{}};},console
+  };
+  vm.runInNewContext(netcastSource+'\n'+html5Source,ctx);
+  ctx.playHtml5(v,native,borutoUrl,borutoUrl,{url:borutoUrl});
+  v.currentTime=1.0;
+  v.ontimeupdate();
+  assert.deepEqual(netcastOpened,['http://teamg.store/boruto1x257.mkv'],'HTML5 black screen (videoWidth=0) on NetCast switches automatically to MediaPlayer HTTP');
+ }
+ // Case 2: boruto1x257.mkv triggers v.onerror in HTML5 -> switches immediately to NetCast MediaPlayer over HTTP
+ {
+  const netcastOpened=[];
+  const v={style:{},currentTime:0,videoWidth:0,videoHeight:0,pause(){},removeAttribute(){},load(){},play(){}};
+  const native={style:{},playState:0,stop(){},play(){netcastOpened.push(this.data);}};
+  const ctx={
+   state:{screen:'player',playerGeneration:1,recoveryVod:true,auth:{}},
+   window:{location:{protocol:'https:'}},
+   navigator:{userAgent:'Mozilla/5.0 (DirectFB; Linux; Ko-KR) AppleWebKit/534.26 (KHTML, like Gecko) NetCast.TV-2013'},
+   Date:class{getTime(){return 1000;}},setInterval(){return 1;},clearInterval(){},setTimeout(){return 1;},
+   hideTuning(){},showToast(){},setBuffering(){},updateProgressDisplay(){},updateDurationDisplay(){},isMusicPlaying(){return false;},recoverPlayback(){},
+   $(){return{style:{}};},console
+  };
+  vm.runInNewContext(netcastSource+'\n'+html5Source,ctx);
+  ctx.playHtml5(v,native,borutoUrl,borutoUrl,{url:borutoUrl});
+  v.onerror();
+  assert.deepEqual(netcastOpened,['http://teamg.store/boruto1x257.mkv'],'HTML5 onerror on NetCast VOD switches automatically to MediaPlayer HTTP');
+ }
+ // Case 3: volvealos1726.mkv decodes video frames in HTML5 (videoWidth=1920, videoHeight=1080) -> stays in HTML5 without touching MediaPlayer
+ {
+  const netcastOpened=[];
+  const v={style:{},currentTime:0,videoWidth:1920,videoHeight:1080,pause(){},removeAttribute(){},load(){},play(){}};
+  const native={style:{},playState:0,stop(){},play(){netcastOpened.push(this.data);}};
+  const ctx={
+   state:{screen:'player',playerGeneration:1,recoveryVod:true,auth:{}},
+   window:{location:{protocol:'https:'}},
+   navigator:{userAgent:'Mozilla/5.0 (DirectFB; Linux; Ko-KR) AppleWebKit/534.26 (KHTML, like Gecko) NetCast.TV-2013'},
+   Date:class{getTime(){return 1000;}},setInterval(){return 1;},clearInterval(){},setTimeout(){return 1;},
+   hideTuning(){},showToast(){},setBuffering(){},updateProgressDisplay(){},updateDurationDisplay(){},isMusicPlaying(){return false;},recoverPlayback(){},
+   $(){return{style:{}};},console
+  };
+  vm.runInNewContext(netcastSource+'\n'+html5Source,ctx);
+  const volveUrl='https://teamg.store/volvealos1726.mkv';
+  ctx.playHtml5(v,native,volveUrl,volveUrl,{url:volveUrl});
+  v.currentTime=2.5;
+  v.ontimeupdate();
+  assert.deepEqual(netcastOpened,[],'HTML5 with valid video dimensions (1920x1080) stays in HTML5');
+ }
+}
 const samsungSource=html.slice(html.indexOf('function startSamsungPlayer('),html.indexOf('function startNetcastPlayer('));
 {
  const direct='http://186.148.196.100:8000/play/a013';

@@ -6389,7 +6389,7 @@ function startPlaybackTicker() {
       var nativeClock = TeamGNative.info();
       cur = nativeClock.currentTime; dur = nativeClock.duration;
       if (dur > 0) { isLive = false; state.activeDuration = dur; }
-    } else if (netcastObj && netcastObj.style.display !== 'none' && typeof netcastObj.playPosition !== 'undefined') {
+    } else if (netcastObj && netcastObj.style.display !== 'none' && netcastObj.playState === 1 && typeof netcastObj.playPosition !== 'undefined') {
       try {
         cur = (netcastObj.playPosition || 0) / 1000;
         dur = (netcastObj.playTime || 0) / 1000;
@@ -6428,7 +6428,8 @@ function startPlaybackTicker() {
       if (timeEl) timeEl.textContent = (cur > 0 ? formatTime(cur) : '00:00:00') + ' / EN VIVO';
     }
 
-    if (cur > 0 && state.tuningWatchdog) {
+    var html5HasVideo = !v || v.style.display === 'none' || isMusicPlaying() || (v.videoWidth > 0 && v.videoHeight > 0);
+    if (cur > 0 && state.tuningWatchdog && html5HasVideo) {
       hideTuning();
       clearInterval(state.tuningWatchdog);
       state.tuningWatchdog = null;
@@ -7085,14 +7086,11 @@ function startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c, forceProxy) {
             curMs = Number(netcastObj.playPosition || 0);
             totalMs = Number(netcastObj.playTime || 0);
           } catch (eTime) {}
-          // Solo finalizar si la duración es conocida (>10s) y la posición está en los últimos 5s
-          if (totalMs > 10000 && curMs >= totalMs - 5000) {
+          // Solo finalizar si la duración es conocida (>10s) y la posición está en los últimos 5s, o tras >60s sin metadatos de duración
+          if ((totalMs > 10000 && curMs >= totalMs - 5000) || (totalMs <= 0 && (new Date()).getTime() - startedAt > 60000)) {
             hideTuning();
             if (typeof advanceVodContent === 'function') advanceVodContent();
             else stopPlayer();
-          } else {
-            // Buffer underrun o transición temporal de contenedor: continuar sin botar al usuario
-            try { netcastObj.play(1); } catch (eCont) {}
           }
         }
       } else if (ps === 6) { // Error
@@ -7107,10 +7105,8 @@ function startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c, forceProxy) {
     if (!current() || failed) return;
     var isPlaying = false;
     try {
-      if (netcastObj) {
-        var ps = netcastObj.playState;
-        var pos = Number(netcastObj.playPosition || 0);
-        if (ps === 1 || pos > 0) isPlaying = true;
+      if (netcastObj && netcastObj.playState === 1) {
+        isPlaying = true;
       }
     } catch (eCheck) {}
     if (isPlaying) {
@@ -7362,7 +7358,38 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c, androidFallbackEngine) 
   }
   v.style.display = 'block';
 
-  v.onloadeddata = function() { hideTuning(); };
+  function fallbackToNetcastFromHtml5() {
+    if (!isLegacyNetcast || !netcastObj || (c && c._triedNetcast)) return false;
+    if (state.tuningWatchdog) {
+      clearInterval(state.tuningWatchdog);
+      state.tuningWatchdog = null;
+    }
+    if (state.hlsInstance) {
+      try { state.hlsInstance.destroy(); } catch (eDestroyHls) {}
+      state.hlsInstance = null;
+    }
+    v.onloadeddata = null;
+    v.onwaiting = null;
+    v.oncanplay = null;
+    v.onplaying = null;
+    v.onpause = null;
+    v.onended = null;
+    v.onloadedmetadata = null;
+    v.ontimeupdate = null;
+    v.onerror = null;
+    try { v.pause(); v.removeAttribute('src'); } catch (eCleanHtml5) {}
+    v.style.display = 'none';
+    startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c);
+    return true;
+  }
+
+  function hideTuningIfVideoReady() {
+    if (!isLegacyNetcast || musicOnDemand || isMusicPlaying() || (c && c._triedNetcast) || (v.videoWidth > 0 && v.videoHeight > 0)) {
+      hideTuning();
+    }
+  }
+
+  v.onloadeddata = function() { hideTuningIfVideoReady(); };
   v.onwaiting = function() {
     setBuffering(true);
     if (isMusicPlaying() && v.duration > 0 && v.currentTime >= v.duration - 1.2) {
@@ -7371,7 +7398,7 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c, androidFallbackEngine) 
   };
   v.oncanplay = function() {
     setBuffering(false);
-    hideTuning();
+    hideTuningIfVideoReady();
     if (musicOnDemand && v.paused && state.screen === 'player') {
       try {
         var pCan = v.play();
@@ -7379,7 +7406,7 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c, androidFallbackEngine) 
       } catch (eCan) {}
     }
   };
-  v.onplaying = function() { setBuffering(false); hideTuning(); $('btnPlayPause').textContent = '▶❚❚'; if (isMusicPlaying()) startLyricsTimer(); };
+  v.onplaying = function() { setBuffering(false); hideTuningIfVideoReady(); $('btnPlayPause').textContent = '▶❚❚'; if (isMusicPlaying()) startLyricsTimer(); };
   v.onpause = function() { $('btnPlayPause').textContent = '▶'; stopLyricsTimer(); };
   v.onended = function() {
     if (isMusicPlaying()) {
@@ -7395,7 +7422,7 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c, androidFallbackEngine) 
     }
   };
   v.onloadedmetadata = function() {
-    hideTuning();
+    hideTuningIfVideoReady();
     if (v.videoWidth && v.videoHeight) {
       $('player-res').textContent = v.videoWidth + 'x' + v.videoHeight;
     }
@@ -7408,7 +7435,10 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c, androidFallbackEngine) 
     }
   };
   v.ontimeupdate = function() {
-    if (v.currentTime > 0) hideTuning();
+    if (isLegacyNetcast && !musicOnDemand && !isMusicPlaying() && v.currentTime >= 0.8 && (!v.videoWidth || !v.videoHeight)) {
+      if (fallbackToNetcastFromHtml5()) return;
+    }
+    if (v.currentTime > 0) hideTuningIfVideoReady();
     updateProgressDisplay(v);
     if (isMusicPlaying()) {
       updateMusicLyrics(v.currentTime);
@@ -7434,21 +7464,14 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c, androidFallbackEngine) 
       } catch (eRetryMusic) {}
       return;
     }
-    if (isLegacyNetcast && state.recoveryVod && c && !c._triedHtml5Http && /^https:\/\/[^\/]*teamg\.store\//i.test(v.src || playUrl)) {
-      c._triedHtml5Http = true;
-      v.src = 'http://' + (v.src || playUrl).replace(/^https?:\/\//i, '');
-      try { v.load(); v.play(); } catch (eRetryVodHttp) {}
-      return;
-    }
     if (isLegacyNetcast && c && c._triedHtml5Direct && !c._triedHtml5Proxy && playUrl && playUrl !== streamUrl) {
       c._triedHtml5Proxy = true;
       v.src = /^https:\/\/[^\/]*teamg\.store\//i.test(playUrl) ? ('http://' + playUrl.substring(8)) : playUrl;
       try { v.load(); v.play(); } catch (eRetryHtml5) {}
       return;
     }
-    if (!state.recoveryVod && isLegacyNetcast && netcastObj && (!c || !c._triedNetcast)) {
+    if (fallbackToNetcastFromHtml5()) {
       console.log('HTML5 error, conmutando a NetCast...');
-      startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c);
     } else {
       hideTuning();
       showToast('La reproducción se interrumpió.');
@@ -7586,14 +7609,24 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c, androidFallbackEngine) 
       failMusicPlayback();
       return;
     }
-    if (v && !v.paused && v.currentTime > 0) {
+    if (!musicOnDemand && !isMusicPlaying() && isLegacyNetcast && state.playerGeneration === musicGeneration) {
+      if (v && v.currentTime >= 0.8 && (!v.videoWidth || !v.videoHeight)) {
+        if (fallbackToNetcastFromHtml5()) return;
+      }
+      if ((!v || v.currentTime === 0 || !v.videoWidth) && (new Date()).getTime() - musicLoadStarted >= 4500) {
+        if (fallbackToNetcastFromHtml5()) return;
+      }
+    }
+    if (v && !v.paused && v.currentTime > 0 && (!isLegacyNetcast || musicOnDemand || isMusicPlaying() || (v.videoWidth > 0 && v.videoHeight > 0))) {
       hideTuning();
       clearInterval(state.tuningWatchdog);
       state.tuningWatchdog = null;
     }
   }, 400);
 
-  setTimeout(function() { hideTuning(); }, 4000);
+  if (!isLegacyNetcast) {
+    setTimeout(function() { hideTuning(); }, 4000);
+  }
 }
 
 function stopPlayer() {
