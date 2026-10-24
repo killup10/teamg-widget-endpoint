@@ -1463,8 +1463,8 @@ function handleStream(req, res, query) {
     }
   });
 
-  if (req && typeof req.on === 'function') {
-    req.on('close', () => {
+  if (res && typeof res.on === 'function') {
+    res.once('close', () => {
       try { clientReq.destroy(); } catch (e) {}
     });
   }

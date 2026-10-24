@@ -107,31 +107,8 @@ const mimeTypes = {
   '.m3u8': 'application/vnd.apple.mpegurl'
 };
 
-const serveFile = (filePath, res) => {
-  fs.stat(filePath, (statErr, stat) => {
-    if (statErr || !stat.isFile()) {
-      res.writeHead(404, { 'Content-Type': 'text/plain' });
-      res.end('404 Not Found');
-      return;
-    }
-    fs.readFile(filePath, (err, data) => {
-      if (err) {
-        res.writeHead(500, { 'Content-Type': 'text/plain' });
-        res.end('Server Error');
-      } else {
-        const ext = path.extname(filePath).toLowerCase();
-        const contentType = mimeTypes[ext] || 'application/octet-stream';
-        res.writeHead(200, {
-          'Content-Type': contentType,
-          'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
-          'Pragma': 'no-cache',
-          'Expires': '0'
-        });
-        res.end(data);
-      }
-    });
-  });
-};
+const serveStatic = require('./static-files');
+const serveFile = (filePath, res) => serveStatic(filePath, res.req, res, mimeTypes);
 
 const server = http.createServer((req, res) => {
   // Configurar cabeceras CORS para todas las respuestas
@@ -154,7 +131,20 @@ const server = http.createServer((req, res) => {
     pathname = u.pathname || '/';
     query = Object.fromEntries(u.searchParams);
   } catch (e) { pathname = '/'; }
-  console.log('[REQ]', req.method, getHost(req) + (req.url || '/'));
+  // Record payload bytes without query strings (which can contain credentials).
+  let sentBytes = 0;
+  const write = res.write;
+  const end = res.end;
+  const count = (chunk, encoding) => {
+    if (chunk != null && typeof chunk !== 'function') sentBytes += Buffer.isBuffer(chunk) || ArrayBuffer.isView(chunk)
+      ? chunk.byteLength : Buffer.byteLength(String(chunk), typeof encoding === 'string' ? encoding : undefined);
+  };
+  res.write = function(chunk, encoding, callback) { count(chunk, encoding); return write.call(this, chunk, encoding, callback); };
+  res.end = function(chunk, encoding, callback) { count(chunk, encoding); return end.call(this, chunk, encoding, callback); };
+  res.once('close', () => console.log('[BANDWIDTH]', JSON.stringify({
+    method: req.method, path: pathname.replace(/\/android-audio\/[a-f0-9]{48}/, '/android-audio/:session'),
+    status: res.statusCode, bytes: sentBytes, complete: res.writableFinished
+  })));
 
   // Health check / ping para keep-alive
   if (pathname === '/ping' || pathname === '/health') {

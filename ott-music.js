@@ -507,6 +507,53 @@ async function resolveViaSoundCloudBuffer(artist, title) {
   }
 }
 
+async function resolveViaSoundCloudDirectUrl(artist, title) {
+  const q = [artist, title].filter(Boolean).join(' ').trim();
+  if (!q) return null;
+  let clientId = await getSoundCloudClientId(false);
+  if (!clientId) return null;
+
+  try {
+    let searchUrl = 'https://api-v2.soundcloud.com/search/tracks?q=' + encodeURIComponent(q) + '&client_id=' + clientId + '&limit=15';
+    let srRes = await fetch(searchUrl, { headers: { 'User-Agent': UA_BROWSER } });
+    if (srRes.status === 401 || srRes.status === 403) {
+      clientId = await getSoundCloudClientId(true);
+      if (!clientId) return null;
+      searchUrl = 'https://api-v2.soundcloud.com/search/tracks?q=' + encodeURIComponent(q) + '&client_id=' + clientId + '&limit=15';
+      srRes = await fetch(searchUrl, { headers: { 'User-Agent': UA_BROWSER } });
+    }
+    if (!srRes.ok) return null;
+    const sr = await srRes.json();
+
+    const candidates = (sr.collection || []).filter((t) =>
+      t &&
+      t.duration >= 60000 &&
+      t.duration <= 600000 &&
+      (t.media?.transcodings || []).some((tr) => !tr.snipped && tr.format?.protocol === 'progressive')
+    );
+    if (candidates.length === 0) return null;
+
+    const matching = candidates.filter((track) => isTrustedSoundCloudOriginal(track, artist, title));
+    const pool = matching.length > 0 ? matching : candidates;
+
+    for (const best of pool) {
+      const tr = best.media?.transcodings?.find((x) => !x.snipped && x.format?.protocol === 'progressive');
+      if (!tr || !tr.url) continue;
+
+      const sep = tr.url.includes('?') ? '&' : '?';
+      const authUrl = tr.url + sep + 'client_id=' + clientId +
+        (best.track_authorization ? '&track_authorization=' + encodeURIComponent(best.track_authorization) : '');
+      const mediaInfo = await fetchJsonWithTimeout(authUrl, {}, 5000);
+      if (mediaInfo && mediaInfo.url) {
+        return mediaInfo.url;
+      }
+    }
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+
 function serveAudioBufferWithRange(req, res, buffer, mimeType = 'video/mp4') {
   const total = buffer.length;
   const range = req.headers && req.headers.range;
@@ -1634,16 +1681,18 @@ function redirectDirectStream(res, targetUrl) {
 async function handleMusicStream(req, res, pathname, query) {
   const forceProxy = String(query.proxy || '') === '1';
   const legacyNetcast = isLegacyNetcastReq(req);
+  const enableDeezerProxy = typeof process !== 'undefined' && process.env && process.env.ENABLE_DEEZER_PROXY === '1';
+  const enableMediaProxy = typeof process !== 'undefined' && process.env && process.env.ENABLE_MEDIA_PROXY === '1';
 
   // 1. Emisora de radio en vivo (/api/ott/music/radio.mp3?id=...)
   if (pathname.indexOf('/api/ott/music/radio') === 0) {
     const id = String(query.id || '').trim();
     const radio = LIVE_RADIOS.find((r) => r.id === id) || LIVE_RADIOS[0];
-    // Escudo Render Free: en TVs modernas (webOS, Tizen, Android TV, PC) redirigir 302 directo a la emisora (0 MB en Render)
-    if (!forceProxy && !legacyNetcast) {
-      return redirectDirectStream(res, radio.streamUrl);
+    let streamUrl = radio.streamUrl;
+    if (legacyNetcast && streamUrl.startsWith('https:')) {
+      streamUrl = streamUrl.replace(/^https:/, 'http:');
     }
-    return proxyUpstreamAudio(radio.streamUrl, req, res, radio.mime || 'audio/mpeg', null);
+    return redirectDirectStream(res, streamUrl);
   }
 
   // 2. Canción bajo demanda (/api/ott/music/stream.mp4?artist=...&title=...)
@@ -1654,11 +1703,7 @@ async function handleMusicStream(req, res, pathname, query) {
       finalUrl = finalUrl.replace(/[?&]dl=0/, '').replace(/[?&]raw=1/, '');
       finalUrl += (finalUrl.includes('?') ? '&' : '?') + 'dl=1';
     }
-    if (!forceProxy && !legacyNetcast) {
-      return redirectDirectStream(res, finalUrl);
-    }
-    try { res.setHeader('X-Audio-Source', 'Direct Studio Audio'); } catch (_) {}
-    return proxyUpstreamAudio(finalUrl, req, res, 'video/mp4', null, 5);
+    return redirectDirectStream(res, finalUrl);
   }
 
   const youtubeId = String(query.v || query.youtubeId || '').trim();
@@ -1669,7 +1714,20 @@ async function handleMusicStream(req, res, pathname, query) {
     : (artist + '|' + title + '|' + youtubeId).toLowerCase();
 
   try {
-    // 2a. Caché en RAM de pista completa ensamblada (respuesta Range en <1ms)
+    // 2a. SoundCloud CDN directo (0 MB egress en Render, reproducción directa sobre HTTP puerto 80)
+    if (artist || title) {
+      try {
+        const scDirect = await resolveViaSoundCloudDirectUrl(artist, title);
+        if (scDirect) {
+          const targetUrl = (legacyNetcast && scDirect.startsWith('https:'))
+            ? scDirect.replace(/^https:/, 'http:')
+            : scDirect;
+          return redirectDirectStream(res, targetUrl);
+        }
+      } catch (_) {}
+    }
+
+    // 2b. Caché en RAM si ya fue ensamblado previamente
     if (audioBufferCache.has(trackKey)) {
       const cachedBuf = audioBufferCache.get(trackKey);
       if (Date.now() - cachedBuf.ts < BUFFER_CACHE_TTL_MS) {
@@ -1685,8 +1743,8 @@ async function handleMusicStream(req, res, pathname, query) {
       audioBufferCache.delete(youtubeId.toLowerCase());
     }
 
-    // 2b. Deezer Studio Master (pista oficial de discográfica 100% original en ~1.2s, sin bloqueos AWS)
-    if (artist || title) {
+    // 2c. Deezer Studio Master (solo activo en VPS con tráfico ilimitado via ENABLE_DEEZER_PROXY=1)
+    if (enableDeezerProxy && (artist || title)) {
       try {
         const { resolveViaDeezerBuffer } = require('./deezer-service');
         const dz = await resolveViaDeezerBuffer(artist, title);
@@ -1715,23 +1773,25 @@ async function handleMusicStream(req, res, pathname, query) {
     const hasCookies = areCookiesValid();
     const canTryYoutube = (hasCookies || youtubeId) && !ytDlpBlocked();
 
-    // 2c. Con cookies configuradas o ID conocido, YouTube entrega la versión de estudio oficial original (máx 12s)
+    // 2d. Con cookies o ID conocido, YouTube CDN directo si no está ligado a IP
     if (canTryYoutube) {
       const stream = await Promise.race([
         resolveAudioStream({ youtubeId, artist, title, expectedDurationSec }),
         new Promise((resolve) => setTimeout(() => resolve(null), 12000))
       ]);
       if (stream && stream.url) {
-        if (!forceProxy && !legacyNetcast && !isIpBoundUrl(stream.url)) {
+        if (!isIpBoundUrl(stream.url)) {
           return redirectDirectStream(res, stream.url);
         }
-        try { res.setHeader('X-Audio-Source', 'YouTube Studio Master'); } catch (_) {}
-        return proxyUpstreamAudio(stream.url, req, res, 'video/mp4', stream.contentLength || null, 5, stream.userAgent || '');
+        if (enableMediaProxy) {
+          try { res.setHeader('X-Audio-Source', 'YouTube Studio Master'); } catch (_) {}
+          return proxyUpstreamAudio(stream.url, req, res, 'video/mp4', stream.contentLength || null, 5, stream.userAgent || '');
+        }
       }
     }
 
-    // 2c. Respaldo: SoundCloud (si YouTube no está disponible o falla)
-    if (artist || title) {
+    // 2e. Respaldo: SoundCloud buffer (solo con ENABLE_MEDIA_PROXY=1 para proteger Render)
+    if (enableMediaProxy && (artist || title)) {
       const scTrack = await resolveViaSoundCloudBuffer(artist, title);
       if (scTrack && scTrack.buffer && scTrack.buffer.length > 0) {
         setBoundedBufferCache(trackKey, {
@@ -1751,24 +1811,26 @@ async function handleMusicStream(req, res, pathname, query) {
       }
     }
 
-    // 2d. Respaldo terciario: Extracción vía yt-dlp local si está presente en disco
-    const bin = getYtDlpPath();
-    if (fs.existsSync(bin)) {
-      const ytdlpBuf = await fetchAudioBufferWithYtDlp({ youtubeId, artist, title });
-      if (ytdlpBuf && ytdlpBuf.length > 0) {
-        setBoundedBufferCache(trackKey, {
-          buffer: ytdlpBuf,
-          mimeType: 'video/mp4',
-          ts: Date.now()
-        });
-        if (youtubeId) {
-          setBoundedBufferCache(youtubeId.toLowerCase(), {
+    // 2f. Respaldo terciario: Extracción vía yt-dlp local si está habilitado el proxy
+    if (enableMediaProxy) {
+      const bin = getYtDlpPath();
+      if (fs.existsSync(bin)) {
+        const ytdlpBuf = await fetchAudioBufferWithYtDlp({ youtubeId, artist, title });
+        if (ytdlpBuf && ytdlpBuf.length > 0) {
+          setBoundedBufferCache(trackKey, {
             buffer: ytdlpBuf,
             mimeType: 'video/mp4',
             ts: Date.now()
           });
+          if (youtubeId) {
+            setBoundedBufferCache(youtubeId.toLowerCase(), {
+              buffer: ytdlpBuf,
+              mimeType: 'video/mp4',
+              ts: Date.now()
+            });
+          }
+          return serveAudioBufferWithRange(req, res, ytdlpBuf, 'video/mp4');
         }
-        return serveAudioBufferWithRange(req, res, ytdlpBuf, 'video/mp4');
       }
     }
 
@@ -2112,6 +2174,7 @@ async function handleMusicResolve(req, res, query) {
 }
 
 function warmTopCuratedTracks() {
+  if (typeof process === 'undefined' || !process.env || process.env.ENABLE_DEEZER_PROXY !== '1') return;
   setTimeout(async () => {
     try {
       const { resolveViaDeezerBuffer } = require('./deezer-service');
@@ -2129,7 +2192,7 @@ function warmTopCuratedTracks() {
     } catch (_) {}
   }, 2000);
 }
-warmTopCuratedTracks();
+if (typeof process !== 'undefined' && process.env && process.env.ENABLE_DEEZER_PROXY === '1') warmTopCuratedTracks();
 
 module.exports = {
   LIVE_RADIOS,
@@ -2147,5 +2210,6 @@ module.exports = {
   ytDlpCookieArgs,
   parseLrcToCues,
   isIpBoundUrl,
-  resolveViaSoundCloudBuffer
+  resolveViaSoundCloudBuffer,
+  resolveViaSoundCloudDirectUrl
 };
