@@ -2730,7 +2730,14 @@ function loadStorage() {
     if (rawAuth) state.auth = JSON.parse(rawAuth);
     delete state.auth.directM3u;
     var rawRecent = localStorage.getItem('ott_recent_' + (state.auth.login || state.auth.deviceId || 'tv'));
-    state.recentContent = rawRecent ? JSON.parse(rawRecent).slice(0, 6) : [];
+    var parsedRecent = rawRecent ? JSON.parse(rawRecent) : [];
+    var cleanRecent = [];
+    for (var rIdx = 0; rIdx < parsedRecent.length && cleanRecent.length < 6; rIdx++) {
+      var rItem = parsedRecent[rIdx];
+      if (!rItem || rItem.playlistId === '__music' || (rItem.url && rItem.url.indexOf('/api/ott/music/') !== -1)) continue;
+      cleanRecent.push(rItem);
+    }
+    state.recentContent = cleanRecent;
     var rawFav = localStorage.getItem('ott_favs');
     if (rawFav) state.favorites = JSON.parse(rawFav);
   } catch (e) {}
@@ -4669,20 +4676,16 @@ function refreshRecentArtwork() {
 function rememberRecentContent(c) {
   var pl = state.currentPlaylist;
   if (!pl || !pl.id || !c) return;
+  if (pl.id === '__music' || pl.isMusic || (c.url && c.url.indexOf('/api/ott/music/') !== -1)) return;
   var series = state.currentSeries;
-  var plId = pl.id;
-  if (plId === '__music' && (state.recoveryVod || (c.url && /\.(mp4|mkv|avi|mov|webm)(?:[?#]|$)/i.test(c.url)))) {
-    for (var p = 0; p < (state.playlists || []).length; p++) {
-      if (state.playlists[p].id !== '__music') { plId = state.playlists[p].id; break; }
-    }
-  }
-  var entry = { playlistId: plId, id: c.id, url: c.url || '', group: c.group || '', name: c.name, title: series ? series.name : c.name,
+  var entry = { playlistId: pl.id, id: c.id, url: c.url || '', group: c.group || '', name: c.name, title: series ? series.name : c.name,
     logo: (series && series.logo) || c.logo || '', seriesId: series ? series.id : '',
     season: c.season || 0, episode: c.episode || 0 };
   var recent = state.recentContent || [];
   var next = [entry];
   for (var i = 0; i < recent.length && next.length < 6; i++) {
     var old = recent[i];
+    if (!old || old.playlistId === '__music' || (old.url && old.url.indexOf('/api/ott/music/') !== -1)) continue;
     if (old.playlistId === entry.playlistId &&
         (entry.seriesId ? old.seriesId === entry.seriesId : old.id === entry.id && old.name === entry.name)) continue;
     next.push(old);
