@@ -6908,9 +6908,14 @@ function startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c, forceProxy) {
   }
   var generation = state.playerGeneration;
   var selectedUrl = playUrl;
+  // Our movie host serves the same file over HTTP without redirecting.
+  // Keep old NetCast firmware off TLS; preserve the resolved URL as fallback.
+  if (!forceProxy && state.recoveryVod && /^https:\/\/teamg\.store\/[^?#]+\.(?:mkv|mp4|avi|mov|webm)(?:[?#]|$)/i.test(streamUrl)) {
+    selectedUrl = 'http://' + streamUrl.substring(8);
+  }
   // Native NetCast live TS playback can use the original HTTP transport.
   // Keep the proxy URL available as a second attempt, and leave VOD/HLS alone.
-  if (!forceProxy && !state.recoveryVod && !/\.m3u8(?:[?#]|$)/i.test(playUrl) && /^http:\/\//i.test(streamUrl) &&
+  else if (!forceProxy && !state.recoveryVod && !/\.m3u8(?:[?#]|$)/i.test(playUrl) && /^http:\/\//i.test(streamUrl) &&
       !/(?:\.m3u8|\/chunks|\/playlist|\.(?:mp4|mkv|webm|avi|mov)(?:[?#]|$))/i.test(streamUrl)) {
     selectedUrl = streamUrl;
   } else if (!forceProxy && !state.recoveryVod && /^https:\/\/[^\/]*teamg\.store\/api\/ott\/stream\.m3u8\?url=/i.test(playUrl) && /^http:\/\//i.test(streamUrl)) {

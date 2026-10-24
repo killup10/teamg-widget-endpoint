@@ -39,6 +39,14 @@ assert.deepEqual(converted.calls,['https://app.test/api/ott/android-audio/sessio
 assert.equal(immediate.timers.size,1,'Keep only the retry watchdog');
 const stale=setup();stale.start();stale.ctx.state.playerGeneration++;stale.advance(16000);assert.deepEqual(stale.calls,[direct]);
 const cancelled=setup({failDirect:true});cancelled.start();cancelled.ctx.state.screen='playlists';cancelled.advance(300);assert.deepEqual(cancelled.calls,[direct],'Leaving playback must cancel the delayed fallback');
+const movie=setup({vod:true});
+const chatran='https://teamg.store/aventurchatr86.mkv';
+movie.ctx.startNetcastPlayer(null,movie.native,chatran,chatran,{});
+assert.deepEqual(movie.calls,['http://teamg.store/aventurchatr86.mkv'],'Use the verified HTTP movie host on native NetCast');
+movie.native.playState=6;movie.native.onPlayStateChange();movie.advance(300);
+assert.deepEqual(movie.calls,['http://teamg.store/aventurchatr86.mkv',chatran],'Keep HTTPS as the second attempt');
+const external=setup({vod:true});external.ctx.startNetcastPlayer(null,external.native,'https://external.test/movie.mkv','https://external.test/movie.mkv',{});
+assert.deepEqual(external.calls,['https://external.test/movie.mkv'],'Never downgrade unverified external hosts');
 for(const options of [{vod:true},{}]) {
   const test=setup(options);test.start(options.vod?direct:'http://cdn.test/live.m3u8');
   assert.deepEqual(test.calls,[proxy],'VOD and HLS must keep their resolved URL');
