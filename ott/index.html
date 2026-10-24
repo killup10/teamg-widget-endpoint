@@ -2131,7 +2131,7 @@ body.smart-tv #player-music-yt-container { display:none !important; }
   <!-- REPRODUCTOR DE VIDEO A PANTALLA COMPLETA (Foto 2 y 3) -->
   <div id="player-container">
     <video id="video-el" preload="auto" playsinline webkit-playsinline tabindex="-1"></video>
-    <object id="netcast-player" type="application/x-netcast-av" autoStart="false" width="100%" height="100%" style="display:none;" tabindex="-1">
+    <object id="netcast-player" type="application/x-netcast-av" width="100%" height="100%" style="display:none;" tabindex="-1">
       <param name="wmode" value="transparent">
     </object>
     <object id="samsung-player" type="application/avplayer" style="display:none;" tabindex="-1"></object>
@@ -4666,7 +4666,13 @@ function rememberRecentContent(c) {
   var pl = state.currentPlaylist;
   if (!pl || !pl.id || !c) return;
   var series = state.currentSeries;
-  var entry = { playlistId: pl.id, id: c.id, url: c.url || '', group: c.group || '', name: c.name, title: series ? series.name : c.name,
+  var plId = pl.id;
+  if (plId === '__music' && (state.recoveryVod || (c.url && /\.(mp4|mkv|avi|mov|webm)(?:[?#]|$)/i.test(c.url)))) {
+    for (var p = 0; p < (state.playlists || []).length; p++) {
+      if (state.playlists[p].id !== '__music') { plId = state.playlists[p].id; break; }
+    }
+  }
+  var entry = { playlistId: plId, id: c.id, url: c.url || '', group: c.group || '', name: c.name, title: series ? series.name : c.name,
     logo: (series && series.logo) || c.logo || '', seriesId: series ? series.id : '',
     season: c.season || 0, episode: c.episode || 0 };
   var recent = state.recentContent || [];
@@ -4683,16 +4689,25 @@ function rememberRecentContent(c) {
 
 function openRecentContent(idx) {
   var entry = (state.recentContent || [])[idx];
-  if (entry && entry.playlistId === '__music') {
+  if (!entry) return;
+  var isMusicEntry = (entry.playlistId === '__music' && !entry.seriesId && (!entry.url || entry.url.indexOf('/api/ott/music/') !== -1));
+  if (isMusicEntry) {
     state.pendingRecentContent = entry;
     loadPlaylistContent({ id: '__music', name: '🎵 TeamG Music', isMusic: true });
     return;
   }
-  if (!entry) return;
   for (var i = 0; i < state.playlists.length; i++) {
     if (state.playlists[i].id === entry.playlistId) {
       state.pendingRecentContent = entry;
       loadPlaylistContent(state.playlists[i]);
+      return;
+    }
+  }
+  // Si playlistId no coincide o era __music por error previo, buscar en cualquier lista disponible que contenga películas/canales
+  for (var k = 0; k < state.playlists.length; k++) {
+    if (state.playlists[k].id !== '__music') {
+      state.pendingRecentContent = entry;
+      loadPlaylistContent(state.playlists[k]);
       return;
     }
   }
@@ -5965,13 +5980,15 @@ function formatTime(sec) {
 }
 
 function isMusicPlaying() {
-  if (state.currentPlaylist && state.currentPlaylist.id === '__music') return true;
+  if (state.recoveryVod) return false;
   var c = state.recoveryItem;
   if (!c && typeof getFilteredChannels === 'function') {
     var list = getFilteredChannels();
     if (list && list[state.currentChannelIdx]) c = list[state.currentChannelIdx];
   }
   if (c && c.url && c.url.indexOf('/api/ott/music/') !== -1) return true;
+  if (c && c.url && /\.(mp4|mkv|avi|mov|webm)(?:[?#]|$)/i.test(c.url)) return false;
+  if (state.currentPlaylist && state.currentPlaylist.id === '__music') return true;
   return false;
 }
 
@@ -7027,30 +7044,12 @@ function startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c, forceProxy) {
     }
   }, 400);
   try {
-    if (netcastObj.offsetWidth) {}
-    // Assigning data must not auto-start and then race the explicit play(1).
-    netcastObj.autoStart = false;
     netcastObj.data = selectedUrl;
-    if (typeof netcastObj.play === 'function' || typeof setTimeout !== 'function') {
-      netcastObj.play(1);
-    } else {
-      setTimeout(function() {
-        if (!current() || failed) return;
-        try {
-          netcastObj.data = selectedUrl;
-          if (typeof netcastObj.play === 'function') {
-            netcastObj.play(1);
-          } else if (!c._triedHtml5) {
-            failed = true;
-            if (state.tuningWatchdog) clearInterval(state.tuningWatchdog);
-            state.tuningWatchdog = null;
-            playHtml5(v, netcastObj, playUrl, streamUrl, c);
-          } else {
-            fail();
-          }
-        } catch (errDeferred) { fail(); }
-      }, 50);
-    }
+    try {
+      if (typeof netcastObj.play === 'function' || typeof netcastObj.play === 'object' || netcastObj.play) {
+        netcastObj.play(1);
+      }
+    } catch (ePlaySync) {}
   } catch (errNetcast) { fail(); }
 }
 

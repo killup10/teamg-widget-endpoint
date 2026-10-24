@@ -6,7 +6,6 @@ function setup(options = {}) {
   const calls = [], timers = new Map(), delayed = new Map(), labels = {};
   const native = {style:{},playState:0,stop(){},play(){
     calls.push(this.data);
-    assert.equal(this.autoStart, false, 'Source assignment must not also auto-start the decoder');
     assert.equal(typeof this.onPlayStateChange, 'function', 'Listen before starting playback');
     if (options.failDirect && this.data === direct) { this.playState = 6; this.onPlayStateChange(); }
   }};
