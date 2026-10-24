@@ -2724,20 +2724,45 @@ updateClock();
 /* ==========================================================================
    ALMACENAMIENTO LOCAL
    ========================================================================== */
+function loadRecentFromStorage() {
+  var merged = [];
+  function addItems(arr) {
+    if (!arr || !arr.length) return;
+    for (var i = 0; i < arr.length && merged.length < 6; i++) {
+      var item = arr[i];
+      if (!item || item.playlistId === '__music' || (item.url && item.url.indexOf('/api/ott/music/') !== -1)) continue;
+      var dup = false;
+      for (var j = 0; j < merged.length; j++) {
+        var ex = merged[j];
+        if (ex.playlistId === item.playlistId &&
+            (item.seriesId ? ex.seriesId === item.seriesId : (item.url && ex.url ? ex.url === item.url : ex.id === item.id && ex.name === item.name))) {
+          dup = true;
+          break;
+        }
+      }
+      if (!dup) merged.push(item);
+    }
+  }
+  addItems(state.recentContent);
+  var keys = [];
+  if (state.auth && state.auth.login) keys.push('ott_recent_' + state.auth.login);
+  if (state.auth && state.auth.deviceId) keys.push('ott_recent_' + state.auth.deviceId);
+  keys.push('ott_recent_tv');
+  for (var k = 0; k < keys.length; k++) {
+    try {
+      var raw = localStorage.getItem(keys[k]);
+      if (raw) addItems(JSON.parse(raw));
+    } catch (eR) {}
+  }
+  state.recentContent = merged;
+  return merged;
+}
+
 function loadStorage() {
   try {
     var rawAuth = localStorage.getItem('ott_auth');
     if (rawAuth) state.auth = JSON.parse(rawAuth);
     delete state.auth.directM3u;
-    var rawRecent = localStorage.getItem('ott_recent_' + (state.auth.login || state.auth.deviceId || 'tv'));
-    var parsedRecent = rawRecent ? JSON.parse(rawRecent) : [];
-    var cleanRecent = [];
-    for (var rIdx = 0; rIdx < parsedRecent.length && cleanRecent.length < 6; rIdx++) {
-      var rItem = parsedRecent[rIdx];
-      if (!rItem || rItem.playlistId === '__music' || (rItem.url && rItem.url.indexOf('/api/ott/music/') !== -1)) continue;
-      cleanRecent.push(rItem);
-    }
-    state.recentContent = cleanRecent;
     var rawFav = localStorage.getItem('ott_favs');
     if (rawFav) state.favorites = JSON.parse(rawFav);
   } catch (e) {}
@@ -2746,6 +2771,7 @@ function loadStorage() {
     state.auth.deviceId = 'netcast-' + Math.random().toString(36).substring(2, 10);
     saveStorage();
   }
+  loadRecentFromStorage();
   if (!state.auth.playerEngine) state.auth.playerEngine = 'auto';
   if (!state.auth.lang) state.auth.lang = 'Español';
   if (!state.auth.iptvPlayer || state.auth.iptvPlayer === 'HLS JS stream') state.auth.iptvPlayer = 'Automático';
@@ -4231,14 +4257,25 @@ function updateSeriesFocus() {
 }
 
 function playSeriesEpisode(series, ep) {
+  var epIdx = series.episodes.indexOf(ep);
+  if (epIdx < 0 && ep && series.episodes) {
+    for (var ei = 0; ei < series.episodes.length; ei++) {
+      var candEp = series.episodes[ei];
+      if ((ep.url && candEp.url === ep.url) || (candEp.season === ep.season && candEp.episode === ep.episode)) {
+        ep = candEp;
+        epIdx = ei;
+        break;
+      }
+    }
+  }
+  if (epIdx < 0) epIdx = 0;
   saveSeriesProgress(series.id, ep);
   state.currentSeries = series;
   state.activeSeriesEpisodes = series.episodes;
-  var epIdx = series.episodes.indexOf(ep);
-  if (epIdx < 0) epIdx = 0;
   state.activeSeriesEpIdx = epIdx;
 
-  closeSeriesDetail();
+  var view = $('view-series-detail');
+  if (view) view.style.display = 'none';
   playItem(ep);
 }
 
@@ -4628,7 +4665,9 @@ function getTileDimensions() {
 }
 
 function refreshRecentCoversFromFeed() {
+  if (typeof loadRecentFromStorage === 'function') loadRecentFromStorage();
   var recent = state.recentContent || [];
+  if (!recent.length) return;
   for (var i = 0; i < recent.length; i++) {
     var entry = recent[i];
     if (!entry.seriesId) continue;
@@ -4641,7 +4680,12 @@ function refreshRecentCoversFromFeed() {
       }
     }
   }
-  try { localStorage.setItem('ott_recent_' + (state.auth.login || state.auth.deviceId || 'tv'), JSON.stringify(recent)); } catch (e) {}
+  try {
+    var jsonRecent = JSON.stringify(recent);
+    localStorage.setItem('ott_recent_' + (state.auth.login || state.auth.deviceId || 'tv'), jsonRecent);
+    if (state.auth && state.auth.login) localStorage.setItem('ott_recent_' + state.auth.login, jsonRecent);
+    if (state.auth && state.auth.deviceId) localStorage.setItem('ott_recent_' + state.auth.deviceId, jsonRecent);
+  } catch (e) {}
 }
 
 function refreshRecentArtwork() {
@@ -4656,7 +4700,7 @@ function refreshRecentArtwork() {
       var c = state.channels[j];
       if ((entry.seriesId && c.isSeries && c.id === entry.seriesId) ||
           (!entry.seriesId && c.id === entry.id && c.name === entry.name)) {
-        var logo = c.logo || '';
+        var logo = c.logo || c.poster || '';
         if (c.isSeries) {
           for (var k = 0; k < c.episodes.length; k++) {
             if (c.episodes[k].season === entry.season && c.episodes[k].episode === entry.episode) {
@@ -4670,16 +4714,26 @@ function refreshRecentArtwork() {
       }
     }
   }
-  if (changed) try { localStorage.setItem('ott_recent_' + (state.auth.login || state.auth.deviceId || 'tv'), JSON.stringify(recent)); } catch (e) {}
+  if (changed) {
+    try {
+      var jsonArt = JSON.stringify(recent);
+      localStorage.setItem('ott_recent_' + (state.auth.login || state.auth.deviceId || 'tv'), jsonArt);
+      if (state.auth && state.auth.login) localStorage.setItem('ott_recent_' + state.auth.login, jsonArt);
+      if (state.auth && state.auth.deviceId) localStorage.setItem('ott_recent_' + state.auth.deviceId, jsonArt);
+    } catch (e) {}
+  }
 }
 
 function rememberRecentContent(c) {
-  var pl = state.currentPlaylist;
+  var pl = state.currentPlaylist || state.homeLastPlaylist;
   if (!pl || !pl.id || !c) return;
   if (pl.id === '__music' || pl.isMusic || (c.url && c.url.indexOf('/api/ott/music/') !== -1)) return;
+  if (typeof loadRecentFromStorage === 'function' && (!state.recentContent || !state.recentContent.length)) {
+    loadRecentFromStorage();
+  }
   var series = state.currentSeries;
   var entry = { playlistId: pl.id, id: c.id, url: c.url || '', group: c.group || '', name: c.name, title: series ? series.name : c.name,
-    logo: (series && series.logo) || c.logo || '', seriesId: series ? series.id : '',
+    logo: (series && (series.logo || series.poster)) || c.logo || c.seriesPoster || c.seriesLogo || '', seriesId: series ? series.id : '',
     season: c.season || 0, episode: c.episode || 0 };
   var recent = state.recentContent || [];
   var next = [entry];
@@ -4687,11 +4741,16 @@ function rememberRecentContent(c) {
     var old = recent[i];
     if (!old || old.playlistId === '__music' || (old.url && old.url.indexOf('/api/ott/music/') !== -1)) continue;
     if (old.playlistId === entry.playlistId &&
-        (entry.seriesId ? old.seriesId === entry.seriesId : old.id === entry.id && old.name === entry.name)) continue;
+        (entry.seriesId ? old.seriesId === entry.seriesId : (entry.url && old.url ? old.url === entry.url : old.id === entry.id && old.name === entry.name))) continue;
     next.push(old);
   }
   state.recentContent = next;
-  try { localStorage.setItem('ott_recent_' + (state.auth.login || state.auth.deviceId || 'tv'), JSON.stringify(next)); } catch (e) {}
+  try {
+    var jsonNext = JSON.stringify(next);
+    localStorage.setItem('ott_recent_' + (state.auth.login || state.auth.deviceId || 'tv'), jsonNext);
+    if (state.auth && state.auth.login) localStorage.setItem('ott_recent_' + state.auth.login, jsonNext);
+    if (state.auth && state.auth.deviceId) localStorage.setItem('ott_recent_' + state.auth.deviceId, jsonNext);
+  } catch (e) {}
 }
 
 function openRecentContent(idx) {
@@ -4788,6 +4847,9 @@ function resolveRecentContent() {
 }
 
 function renderHomeOverview(area) {
+  if (typeof loadRecentFromStorage === 'function' && (!state.recentContent || !state.recentContent.length)) {
+    loadRecentFromStorage();
+  }
   var items = state.recentContent || [];
   var cards = '';
   for (var i = 0; i < items.length && i < 6; i++) {
@@ -6428,8 +6490,7 @@ function startPlaybackTicker() {
       if (timeEl) timeEl.textContent = (cur > 0 ? formatTime(cur) : '00:00:00') + ' / EN VIVO';
     }
 
-    var html5HasVideo = !v || v.style.display === 'none' || isMusicPlaying() || (v.videoWidth > 0 && v.videoHeight > 0);
-    if (cur > 0 && state.tuningWatchdog && html5HasVideo) {
+    if (cur > 0 && state.tuningWatchdog) {
       hideTuning();
       clearInterval(state.tuningWatchdog);
       state.tuningWatchdog = null;
@@ -7358,38 +7419,7 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c, androidFallbackEngine) 
   }
   v.style.display = 'block';
 
-  function fallbackToNetcastFromHtml5() {
-    if (!isLegacyNetcast || !netcastObj || (c && c._triedNetcast)) return false;
-    if (state.tuningWatchdog) {
-      clearInterval(state.tuningWatchdog);
-      state.tuningWatchdog = null;
-    }
-    if (state.hlsInstance) {
-      try { state.hlsInstance.destroy(); } catch (eDestroyHls) {}
-      state.hlsInstance = null;
-    }
-    v.onloadeddata = null;
-    v.onwaiting = null;
-    v.oncanplay = null;
-    v.onplaying = null;
-    v.onpause = null;
-    v.onended = null;
-    v.onloadedmetadata = null;
-    v.ontimeupdate = null;
-    v.onerror = null;
-    try { v.pause(); v.removeAttribute('src'); } catch (eCleanHtml5) {}
-    v.style.display = 'none';
-    startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c);
-    return true;
-  }
-
-  function hideTuningIfVideoReady() {
-    if (!isLegacyNetcast || musicOnDemand || isMusicPlaying() || (c && c._triedNetcast) || (v.videoWidth > 0 && v.videoHeight > 0)) {
-      hideTuning();
-    }
-  }
-
-  v.onloadeddata = function() { hideTuningIfVideoReady(); };
+  v.onloadeddata = function() { hideTuning(); };
   v.onwaiting = function() {
     setBuffering(true);
     if (isMusicPlaying() && v.duration > 0 && v.currentTime >= v.duration - 1.2) {
@@ -7398,7 +7428,7 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c, androidFallbackEngine) 
   };
   v.oncanplay = function() {
     setBuffering(false);
-    hideTuningIfVideoReady();
+    hideTuning();
     if (musicOnDemand && v.paused && state.screen === 'player') {
       try {
         var pCan = v.play();
@@ -7406,7 +7436,7 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c, androidFallbackEngine) 
       } catch (eCan) {}
     }
   };
-  v.onplaying = function() { setBuffering(false); hideTuningIfVideoReady(); $('btnPlayPause').textContent = '▶❚❚'; if (isMusicPlaying()) startLyricsTimer(); };
+  v.onplaying = function() { setBuffering(false); hideTuning(); $('btnPlayPause').textContent = '▶❚❚'; if (isMusicPlaying()) startLyricsTimer(); };
   v.onpause = function() { $('btnPlayPause').textContent = '▶'; stopLyricsTimer(); };
   v.onended = function() {
     if (isMusicPlaying()) {
@@ -7422,7 +7452,7 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c, androidFallbackEngine) 
     }
   };
   v.onloadedmetadata = function() {
-    hideTuningIfVideoReady();
+    hideTuning();
     if (v.videoWidth && v.videoHeight) {
       $('player-res').textContent = v.videoWidth + 'x' + v.videoHeight;
     }
@@ -7435,10 +7465,7 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c, androidFallbackEngine) 
     }
   };
   v.ontimeupdate = function() {
-    if (isLegacyNetcast && !musicOnDemand && !isMusicPlaying() && v.currentTime >= 0.8 && (!v.videoWidth || !v.videoHeight)) {
-      if (fallbackToNetcastFromHtml5()) return;
-    }
-    if (v.currentTime > 0) hideTuningIfVideoReady();
+    if (v.currentTime > 0) hideTuning();
     updateProgressDisplay(v);
     if (isMusicPlaying()) {
       updateMusicLyrics(v.currentTime);
@@ -7464,14 +7491,37 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c, androidFallbackEngine) 
       } catch (eRetryMusic) {}
       return;
     }
+    if (isLegacyNetcast && state.recoveryVod && c && !c._triedHtml5Http && /^https:\/\/[^\/]*teamg\.store\//i.test(v.src || playUrl)) {
+      c._triedHtml5Http = true;
+      v.src = 'http://' + (v.src || playUrl).replace(/^https?:\/\//i, '');
+      try { v.load(); v.play(); } catch (eRetryVodHttp) {}
+      return;
+    }
     if (isLegacyNetcast && c && c._triedHtml5Direct && !c._triedHtml5Proxy && playUrl && playUrl !== streamUrl) {
       c._triedHtml5Proxy = true;
       v.src = /^https:\/\/[^\/]*teamg\.store\//i.test(playUrl) ? ('http://' + playUrl.substring(8)) : playUrl;
       try { v.load(); v.play(); } catch (eRetryHtml5) {}
       return;
     }
-    if (fallbackToNetcastFromHtml5()) {
+    if (isLegacyNetcast && netcastObj && (!c || !c._triedNetcast)) {
       console.log('HTML5 error, conmutando a NetCast...');
+      v.onloadeddata = null;
+      v.onwaiting = null;
+      v.oncanplay = null;
+      v.onplaying = null;
+      v.onpause = null;
+      v.onended = null;
+      v.onloadedmetadata = null;
+      v.ontimeupdate = null;
+      v.onerror = null;
+      try { v.pause(); v.removeAttribute('src'); v.load(); } catch (eRelV) {}
+      v.style.display = 'none';
+      var errGen = state.playerGeneration;
+      setTimeout(function() {
+        if (state.screen === 'player' && state.playerGeneration === errGen) {
+          startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c);
+        }
+      }, 300);
     } else {
       hideTuning();
       showToast('La reproducción se interrumpió.');
@@ -7609,24 +7659,14 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c, androidFallbackEngine) 
       failMusicPlayback();
       return;
     }
-    if (!musicOnDemand && !isMusicPlaying() && isLegacyNetcast && state.playerGeneration === musicGeneration) {
-      if (v && v.currentTime >= 0.8 && (!v.videoWidth || !v.videoHeight)) {
-        if (fallbackToNetcastFromHtml5()) return;
-      }
-      if ((!v || v.currentTime === 0 || !v.videoWidth) && (new Date()).getTime() - musicLoadStarted >= 4500) {
-        if (fallbackToNetcastFromHtml5()) return;
-      }
-    }
-    if (v && !v.paused && v.currentTime > 0 && (!isLegacyNetcast || musicOnDemand || isMusicPlaying() || (v.videoWidth > 0 && v.videoHeight > 0))) {
+    if (v && !v.paused && v.currentTime > 0) {
       hideTuning();
       clearInterval(state.tuningWatchdog);
       state.tuningWatchdog = null;
     }
   }, 400);
 
-  if (!isLegacyNetcast) {
-    setTimeout(function() { hideTuning(); }, 4000);
-  }
+  setTimeout(function() { hideTuning(); }, 4000);
 }
 
 function stopPlayer() {
