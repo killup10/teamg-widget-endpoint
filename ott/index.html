@@ -1859,10 +1859,11 @@ body.theme-wine #topbar { background: #1c0b0b; }
 .home-preview-row { width: 100%; white-space: nowrap; font-size: 0; }
 .home-preview-placeholder { display: block; width: 100%; height: 17.5vh; line-height: 17.5vh; text-align: center; color: #d989a3; background: #000000; font-size: 2.5vh; }
 /* NetCast: reservar ancho y evitar que WebKit divida los controles en filas. */
-.topbar-right { width: 40%; white-space: nowrap; }
+.topbar-right { width: 46%; white-space: nowrap; }
 .top-icons-row { width: 100%; white-space: nowrap; text-align: right; }
 .top-icon-group { white-space: nowrap; }
-.top-clock-text { white-space: nowrap; }
+.top-clock-text { white-space: nowrap; font-size: 2.5vh; padding: 0.5vh 0.8vw 0; box-sizing: border-box; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.player-top-right { max-width: 46vw; }
 /* Columnas y desplazamiento compatibles con WebKit anterior a Flexbox. */
 #view-series-detail { position: absolute !important; top: 84px; bottom: 0; height: auto; overflow: auto; }
 .series-container { display: table; table-layout: fixed; max-width: none; }
@@ -1927,12 +1928,12 @@ body.smart-tv #player-music-yt-container { display:none !important; }
   <!-- BARRA SUPERIOR (Fotos 1 y 2) -->
   <div id="topbar">
     <div style="display:inline-block; vertical-align:middle;">
-      <span class="topbar-title" id="screenTitle">Playlists</span>
+      <span class="topbar-title" id="screenTitle">Inicio</span>
       <span class="topbar-title-x" id="btnTitleClear" style="display:none; vertical-align:middle; margin-left:14px; width:26px; height:26px; line-height:24px; border-radius:50%; background:#24242e; color:#888899; font-size:14px; text-align:center; cursor:pointer;" title="Limpiar">✕</span>
     </div>
     <div class="topbar-right">
       <div class="top-icons-row" id="topIconsHome">
-        <div class="top-icon-group" id="groupBtnRefresh" title="Actualizar lista (Botón Rojo)">
+        <div class="top-icon-group" id="groupBtnRefresh" title="Actualizar catálogo (Botón Rojo)">
           <div class="round-icon-btn" id="btnRefresh"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></div>
           <div class="btn-color-accent cs-red"></div>
         </div>
@@ -1949,13 +1950,13 @@ body.smart-tv #player-music-yt-container { display:none !important; }
           <div class="btn-color-accent cs-white"></div>
         </div>
       </div>
-      <div class="top-icons-row" id="topIconsInside" style="display:none;"><div class="top-icon-group" id="groupBtnSearch" title="Buscar en este playlist"><div class="round-icon-btn" id="btnPlaylistSearch"><svg viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.6"><circle cx="10" cy="10" r="6"/><path d="M15 15l7 7"/></svg></div><div class="btn-color-accent cs-green"></div></div>
-        <div class="top-icon-group" id="groupBtnBackInside" title="Volver a Categorías / Home (Retroceder)">
+      <div class="top-icons-row" id="topIconsInside" style="display:none;"><div class="top-icon-group" id="groupBtnSearch" title="Buscar en esta categoría"><div class="round-icon-btn" id="btnPlaylistSearch"><svg viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.6"><circle cx="10" cy="10" r="6"/><path d="M15 15l7 7"/></svg></div><div class="btn-color-accent cs-green"></div></div>
+        <div class="top-icon-group" id="groupBtnBackInside" title="Volver a Categorías / Inicio (Retroceder)">
           <div class="round-icon-btn" id="btnBackInside" style="width:44px; height:44px; line-height:40px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg></div>
           <div class="btn-color-accent cs-white" style="opacity:0.4;"></div>
         </div>
       </div>
-      <div class="top-clock-text" id="liveClock">Sunday 4 October &nbsp; 10:48:23</div>
+      <div class="top-clock-text" id="liveClock">Fecha y hora</div>
     </div>
   </div>
 
@@ -1979,40 +1980,43 @@ body.smart-tv #player-music-yt-container { display:none !important; }
     <div class="opt-container">
       <div class="opt-left" id="optRowsList">
         <div class="opt-row" data-action="login">
-          <span class="opt-label">Login (e-mail/phone number)</span>
-          <span class="opt-value" id="valLogin">no_login</span>
+          <span class="opt-label">Usuario o correo</span>
+          <span class="opt-value" id="valLogin">Sin vincular</span>
         </div>
         <div class="opt-row" data-action="password">
-          <span class="opt-label">Password</span>
+          <span class="opt-label">Contraseña</span>
           <span class="opt-value" id="valPass">••••••••</span>
         </div>
         <div class="opt-row" data-action="device">
-          <span class="opt-label">Device registration/selection</span>
+          <span class="opt-label">Dispositivo</span>
           <span class="opt-value" id="valDevice">&lt; LG NetCast TV &gt;</span>
         </div>
         <div class="opt-row" data-action="language">
-          <span class="opt-label">App. language</span>
+          <span class="opt-label">Idioma de la aplicación</span>
           <span class="opt-value" id="valLanguage">&lt; Español &gt;</span>
         </div>
         <div class="opt-row" data-action="videoplayer">
-          <span class="opt-label">Videoplayer</span>
+          <span class="opt-label">Reproductor de video</span>
           <span class="opt-value" id="valVideoPlayer">&lt; Auto (Recomendado) &gt;</span>
         </div>
         <div class="opt-row" data-action="iptvplayer">
-          <span class="opt-label">IPTV player</span>
-          <span class="opt-value" id="valIptvPlayer">&lt; HTML5 player &gt;</span>
+          <span class="opt-label">Reproductor de canales</span>
+          <span class="opt-value" id="valIptvPlayer">&lt; HTML5 &gt;</span>
         </div>
         <div class="opt-row" data-action="hlsplayer">
-          <span class="opt-label">HLS player</span>
-          <span class="opt-value" id="valHlsPlayer">&lt; JS player &gt;</span>
+          <span class="opt-label">Reproducción HLS</span>
+          <span class="opt-value" id="valHlsPlayer">&lt; Automático &gt;</span>
         </div>
         <div class="opt-row" data-action="theme">
-          <span class="opt-label">Color theme</span>
-          <span class="opt-value" id="valTheme">&lt; Wine Red &gt;</span>
+          <span class="opt-label">Tema de color</span>
+          <span class="opt-value" id="valTheme">&lt; Rojo vino &gt;</span>
         </div>
         <div class="opt-row" data-action="textsize"><span class="opt-label">Tamaño de texto</span><span class="opt-value" id="valTextSize">Normal</span></div>
         <div class="opt-row" data-action="resetprefs"><span class="opt-label">Restablecer preferencias</span><span class="opt-value">OK</span></div>
         <div class="opt-row" data-action="reloadapp"><span class="opt-label">Actualizar / Recargar app</span><span class="opt-value">OK</span></div>
+        <div class="opt-row" data-action="clockmode"><span class="opt-label">Fecha y hora</span><span class="opt-value" id="valClockMode">Automáticas</span></div>
+        <div class="opt-row" data-action="clockmanual"><span class="opt-label">Ajustar fecha y hora</span><span class="opt-value" id="valClockManual">OK</span></div>
+        <div class="opt-row" data-action="clockformat"><span class="opt-label">Formato de hora</span><span class="opt-value" id="valClockFormat">24 horas</span></div>
         <div class="opt-btn-action" id="btnDoSave">
           Iniciar sesión y vincular TV
         </div>
@@ -2036,8 +2040,9 @@ body.smart-tv #player-music-yt-container { display:none !important; }
 
         <h3>Información</h3>
         <p id="optDescText">También puedes ingresar manualmente tu usuario y contraseña con el teclado en pantalla.</p>
+        <div id="themePreview" aria-label="Paleta de colores actual" style="margin-top:18px;"></div>
         <div style="margin-top:16px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.5.61 — Reproducción directa Dropbox VOD
+          VERSIÓN: v2.5.62
         </div>
       </div>
     </div>
@@ -2046,7 +2051,7 @@ body.smart-tv #player-music-yt-container { display:none !important; }
   <!-- PANTALLA: TECLADO VIRTUAL COMPLETO (Foto 3) -->
   <div id="view-keyboard">
     <div class="kb-header">
-      <div class="kb-btn-back" id="kbBtnBack">← Back</div>
+      <div class="kb-btn-back" id="kbBtnBack">← Volver</div>
       <div class="kb-title" id="kbTitle">Editar campo</div>
     </div>
     <div class="kb-input-box">
@@ -2054,9 +2059,9 @@ body.smart-tv #player-music-yt-container { display:none !important; }
     </div>
     <div class="kb-grid" id="kbGrid"></div>
     <div class="kb-bottom-row">
-      <div class="kb-spec-key caps" id="kbKeyCaps">Caps (Rojo)</div>
+      <div class="kb-spec-key caps" id="kbKeyCaps">Mayúsculas (Rojo)</div>
       <div class="kb-spec-key lang" id="kbKeyLang">Símbolos (Verde)</div>
-      <div class="kb-spec-key space" id="kbKeySpace">Space (Amarillo)</div>
+      <div class="kb-spec-key space" id="kbKeySpace">Espacio (Amarillo)</div>
       <div class="kb-spec-key back" id="kbKeyBack">⌫ Borrar</div>
       <div class="kb-spec-key ok" id="kbKeyOk">OK (Azul)</div>
     </div>
@@ -2090,7 +2095,7 @@ body.smart-tv #player-music-yt-container { display:none !important; }
           </button>
           <button class="series-act-btn series-btn-secondary" id="btnSeriesTrailer">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" style="margin-right:8px;vertical-align:middle;"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="2" y1="7" x2="7" y2="7"/><line x1="2" y1="17" x2="7" y2="17"/><line x1="17" y1="17" x2="22" y2="17"/><line x1="17" y1="7" x2="22" y2="7"/></svg>
-            <span>Trailer</span>
+            <span>Tráiler</span>
           </button>
         </div>
 
@@ -2107,8 +2112,8 @@ body.smart-tv #player-music-yt-container { display:none !important; }
   <!-- MODAL: REPRODUCTOR DE TRAILER OFICIAL -->
   <div id="trailer-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:9999; background:rgba(0,0,0,0.96);">
     <div style="height:64px; padding:10px 24px; display:flex; display:-webkit-flex; justify-content:space-between; align-items:center; background:#190610; border-bottom:1px solid rgba(255,255,255,0.15);">
-      <div style="font-size:20px; font-weight:bold; color:#ffcc00;" id="trailerModalTitle">🎬 Trailer Oficial</div>
-      <div id="btnTrailerClose" class="round-icon-btn" style="width:48px; height:48px; line-height:44px; background:#e52945; border-color:#e52945; color:#ffffff; font-size:22px; cursor:pointer;" title="Cerrar Trailer (Retroceder)">✕</div>
+      <div style="font-size:20px; font-weight:bold; color:#ffcc00;" id="trailerModalTitle">🎬 Tráiler oficial</div>
+      <div id="btnTrailerClose" class="round-icon-btn" style="width:48px; height:48px; line-height:44px; background:#e52945; border-color:#e52945; color:#ffffff; font-size:22px; cursor:pointer;" title="Cerrar tráiler (Retroceder)">✕</div>
     </div>
     <div style="width:100%; height:calc(100% - 64px); display:flex; display:-webkit-flex; justify-content:center; align-items:center;">
       <video id="trailerVideo" style="display:none; width:90%; height:86%; border:2px solid rgba(255,255,255,0.25); border-radius:8px; background:#000000;" controls autoplay playsinline webkit-playsinline></video>
@@ -2159,8 +2164,8 @@ body.smart-tv #player-music-yt-container { display:none !important; }
     <!-- Cartel SINTONIZANDO en el centro (Foto 2) -->
     <div id="player-tuning" class="player-tuning-modal">
       <div class="tuning-spinner"></div>
-      <div class="tuning-text">SINTONIZANDO</div>
-      <div class="tuning-sub" id="tuningSubText">Cargando señal en vivo...</div>
+      <div class="tuning-text">CARGANDO CONTENIDO</div>
+      <div class="tuning-sub" id="tuningSubText">Cargando contenido...</div>
     </div>
     
     <!-- Overlay Superior (Foto 2 / OTTPlayer Exact) -->
@@ -2199,7 +2204,7 @@ body.smart-tv #player-music-yt-container { display:none !important; }
           </div>
         </div>
         <div class="top-clock-divider"></div>
-        <div class="top-clock-text" id="playerClock">Friday 25 September &nbsp; 06:49:02</div>
+        <div class="top-clock-text" id="playerClock">Fecha y hora</div>
       </div>
       <div style="clear:both;"></div>
     </div>
@@ -2222,7 +2227,7 @@ body.smart-tv #player-music-yt-container { display:none !important; }
         <span id="player-time-text">00:00:00 / 00:00:00</span>
       </div>
       <div id="player-buffering-indicator" class="player-buffering-tag">
-        ■ ▄ ▄ ▄ ▄ Buffering ...
+        Cargando video…
       </div>
     </div>
 
@@ -2536,11 +2541,11 @@ var state = {
 function $(id) { return document.getElementById(id); }
 
 var OPT_DEVICES = ['LG NetCast TV', 'LG webOS TV', 'Samsung Smart TV (Tizen)', 'Android TV / Google TV', 'PC / Navegador Web'];
-var OPT_LANGUAGES = ['Español', 'English', 'Português', 'Français', 'Deutsch'];
+var OPT_LANGUAGES = ['Español'];
 var OPT_VIDEO_ENGINES = [
   { id: 'auto', label: 'Auto (Recomendado)' },
   { id: 'mediaplayer', label: 'MediaPlayer (LG NetCast)' },
-  { id: 'html5', label: 'HTML5 player' }
+  { id: 'html5', label: 'HTML5' }
 ];
 var OPT_IPTV_ENGINES = ['Automático', 'HTML5 player', 'Native TV player'];
 var OPT_HLS_ENGINES = ['Automático', 'Native HLS player', 'JS player (hls.js)'];
@@ -2549,7 +2554,7 @@ function availableVideoEngines() {
   var obj = $('netcast-player');
   if (/NetCast/i.test(navigator.userAgent || '') && !/Web0S|webOS/i.test(navigator.userAgent || '') && (obj || typeof getOrCreateNetcastObject === 'function')) out.push({id:'mediaplayer',label:'MediaPlayer (LG NetCast)'});
   if (window.TeamGNative && TeamGNative.available()) out.push({id:'avplay',label:'AVPlay (Samsung)'});
-  out.push({id:'html5',label:'HTML5 player'});
+  out.push({id:'html5',label:'HTML5'});
   return out;
 }
 function detectedPlatform() {
@@ -2572,16 +2577,59 @@ function availableIptvEngines() {
   return out;
 }
 var OPT_THEMES = [
-  { id: 'wine', label: 'Wine Red' },
-  { id: 'dark', label: 'Dark Night' },
-  { id: 'blue', label: 'Deep Blue' },
-  { id: 'classic', label: 'Classic Slate' }
+  { id: 'wine', label: 'Vino y rosa', bg:'#160c13', surface:'#24121e', raised:'#341c2b', focus:'#702342', accent:'#f4a6c1', muted:'#d7bdca' },
+  { id: 'dark', label: 'Ónix y oro', bg:'#0e1013', surface:'#191c21', raised:'#252a31', focus:'#514126', accent:'#ebcd8b', muted:'#c9c6bd' },
+  { id: 'blue', label: 'Azul OTT', bg:'#030323', surface:'#090942', raised:'#14145b', focus:'#0754ad', accent:'#8acbff', muted:'#c1c9eb' },
+  { id: 'classic', label: 'Pizarra y cobre', bg:'#12171d', surface:'#1c252e', raised:'#2b3844', focus:'#63412e', accent:'#f1bc96', muted:'#c6cbd1' },
+  { id: 'emerald', label: 'Esmeralda y oro', bg:'#071713', surface:'#102820', raised:'#193a30', focus:'#245846', accent:'#e6cc91', muted:'#bbd3c9' },
+  { id: 'amethyst', label: 'Amatista y plata', bg:'#120e20', surface:'#221a35', raised:'#32264c', focus:'#59407c', accent:'#dfcffc', muted:'#cbbfdd' },
+  { id: 'midnight', label: 'Zafiro y champán', bg:'#081220', surface:'#122239', raised:'#20344c', focus:'#345271', accent:'#f1dab0', muted:'#c0ccdb' },
+  { id: 'graphite', label: 'Grafito y hielo', bg:'#10161a', surface:'#1a252c', raised:'#293941', focus:'#2e5968', accent:'#a3e2ee', muted:'#bfd0d7' }
 ];
 
 function applyTheme(themeId) {
-  var t = themeId || 'wine';
+  var palette = OPT_THEMES[0];
+  for (var i = 0; i < OPT_THEMES.length; i++) {
+    if (OPT_THEMES[i].id === themeId) { palette = OPT_THEMES[i]; break; }
+  }
+  var t = palette.id;
   document.body.className = document.body.className.replace(/\btheme-[a-z0-9_-]+\b/g, '').trim();
   document.body.className = (document.body.className + ' theme-' + t).trim();
+  // Explicit colors support old NetCast WebKit without CSS custom properties.
+  var sheet = $('teamg-theme');
+  if (!sheet) {
+    sheet = document.createElement('style'); sheet.id = 'teamg-theme';
+    document.getElementsByTagName('head')[0].appendChild(sheet);
+  }
+  var root = 'body.theme-' + t;
+  function rule(selectors, declarations) {
+    var scoped = [];
+    for (var j = 0; j < selectors.length; j++) scoped.push(root + (selectors[j] ? ' ' + selectors[j] : ''));
+    return scoped.join(',') + '{' + declarations + '}';
+  }
+  var css = rule(['', '#app', '#view-options', '#view-keyboard', '#view-series-detail'], 'background:' + palette.bg + '!important;color:#f7f7fb!important;');
+  css += rule(['#topbar','#bottom-tabs-bar','#player-drawer','.opt-right','#search-banner','#toast'], 'background:' + palette.surface + '!important;');
+  css += rule(['.tile-item','.tab-skew','.tabs-edge','.opt-row','.kb-key','.kb-input-box','.series-ep-tile','.series-season-tab','.series-btn-secondary','.home-welcome'], 'background:' + palette.raised + '!important;color:#f7f7fb!important;');
+  css += rule(['.tile-item.focused','.tile-item.focused .tile-title','.tab-skew.active:not(.is-special)','.tab-skew.focused','.opt-row.focused','.series-ep-tile.focused','.series-season-tab.active','.series-season-tab.focused','.series-act-btn.focused','.drawer-row.focused'], 'background:' + palette.focus + '!important;color:#ffffff!important;border-color:' + palette.accent + '!important;');
+  css += rule(['.opt-row.focused'], 'border-left:6px solid ' + palette.accent + '!important;box-shadow:none!important;-webkit-box-shadow:none!important;');
+  css += rule(['#toast','.opt-btn-action'], 'border-color:' + palette.accent + '!important;');
+  css += rule(['.opt-btn-action'], 'background:' + palette.focus + '!important;');
+  css += rule(['.tile-item.focused'], 'outline:3px solid ' + palette.accent + '!important;outline-offset:-3px;');
+  css += rule(['.round-icon-btn.focused','.round-icon-btn:hover','.kb-key.focused','.kb-spec-key.focused','.kb-btn-back.focused','.series-btn-primary','.player-control-btn.focused','.player-hud-btn.focused','.player-tab-drawer-btn.focused'], 'background:' + palette.accent + '!important;color:#10151b!important;border-color:' + palette.accent + '!important;');
+  css += rule(['.round-icon-btn.focused svg','.round-icon-btn:hover svg','.series-btn-primary svg'], 'stroke:#10151b!important;');
+  css += rule(['.round-icon-btn.focused svg polygon','.round-icon-btn:hover svg polygon'], 'fill:#10151b!important;');
+  css += rule(['.home-eyebrow','.series-ep-num','.drawer-num','.home-preview-placeholder'], 'color:' + palette.accent + '!important;');
+  css += rule(['.home-overview p','.series-meta','.series-synopsis','#optDescText','.drawer-epg'], 'color:' + palette.muted + '!important;');
+  css += rule(['#grid-scrollbar-thumb','#player-epg-fill','#player-epg-thumb','.kb-cursor'], 'background:' + palette.accent + '!important;');
+  css += rule(['.home-welcome','.player-progress-wrap.focused'], 'border-color:' + palette.accent + '!important;');
+  sheet.textContent = css;
+  var preview = $('themePreview');
+  if (preview) {
+    var colors = [palette.bg, palette.surface, palette.focus, palette.accent];
+    var chips = '<div style="font-size:14px;margin-bottom:8px;color:' + palette.muted + '">' + palette.label + '</div>';
+    for (var c = 0; c < colors.length; c++) chips += '<span aria-hidden="true" style="display:inline-block;width:42px;height:14px;margin-right:6px;border:1px solid ' + palette.muted + ';background:' + colors[c] + '"></span>';
+    preview.innerHTML = chips;
+  }
 }
 
 function updatePlayerEngineDisplay() {
@@ -2589,7 +2637,7 @@ function updatePlayerEngineDisplay() {
   var label = '< Auto (Recomendado) >';
   if (eng === 'mediaplayer') label = '< MediaPlayer (LG NetCast) >';
   else if (eng === 'avplay') label = '< AVPlay (Samsung) >';
-  else if (eng === 'html5') label = '< HTML5 player >';
+  else if (eng === 'html5') label = '< HTML5 >';
   else {
     var choices = availableVideoEngines();
     label = '< Auto · ' + choices[1].label + ' >';
@@ -2598,14 +2646,22 @@ function updatePlayerEngineDisplay() {
   if (el) el.textContent = label;
 }
 
+function playerOptionLabel(value) {
+  var labels = {'HTML5 player':'HTML5', 'Native TV player':'Nativo del televisor', 'Native HLS player':'HLS nativo', 'JS player':'HLS.js', 'JS player (hls.js)':'HLS.js'};
+  return labels[value] || value;
+}
+
 function updateOptionsDisplay() {
+  if ($('valClockMode')) $('valClockMode').textContent = state.auth.clockMode === 'manual' ? '< Manual >' : '< Automáticas (equipo) >';
+  if ($('valClockManual')) $('valClockManual').textContent = manualClockValue();
+  if ($('valClockFormat')) $('valClockFormat').textContent = state.auth.clockFormat === '12' ? '< 12 horas >' : '< 24 horas >';
   if ($('valTextSize')) $('valTextSize').textContent = state.auth.textSize === 'large' ? '< Grande >' : '< Normal >';
-  if ($('valLogin')) $('valLogin').textContent = state.auth.login || 'no_login';
-  if ($('valPass')) $('valPass').textContent = state.auth.password ? '••••••••' : 'sin_pass';
+  if ($('valLogin')) $('valLogin').textContent = state.auth.login || 'Sin vincular';
+  if ($('valPass')) $('valPass').textContent = state.auth.password ? '••••••••' : 'Sin contraseña';
   if ($('valDevice')) $('valDevice').textContent = '< ' + (state.auth.deviceName || 'LG NetCast TV') + ' >';
   if ($('valLanguage')) $('valLanguage').textContent = '< ' + (state.auth.lang || 'Español') + ' >';
-  if ($('valIptvPlayer')) $('valIptvPlayer').textContent = '< ' + (state.auth.iptvPlayer || 'HTML5 player') + ' >';
-  if ($('valHlsPlayer')) $('valHlsPlayer').textContent = '< ' + (state.auth.hlsPlayer || 'JS player') + ' >';
+  if ($('valIptvPlayer')) $('valIptvPlayer').textContent = '< ' + playerOptionLabel(state.auth.iptvPlayer || 'Automático') + ' >';
+  if ($('valHlsPlayer')) $('valHlsPlayer').textContent = '< ' + playerOptionLabel(state.auth.hlsPlayer || 'Automático') + ' >';
   
   var curTh = OPT_THEMES[0];
   for (var i = 0; i < OPT_THEMES.length; i++) {
@@ -2617,19 +2673,29 @@ function updateOptionsDisplay() {
 }
 
 function cycleOption(idx, dir) {
+  if (idx === 11) {
+    if (state.auth.clockMode === 'manual') state.auth.clockMode = 'auto';
+    else if (typeof state.auth.clockOffset === 'number') state.auth.clockMode = 'manual';
+    else { editManualClock(); return; }
+    saveStorage(); updateClock(); updateOptionsDisplay(); return;
+  }
+  if (idx === 12) { editManualClock(); return; }
+  if (idx === 13) {
+    state.auth.clockFormat = state.auth.clockFormat === '12' ? '24' : '12';
+    saveStorage(); updateClock(); updateOptionsDisplay(); return;
+  }
   if (idx === 8) {
     state.auth.textSize = state.auth.textSize === 'large' ? 'normal' : 'large';
     applyTextSize(); saveStorage(); updateOptionsDisplay(); return;
   }
   if (idx === 9 || idx === 10) return;
-  if (idx === 11) { doSaveAndLogin(); return; }
   // La URL de origen se administra exclusivamente desde el panel.
   if (idx >= 3) idx++;
   var d = (dir === -1) ? -1 : 1;
   if (idx === 0) {
-    openKeyboard('Login (e-mail/phone number)', state.auth.login, 'login');
+    openKeyboard('Usuario o correo', state.auth.login, 'login');
   } else if (idx === 1) {
-    openKeyboard('Password', state.auth.password, 'password');
+    openKeyboard('Contraseña', state.auth.password, 'password');
   } else if (idx === 2) {
     var curDevIdx = OPT_DEVICES.indexOf(state.auth.deviceName || 'LG NetCast TV');
     if (curDevIdx < 0) curDevIdx = 0;
@@ -2665,7 +2731,7 @@ function cycleOption(idx, dir) {
     state.auth.iptvPlayer = OPT_IPTV_ENGINES[nextIptvIdx];
     saveStorage();
     updateOptionsDisplay();
-    showToast('IPTV: ' + state.auth.iptvPlayer);
+    showToast('Reproductor de canales: ' + playerOptionLabel(state.auth.iptvPlayer));
   } else if (idx === 7) {
     OPT_HLS_ENGINES = availableHlsEngines();
     var curHlsIdx = OPT_HLS_ENGINES.indexOf(state.auth.hlsPlayer || 'JS player');
@@ -2674,7 +2740,7 @@ function cycleOption(idx, dir) {
     state.auth.hlsPlayer = OPT_HLS_ENGINES[nextHlsIdx];
     saveStorage();
     updateOptionsDisplay();
-    showToast('HLS: ' + state.auth.hlsPlayer);
+    showToast('HLS: ' + playerOptionLabel(state.auth.hlsPlayer));
   } else if (idx === 8) {
     var curThIdx = 0;
     for (var th = 0; th < OPT_THEMES.length; th++) {
@@ -2694,11 +2760,38 @@ function cycleOption(idx, dir) {
 /* ==========================================================================
    RELOJ EN VIVO (Formato exacto de fotos: Thursday 24 September  10:37:29)
    ========================================================================== */
-var DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+var DAYS = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+var MONTHS = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+
+function clockDate() {
+  var offset = state.auth.clockMode === 'manual' && isFinite(state.auth.clockOffset) ? Number(state.auth.clockOffset) : 0;
+  return new Date(new Date().getTime() + offset);
+}
+
+function clockPad(n) { return (n < 10 ? '0' : '') + n; }
+
+function manualClockValue() {
+  var d = clockDate();
+  return clockPad(d.getDate()) + '/' + clockPad(d.getMonth() + 1) + '/' + d.getFullYear() + ' ' + clockPad(d.getHours()) + ':' + clockPad(d.getMinutes());
+}
+
+function editManualClock() {
+  openKeyboard('Fecha y hora: DD/MM/AAAA HH:MM (24 horas)', manualClockValue(), 'clockmanual');
+}
+
+function saveManualClock(value) {
+  var m = /^(\d{2})\/(\d{2})\/(\d{4}) (\d{2}):(\d{2})$/.exec(value);
+  if (!m) return false;
+  var d = new Date(+m[3], +m[2] - 1, +m[1], +m[4], +m[5], 0);
+  if (+m[3] < 2000 || +m[3] > 2099 || d.getFullYear() !== +m[3] || d.getMonth() !== +m[2] - 1 || d.getDate() !== +m[1] || d.getHours() !== +m[4] || d.getMinutes() !== +m[5]) return false;
+  state.auth.clockOffset = d.getTime() - new Date().getTime();
+  state.auth.clockMode = 'manual';
+  saveStorage(); updateClock(); updateOptionsDisplay();
+  return true;
+}
 
 function updateClock() {
-  var d = new Date();
+  var d = clockDate();
   var dayName = DAYS[d.getDay()];
   var dayNum = d.getDate();
   var monthName = MONTHS[d.getMonth()];
@@ -2706,7 +2799,12 @@ function updateClock() {
   var mm = (d.getMinutes() < 10 ? '0' : '') + d.getMinutes();
   var ss = (d.getSeconds() < 10 ? '0' : '') + d.getSeconds();
   
-  var str = dayName + ' ' + dayNum + ' ' + monthName + ' \u00A0 ' + hh + ':' + mm + ':' + ss;
+  var suffix = '';
+  if (state.auth.clockFormat === '12') {
+    suffix = d.getHours() < 12 ? ' a. m.' : ' p. m.';
+    hh = clockPad(d.getHours() % 12 || 12);
+  }
+  var str = dayName + ' ' + dayNum + ' de ' + monthName + ' de ' + d.getFullYear() + ' \u00A0 ' + hh + ':' + mm + ':' + ss + suffix;
   var el = $('liveClock');
   if (el) el.innerHTML = str;
   var pel = $('playerClock');
@@ -2767,7 +2865,7 @@ function loadStorage() {
   }
   loadRecentFromStorage();
   if (!state.auth.playerEngine) state.auth.playerEngine = 'auto';
-  if (!state.auth.lang) state.auth.lang = 'Español';
+  state.auth.lang = 'Español';
   if (!state.auth.iptvPlayer || state.auth.iptvPlayer === 'HLS JS stream') state.auth.iptvPlayer = 'Automático';
   if (!state.auth.hlsPlayer || state.auth.hlsPlayer === 'JS player' || state.auth.hlsPlayer === 'Auto Proxy') state.auth.hlsPlayer = 'Automático';
   state.auth.platform = detectedPlatform();
@@ -2782,6 +2880,7 @@ function loadStorage() {
 
   applyTheme(state.auth.theme);
   applyTextSize();
+  updateClock();
   updateOptionsDisplay();
 }
 
@@ -2829,7 +2928,7 @@ function apiCall(method, path, body, callback) {
     try {
       callback(status, res, text);
     } catch (cbErr) {
-      try { showToast('Err: ' + cbErr.message); } catch (e) {}
+      try { showToast('No se pudo completar la acción. Inténtalo nuevamente.'); } catch (e) {}
     }
   }
   xhr.open(method, fullUrl, true);
@@ -2910,6 +3009,8 @@ function renderKeyboard() {
 function openKeyboard(fieldTitle, currentVal, targetField) {
   state.screen = 'keyboard';
   state.kbTargetField = targetField;
+  KB_ROWS = targetField === 'clockmanual' ? KB_SYMBOLS : KB_LETTERS;
+  $('kbKeyLang').textContent = targetField === 'clockmanual' ? 'ABC (Verde)' : 'Símbolos (Verde)';
   kbInputText = currentVal || '';
   $('kbTitle').textContent = fieldTitle;
   updateKeyboardDisplay();
@@ -2947,7 +3048,7 @@ function focusRecentContent() {
 
 function openSearch() {
   if (!state.channels || !state.channels.length) return;
-  openKeyboard('Buscar en este playlist', state.searchQuery || '', 'search');
+  openKeyboard('Buscar en esta categoría', state.searchQuery || '', 'search');
 }
 
 function updateSearchBanner() {
@@ -3028,6 +3129,10 @@ function searchTeamGMusic(q) {
 }
 
 function closeKeyboard(commit) {
+  if (commit && state.kbTargetField === 'clockmanual' && !saveManualClock(kbInputText)) {
+    showToast('Fecha u hora no válida. Usa DD/MM/AAAA HH:MM, por ejemplo 25/10/2026 14:30.');
+    return;
+  }
   if (state.currentKbFocusedEl) {
     state.currentKbFocusedEl.classList.remove('focused');
     state.currentKbFocusedEl = null;
@@ -3060,10 +3165,10 @@ function closeKeyboard(commit) {
   if (commit) {
     if (state.kbTargetField === 'login') {
       state.auth.login = kbInputText;
-      $('valLogin').textContent = state.auth.login || 'no_login';
+      $('valLogin').textContent = state.auth.login || 'Sin vincular';
     } else if (state.kbTargetField === 'password') {
       state.auth.password = kbInputText;
-      $('valPass').textContent = state.auth.password ? '••••••••' : 'sin_pass';
+      $('valPass').textContent = state.auth.password ? '••••••••' : 'Sin contraseña';
     }
     saveStorage();
   }
@@ -3175,18 +3280,21 @@ function handleKeyboardNav(kc, eObj) {
    VISTA: OPTIONS (Fotos 2 y 5)
    ========================================================================== */
 var OPT_DESCRIPTIONS = [
-  'Login. Ingresa el usuario o correo otorgado por tu administrador.',
-  'Password. Ingresa tu contraseña asignada (sensible a mayúsculas y minúsculas).',
-  'Device registration/selection. Identificador de este TV LG en tu cuenta.',
-  'App. language. Idioma de la interfaz de la aplicación.',
+  'Usuario. Ingresa el usuario o correo otorgado por tu administrador.',
+  'Contraseña. Ingresa tu contraseña asignada (sensible a mayúsculas y minúsculas).',
+  'Dispositivo. Identificador de este TV LG en tu cuenta.',
+  'Idioma de la aplicación. Idioma de la interfaz de la aplicación.',
   'Motor de video. Automático detecta funciones reales del equipo; puedes elegir otra alternativa disponible.',
   'Motor de IPTV. Automático detecta el motor; HTML5 o nativo eligen cómo reproducir canales y títulos VOD.',
   'HLS en HTML5. Automático prioriza HLS nativo; HLS.js se usa cuando es necesario y está disponible.',
-  'Color theme. Paleta de colores de la interfaz.',
+  'Tema de color. Paleta de colores de la interfaz.',
   'Texto normal o grande para leer cómodamente desde el sofá.',
-  'Pulsa OK para restablecer pantalla y motores de reproducción. Conserva tu cuenta, listas e historial.',
+  'Pulsa OK para restablecer pantalla y motores de reproducción. Conserva tu cuenta, catálogo e historial.',
   'Actualizar aplicación. Pulsa OK para recargar por completo la app desde el servidor e instalar la última versión.',
-  'Iniciar sesión y vincular TV. Conecta con el servidor para descargar tus listas.'
+  'Automáticas: usa la fecha y hora del equipo. Manual: usa el ajuste guardado en esta aplicación.',
+  'Pulsa OK para escribir DD/MM/AAAA HH:MM. La hora seguirá avanzando. No cambia el reloj del televisor.',
+  'Elige entre 24 horas o 12 horas con a. m. y p. m.',
+  'Iniciar sesión y vincular TV. Conecta tu TV con TeamG Play para acceder al catálogo.'
 ];
 
 function updateOptionsFocus() {
@@ -3302,7 +3410,7 @@ function startActivationPolling() {
               loadPlaylistContent(state.playlists[0]);
             } else {
               renderPlaylistsView();
-              showToast(state.playlists.length + ' listas asignadas.');
+              showToast(state.playlists.length + ' categorías disponibles.');
             }
           } else {
             fetchFeed();
@@ -3349,7 +3457,7 @@ function closeOptions() {
   if (state.auth.token) stopActivationPolling();
   $('view-options').style.display = 'none';
   $('view-playlists').style.display = 'block';
-  $('screenTitle').textContent = (state.currentPlaylist ? state.currentPlaylist.name : 'Playlists');
+  $('screenTitle').textContent = (state.currentPlaylist ? state.currentPlaylist.name : 'Inicio');
   state.screen = 'playlists';
   restoreCatalogNavigation(state.optionsReturnNavigation);
   state.optionsReturnNavigation = null;
@@ -3378,9 +3486,9 @@ function handleOptionsNav(kc, eObj) {
     if (state.optIdx === totalItems - 1) {
       doSaveAndLogin();
     } else if (state.optIdx === 0) {
-      openKeyboard('Login (e-mail/phone number)', state.auth.login, 'login');
+      openKeyboard('Usuario o correo', state.auth.login, 'login');
     } else if (state.optIdx === 1) {
-      openKeyboard('Password', state.auth.password, 'password');
+      openKeyboard('Contraseña', state.auth.password, 'password');
     } else {
       cycleOption(state.optIdx, 1);
     }
@@ -3443,7 +3551,7 @@ function doSaveAndLogin() {
           loadPlaylistContent(state.playlists[0]);
         } else {
           renderPlaylistsView();
-          showToast(state.playlists.length + ' listas asignadas.');
+          showToast(state.playlists.length + ' categorías disponibles.');
         }
       } else {
         fetchFeed();
@@ -3464,7 +3572,7 @@ function fetchFeed() {
     showToast('Ingresa tus datos de usuario.');
     return;
   }
-  showToast('Cargando listas...');
+  showToast('Cargando tu catálogo...');
   apiCall('GET', '/api/ott/feed?token=' + encodeURIComponent(state.auth.token) + '&deviceId=' + encodeURIComponent(state.auth.deviceId), null, function(st, res) {
     if (state.feedLoadId !== feedId) return;
     if (st === 200 && res && res.ok) {
@@ -3476,13 +3584,13 @@ function fetchFeed() {
       refreshRecentCoversFromFeed();
       closeOptions();
       if (state.playlists.length === 0) {
-        showToast('TV registrado. Aún sin listas asignadas.');
+        showToast('TV registrado. Aún sin categorías disponibles.');
         renderPlaylistsView();
       } else if (state.playlists.length === 1) {
         loadPlaylistContent(state.playlists[0]);
       } else {
         renderPlaylistsView();
-        showToast(state.playlists.length + ' listas cargadas.');
+        showToast(state.playlists.length + ' categorías disponibles.');
       }
     } else if (st === 401) {
       if (state.auth.login && state.auth.password) {
@@ -3989,6 +4097,7 @@ function saveSeriesProgress(seriesId, ep) {
 
 function openSeriesDetail(s) {
   if (!s) return;
+  if (state.screen === 'playlists') state.seriesReturnNavigation = captureCatalogNavigation();
   state.currentSeries = s;
   state.seriesArea = 'actions';
   state.seriesActionIdx = 0;
@@ -4032,11 +4141,11 @@ function openSeriesDetail(s) {
   var resumeLabel = $('seriesResumeLabel');
   var saved = getSeriesProgress(s.id);
   if (saved && saved.episode) {
-    resumeLabel.textContent = 'Continuar viendo S' + (saved.season || 1) + ':E' + saved.episode;
+    resumeLabel.textContent = 'Continuar viendo T' + (saved.season || 1) + ':E' + saved.episode;
     state._seriesResumeEp = saved;
   } else {
     var firstEp = s.episodes && s.episodes.length > 0 ? s.episodes[0] : null;
-    resumeLabel.textContent = firstEp ? ('Reproducir S' + (firstEp.season || 1) + ':E' + (firstEp.episode || 1)) : (s.trailerUrl ? 'Ver Trailer' : 'Próximamente');
+    resumeLabel.textContent = firstEp ? ('Reproducir T' + (firstEp.season || 1) + ':E' + (firstEp.episode || 1)) : (s.trailerUrl ? 'Ver tráiler' : 'Próximamente');
     state._seriesResumeEp = firstEp;
   }
 
@@ -4088,7 +4197,11 @@ function closeSeriesDetail() {
     state.currentFocusArea = 'content';
     if (typeof renderChannels === 'function') renderChannels();
   }
-  updateMainFocus(true);
+  restoreCatalogNavigation(state.seriesReturnNavigation);
+  state.seriesReturnNavigation = null;
+  state.currentSeries = null;
+  state.activeSeriesEpisodes = null;
+  updateMainFocus(false);
   updateSearchVisibility();
 }
 
@@ -4107,7 +4220,7 @@ function openTrailerModal(title, optUrl) {
 
   if (directUrl) {
     showToast('🎬 Reproduciendo trailer de ' + sTitle + '...');
-    if ($('trailerModalTitle')) $('trailerModalTitle').textContent = '🎬 Trailer Oficial: ' + sTitle;
+    if ($('trailerModalTitle')) $('trailerModalTitle').textContent = '🎬 Tráiler oficial: ' + sTitle;
     if (ifr) { ifr.style.display = 'none'; ifr.src = ''; }
     if (vid) {
       vid.style.display = 'block';
@@ -4133,7 +4246,7 @@ function searchAndPlayYouTubeTrailer(sTitle, vid, ifr, m, myGen) {
   apiCall('GET', '/api/ott/trailer?q=' + encodeURIComponent(sTitle), null, function(status, res) {
     if (myGen !== trailerGen) return; // el usuario ya cerró: ignorar
     if (status === 200 && res && res.ok && res.embedUrl) {
-      if ($('trailerModalTitle')) $('trailerModalTitle').textContent = '🎬 Trailer Oficial: ' + sTitle;
+      if ($('trailerModalTitle')) $('trailerModalTitle').textContent = '🎬 Tráiler oficial: ' + sTitle;
       if (vid) { vid.style.display = 'none'; try { vid.pause(); } catch(e){} vid.src = ''; }
       if (ifr) {
         ifr.style.display = 'block';
@@ -4263,6 +4376,11 @@ function playSeriesEpisode(series, ep) {
     }
   }
   if (epIdx < 0) epIdx = 0;
+  state.seriesSelectedSeason = ep.season || 1;
+  state.seriesSeasonIdx = Math.max(0, (series.seasonKeys || []).indexOf(state.seriesSelectedSeason));
+  var returnEpisodes = series.seasons && series.seasons[state.seriesSelectedSeason] || series.episodes;
+  state.seriesEpIdx = Math.max(0, returnEpisodes.indexOf(ep));
+  state.seriesArea = 'episodes';
   saveSeriesProgress(series.id, ep);
   state.currentSeries = series;
   state.activeSeriesEpisodes = series.episodes;
@@ -4431,8 +4549,9 @@ function parseM3U(text) {
 }
 
 function loadPlaylistContent(pl, forceFresh, onReady) {
+  if (!state.currentPlaylist && state.screen === 'playlists') state.homeReturnNavigation = captureCatalogNavigation();
   if (typeof window !== 'undefined' && window.TeamGCatalogImages) window.TeamGCatalogImages.stop();
-  try { if (typeof isPlExpired === 'function' ? isPlExpired(pl) : (pl && pl.expired === true)) { showToast('Esta lista especial ya terminó.'); renderPlaylistsView(); return; } } catch (eExp) {}
+  try { if (typeof isPlExpired === 'function' ? isPlExpired(pl) : (pl && pl.expired === true)) { showToast('Esta categoría especial ya terminó.'); renderPlaylistsView(); return; } } catch (eExp) {}
   state.feedLoadId = (state.feedLoadId || 0) + 1;
   var loadId = (state.playlistLoadId || 0) + 1;
   state.playlistLoadId = loadId;
@@ -4543,7 +4662,7 @@ function loadPlaylistContent(pl, forceFresh, onReady) {
         state._playlistCache[pl.id] = { channels: state.channels, groups: state.groups, time: (new Date()).getTime() };
         if (typeof onReady === 'function') { try { onReady(); } catch(eCb1) {} }
       } catch (parseError) {
-        showLoadError('Error al mostrar títulos: ' + (parseError.message || 'lista incompatible'));
+        showLoadError('Error al mostrar títulos: ' + (parseError.message || 'contenido no disponible'));
       }
     } else if (status === 401 && state.auth.login && state.auth.password) {
       showToast('Renovando acceso...');
@@ -4552,14 +4671,14 @@ function loadPlaylistContent(pl, forceFresh, onReady) {
       if (!state._m3uRetries) state._m3uRetries = 0;
       if (state._m3uRetries < 3) {
         state._m3uRetries++;
-        showToast('Conectando con playlist (' + state._m3uRetries + '/3)...');
+        showToast('Conectando con el catálogo (' + state._m3uRetries + '/3)...');
         state.playlistRetryTimer = setTimeout(function() { if (state.playlistLoadId === loadId) loadPlaylistContent(pl, forceFresh); }, 3500);
         return;
       }
       state._m3uRetries = 0;
-      showLoadError('Error cargando playlist (' + status + ')');
+      showLoadError('No se pudo cargar esta categoría (' + status + ')');
     } else {
-      showLoadError('Error cargando playlist (' + status + ')');
+      showLoadError('No se pudo cargar esta categoría (' + status + ')');
     }
   }
   xhr.open('GET', murl, true);
@@ -4771,7 +4890,7 @@ function openRecentContent(idx) {
       return;
     }
   }
-  showToast('Este playlist ya no está disponible.');
+  showToast('Esta categoría ya no está disponible.');
 }
 
 function resolveRecentContent() {
@@ -4837,7 +4956,7 @@ function resolveRecentContent() {
   renderTabs();
   renderChannels();
   updateMainFocus(true);
-  showToast('Este contenido ya no está disponible en la lista.');
+  showToast('Este contenido ya no está disponible en el catálogo.');
 }
 
 function renderHomeOverview(area) {
@@ -4874,7 +4993,7 @@ function renderHomeOverview(area) {
     }
   } catch (eSp) {}
   area.innerHTML = '<div class="home-overview"><div class="home-eyebrow">TEAMG PLAY</div>' +
-    '<h1>Tu próximo contenido empieza aquí</h1><p>Elige un playlist abajo o vuelve a tu último contenido.</p>' + homeRenewalNotice() + specialHtml +
+    '<h1>Tu próximo contenido empieza aquí</h1><p>Elige una categoría abajo o vuelve a tu último contenido.</p>' + homeRenewalNotice() + specialHtml +
     (cards ? '<h2>Último contenido abierto</h2><div class="home-preview-row">' + cards + '</div>' :
     '<div class="home-welcome">Cine · Series · TV en vivo</div>') + '</div>';
   for (var j = 0; j < items.length && j < 6; j++) {
@@ -4927,17 +5046,17 @@ function renderPlaylistsView() {
     renderChannels();
     renderTabs();
   } else if (state.playlists && state.playlists.length > 0) {
-    $('screenTitle').textContent = 'Playlists';
+    $('screenTitle').textContent = 'Inicio';
     renderTabs();
     renderHomeOverview(area);
     state.currentFocusArea = 'tabs';
     state.tileIdx = 0;
     updateMainFocus();
   } else {
-    $('screenTitle').textContent = 'Playlists';
+    $('screenTitle').textContent = 'Inicio';
     $('bottom-tabs-bar').innerHTML = '';
     area.innerHTML = '<div style="text-align: center; margin-top: 100px; font-size: 20px; color: #a5929c;">' +
-      'Sin listas cargadas.<br><br>Presiona el icono Ajustes (⚙) arriba para vincular.</div>';
+      'Tu catálogo todavía no está disponible.<br><br>Entra en Opciones (⚙) para vincular tu TV con TeamG Play.</div>';
   }
   updateSearchVisibility();
   updateTopBar();
@@ -5272,6 +5391,8 @@ function renderChannels() {
     tile.onclick = (function(item, gIdx) {
       return function() {
         if (!state.categoryConfirmed) return;
+        state.tileIdx = gIdx % PAGE_SIZE;
+        state.currentFocusArea = 'content';
         if (item && item.isSeries) {
           openSeriesDetail(item);
         } else {
@@ -5525,6 +5646,10 @@ function goBackAction() {
       state.currentPage = 0;
       state.tabIdx = 0;
       renderPlaylistsView();
+      restoreCatalogNavigation(state.homeReturnNavigation);
+      state.homeReturnNavigation = null;
+      renderTabs();
+      updateMainFocus(false);
       return;
     }
     
@@ -5598,7 +5723,7 @@ function handleMainNav(kc, eObj) {
       } else if (kc === KEY.ENTER) {
         if (state.topIconIdx === 0) {
           state._playlistCache = {};
-          showToast('🔄 Actualizando playlists desde el servidor...');
+          showToast('🔄 Actualizando el catálogo de TeamG Play...');
           fetchFeed();
         } else if (state.topIconIdx === 1) {
           focusRecentContent();
@@ -5811,6 +5936,10 @@ function setBuffering(isBuffering) {
   if (isBuffering && state.musicPlaybackFailed) return;
   var bTag = $('player-buffering-indicator');
   if (bTag) {
+    if (isBuffering) {
+      var video = $('video-el');
+      bTag.textContent = state.recoveryTimer ? 'Reintentando conexión…' : (video && video.currentTime > 0 ? 'Esperando datos…' : 'Cargando contenido…');
+    }
     if (isBuffering) bTag.classList.add('active');
     else bTag.classList.remove('active');
   }
@@ -5821,7 +5950,7 @@ function showTuning(channelName) {
   var t = $('player-tuning');
   if (t) {
     var sub = $('tuningSubText');
-    if (sub) sub.textContent = channelName ? ('Cargando ' + channelName + '...') : 'Cargando señal...';
+    if (sub) sub.textContent = channelName ? ('Cargando ' + channelName + '...') : 'Cargando contenido...';
     t.style.display = 'block';
     setTimeout(function() { if (t) t.style.display = 'none'; }, 2000);
   }
@@ -6396,7 +6525,7 @@ function updateDurationDisplay(v) {
   if (dur > 0) {
     timeEl.textContent = formatTime(cur) + ' / ' + formatTime(dur);
   } else {
-    timeEl.textContent = (cur > 0 ? formatTime(cur) : '00:00:00') + ' / EN VIVO';
+    timeEl.textContent = (cur > 0 ? formatTime(cur) : '00:00:00') + (state.recoveryVod ? ' / Duración pendiente' : ' / EN VIVO');
   }
 }
 
@@ -6417,9 +6546,9 @@ function updateProgressDisplay(v) {
     }
     if (timeEl) timeEl.textContent = formatTime(cur) + ' / ' + formatTime(dur);
   } else {
-    if (fillEl) fillEl.style.width = '100%';
+    if (fillEl) fillEl.style.width = state.recoveryVod ? '0%' : '100%';
     if (thumbEl) thumbEl.style.display = 'none';
-    if (timeEl) timeEl.textContent = (cur > 0 ? formatTime(cur) : '00:00:00') + ' / EN VIVO';
+    if (timeEl) timeEl.textContent = (cur > 0 ? formatTime(cur) : '00:00:00') + (state.recoveryVod ? ' / Duración pendiente' : ' / EN VIVO');
   }
 }
 
@@ -6479,9 +6608,9 @@ function startPlaybackTicker() {
       }
       if (timeEl) timeEl.textContent = formatTime(cur) + ' / ' + formatTime(dur);
     } else {
-      if (fillEl) fillEl.style.width = '100%';
+      if (fillEl) fillEl.style.width = state.recoveryVod ? '0%' : '100%';
       if (thumbEl) thumbEl.style.display = 'none';
-      if (timeEl) timeEl.textContent = (cur > 0 ? formatTime(cur) : '00:00:00') + ' / EN VIVO';
+      if (timeEl) timeEl.textContent = (cur > 0 ? formatTime(cur) : '00:00:00') + (state.recoveryVod ? ' / Duración pendiente' : ' / EN VIVO');
     }
 
     if (cur > 0 && state.tuningWatchdog) {
@@ -6586,6 +6715,7 @@ function recoverPlayback() {
     playItem(item, true);
     state.recoverySeek = position;
   }, delay);
+  setBuffering(true);
 }
 
 function monitorPlaybackRecovery(cur, dur, v, netcastObj) {
@@ -7768,6 +7898,8 @@ function stopPlayer() {
     if (view) view.style.display = 'block';
     var ca = $('content-area'); if (ca) ca.style.display = 'none';
     var bt = $('bottom-tabs-bar'); if (bt) bt.style.display = 'none';
+    renderSeriesSeasons();
+    renderSeriesEpisodes();
     updateSeriesFocus();
   } else {
     state.screen = 'playlists';
@@ -8287,14 +8419,14 @@ if (state.auth.token) {
 function refreshPlaylists() {
   if (state.currentPlaylist) {
     if (state._playlistCache) delete state._playlistCache[state.currentPlaylist.id];
-    showToast('Actualizando lista de reproducción...');
+    showToast('Actualizando categoría...');
     loadPlaylistContent(state.currentPlaylist, true);
   } else if (state.auth.token) {
-    showToast('Actualizando listas de reproducción...');
+    showToast('Actualizando el catálogo de TeamG Play...');
     state._feedRetries = 0;
     fetchFeed();
   } else {
-    showToast('Vincula tu cuenta para actualizar las listas.');
+    showToast('Vincula tu TV con TeamG Play para actualizar el catálogo.');
   }
 }
 
@@ -8998,9 +9130,9 @@ for (var or = 0; or < optRows.length; or++) {
       if (idx === 9) { resetPlaybackPreferences(); return; }
       if (idx === 10) { reloadAppForce(); return; }
       if (idx === 0) {
-        openKeyboard('Login (e-mail/phone number)', state.auth.login, 'login');
+        openKeyboard('Usuario o correo', state.auth.login, 'login');
       } else if (idx === 1) {
-        openKeyboard('Password', state.auth.password, 'password');
+        openKeyboard('Contraseña', state.auth.password, 'password');
       } else {
         var rect = optRows[idx].getBoundingClientRect();
         var clickX = (ev && typeof ev.clientX === 'number') ? (ev.clientX - rect.left) : (rect.width * 0.6);

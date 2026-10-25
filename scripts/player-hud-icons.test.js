@@ -77,8 +77,8 @@ assert.ok(
   'view-options must provide explicit reload/update option row'
 );
 
-// 7. Verify version bumps to v2.5.61
-assert.ok(html.includes('v2.5.61'), 'index.html must display version v2.5.61');
+// 7. Current client version; unchanged native scripts and logo retain their asset versions.
+assert.ok(html.includes('v2.5.62'), 'index.html must display version v2.5.62');
 assert.ok(html.includes('native-player.js?v=2.5.61'), 'native-player.js query must be v2.5.61');
 assert.ok(server.includes('logo-teamg.png?v=2.5.61'), 'server.js logo query must be v2.5.61');
 

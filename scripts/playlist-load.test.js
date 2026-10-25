@@ -40,7 +40,7 @@ for (let i = 0; i < 4; i++) {
   const retry = [...t.timers.entries()].find(([, x]) => x.delay === 3500);
   if (retry) { t.timers.delete(retry[0]); retry[1].fn(); }
 }
-assert.match(t.area.innerHTML, /Error cargando playlist/);
+assert.match(t.area.innerHTML, /No se pudo cargar esta categoría/);
 const switched = setup(false);
 const previous = switched.requests[0];
 switched.ctx.loadPlaylistContent({id: 'series', name: 'Series'});
