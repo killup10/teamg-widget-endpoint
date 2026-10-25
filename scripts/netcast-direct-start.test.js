@@ -34,36 +34,34 @@ for(const engine of ['auto','mediaplayer']){
   const vodUrl='https://teamg.store/volvealos1726.mkv';
   const html5Calls=[];
   const netcastCalls=[];
-  const ctx={state:{auth:{playerEngine:engine,token:'test'},currentPlaylist:{id:'cine'},recoveryVod:true},
-  window:{},netcastObj,v:{},isLegacyNetcast:true,isHls:false,isDirectCdn:false,ua:'Mozilla/5.0 NetCast/4.0',
+  const apiCalls=[];
+  const ctx={state:{screen:'player',playerGeneration:1,auth:{playerEngine:engine,token:'test'},currentPlaylist:{id:'cine'},recoveryVod:true},
+  window:{},API_BASE:'https://ott.teamg.store',netcastObj,v:{},isLegacyNetcast:true,isHls:false,isDirectCdn:false,ua:'Mozilla/5.0 NetCast/4.0',
   c:{url:vodUrl},streamUrl:vodUrl,playUrl:vodUrl,probeSubtitles(){},
   startNetcastPlayer:(v,obj,play)=>netcastCalls.push(play),
   playHtml5:(v,obj,play)=>html5Calls.push(play),
-  apiCall:()=>{throw Error('Unexpected apiCall')}
+  apiCall:(method,path,body,callback)=>{apiCalls.push(path);callback(200,{ok:true,sessionId:'a'.repeat(48),url:'/api/ott/vod-hls/'+'a'.repeat(48)+'/index.m3u8'});}
   };
   vm.runInNewContext('(function(){'+source+')()',ctx);
-  if(engine==='mediaplayer') {
-   assert.deepEqual(netcastCalls,[vodUrl],'Explicit MediaPlayer engine applies to standalone VOD');
-   assert.deepEqual(html5Calls,[],'Explicit MediaPlayer engine must not start HTML5 first');
-  } else {
-   assert.deepEqual(html5Calls,[vodUrl],'Automatic standalone VOD keeps HTML5 as its default');
-   assert.deepEqual(netcastCalls,[],'Automatic standalone VOD must not force MediaPlayer');
-  }
+  const normalized='https://ott.teamg.store/api/ott/vod-hls/'+'a'.repeat(48)+'/index.m3u8';
+  assert.deepEqual(apiCalls,['/api/ott/vod-hls/prepare'],'MKV VOD must be normalized before playback');
+  assert.deepEqual(netcastCalls,[normalized],engine+': NetCast receives the generated HLS through its hardware player');
+  assert.deepEqual(html5Calls,[],'NetCast must not send Matroska directly to its HTML5 video element');
  }
 }
 for(const engine of ['auto','mediaplayer']){
  for(const netcastObj of [{play(){}},{}]){
   const seriesUrl='https://teamg.store/boruto1x257.mkv';
   const netcastCalls=[];
-  const ctx={state:{auth:{playerEngine:engine,token:'test'},currentPlaylist:{id:'series'},recoveryVod:true,currentSeries:{id:'series_boruto',name:'Boruto'}},
-  window:{},netcastObj,v:{},isLegacyNetcast:true,isHls:false,isDirectCdn:false,ua:'Mozilla/5.0 NetCast/4.0',
+  const ctx={state:{screen:'player',playerGeneration:1,auth:{playerEngine:engine,token:'test'},currentPlaylist:{id:'series'},recoveryVod:true,currentSeries:{id:'series_boruto',name:'Boruto'}},
+  window:{},API_BASE:'https://ott.teamg.store',netcastObj,v:{},isLegacyNetcast:true,isHls:false,isDirectCdn:false,ua:'Mozilla/5.0 NetCast/4.0',
   c:{url:seriesUrl},streamUrl:seriesUrl,playUrl:seriesUrl,probeSubtitles(){},
   startNetcastPlayer:(v,obj,play)=>netcastCalls.push(play),
   playHtml5:()=>{throw Error('Series episodes on NetCast must use MediaPlayer directly so out-of-band AVCC MKVs like boruto1x257.mkv render video')},
-  apiCall:()=>{throw Error('Unexpected apiCall')}
+  apiCall:(method,path,body,callback)=>callback(200,{ok:true,sessionId:'b'.repeat(48),url:'/api/ott/vod-hls/'+'b'.repeat(48)+'/index.m3u8'})
   };
   vm.runInNewContext('(function(){'+source+')()',ctx);
-  assert.deepEqual(netcastCalls,[seriesUrl],engine+': Series episodes on NetCast open MediaPlayer directly');
+  assert.deepEqual(netcastCalls,['https://ott.teamg.store/api/ott/vod-hls/'+'b'.repeat(48)+'/index.m3u8'],engine+': Series episodes on NetCast open the normalized HLS in MediaPlayer');
  }
 }
 {

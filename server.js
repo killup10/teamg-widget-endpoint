@@ -142,7 +142,7 @@ const server = http.createServer((req, res) => {
   res.write = function(chunk, encoding, callback) { count(chunk, encoding); return write.call(this, chunk, encoding, callback); };
   res.end = function(chunk, encoding, callback) { count(chunk, encoding); return end.call(this, chunk, encoding, callback); };
   res.once('close', () => console.log('[BANDWIDTH]', JSON.stringify({
-    method: req.method, path: pathname.replace(/\/android-audio\/[a-f0-9]{48}/, '/android-audio/:session'),
+    method: req.method, path: pathname.replace(/\/(android-audio|vod-hls)\/[a-f0-9]{48}/, '/$1/:session'),
     status: res.statusCode, bytes: sentBytes, complete: res.writableFinished
   })));
 
@@ -160,6 +160,9 @@ const server = http.createServer((req, res) => {
   // Stream Proxy para Smart TVs (LG NetCast / Samsung): convierte flujos HTTPS/TLS 1.3 a HTTP puerto 80
   if (pathname.indexOf('/api/ott/android-audio/') === 0 && (req.method === 'GET' || req.method === 'HEAD')) {
     return require('./android-audio').serve(req, res, pathname);
+  }
+  if (pathname.indexOf('/api/ott/vod-hls/') === 0 && (req.method === 'GET' || req.method === 'HEAD')) {
+    return require('./vod-hls').serve(req, res, pathname);
   }
   if (pathname === '/api/ott/music/debug') {
     const { execFile, execFileSync } = require('child_process');
@@ -365,7 +368,7 @@ const server = http.createServer((req, res) => {
       "items": [
         {
           "title": "Abrir TeamG Play",
-          "image": base + "/ott/logo-teamg.png?v=2.5.55",
+          "image": base + "/ott/logo-teamg.png?v=2.5.57",
           "action": "link:" + base + "/ott/index.html?v=" + Date.now()
         }
       ]

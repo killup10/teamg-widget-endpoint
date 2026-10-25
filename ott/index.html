@@ -2040,7 +2040,7 @@ body.smart-tv #player-music-yt-container { display:none !important; }
         <h3>Información</h3>
         <p id="optDescText">También puedes ingresar manualmente tu usuario y contraseña con el teclado en pantalla.</p>
         <div style="margin-top:16px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.5.56 — Selección de motor también para VOD
+          VERSIÓN: v2.5.57 — Compatibilidad MKV en PC y TV
         </div>
       </div>
     </div>
@@ -2245,8 +2245,8 @@ body.smart-tv #player-music-yt-container { display:none !important; }
 
 <!-- Script HLS Vendor -->
 <script src="/ott/vendor/hls.min.js"></script>
-<script src="/ott/native-player.js?v=2.5.56"></script>
-<script src="/ott/hls-variant.js?v=2.5.56"></script>
+<script src="/ott/native-player.js?v=2.5.57"></script>
+<script src="/ott/hls-variant.js?v=2.5.57"></script>
 <script src="/ott/catalog-images.js?v=1"></script>
 <script>
 (function() {
@@ -2536,7 +2536,8 @@ var state = {
   currentGroup: '__all',
   currentChannelIdx: 0,
   favorites: {},
-  hlsInstance: null
+  hlsInstance: null,
+  vodHlsSession: null
 };
 
 function $(id) { return document.getElementById(id); }
@@ -5961,6 +5962,10 @@ function cleanPlayerEngines() {
     apiCall('POST', '/api/ott/android-audio/stop', { token: state.auth.token, deviceId: state.auth.deviceId, sessionId: state.androidAudioSession }, function() {});
     state.androidAudioSession = null;
   }
+  if (state.vodHlsSession) {
+    apiCall('POST', '/api/ott/vod-hls/stop', { token: state.auth.token, deviceId: state.auth.deviceId, sessionId: state.vodHlsSession }, function() {});
+    state.vodHlsSession = null;
+  }
   if (state.cancelHlsVariant) { state.cancelHlsVariant(); state.cancelHlsVariant = null; }
   if (window.TeamGNative && TeamGNative.active()) TeamGNative.stop();
   var samsungSurface = $('samsung-player');
@@ -6977,6 +6982,36 @@ function playItem(c, recovering) {
       playHtml5(v, netcastObj, url, streamUrl, c);
     }
   }
+  var needsVodRemux = !!state.recoveryVod && /\.(?:mkv|avi|mov)(?:[?#]|$)/i.test(streamUrl);
+  if (needsVodRemux && state.currentPlaylist && state.auth.token) {
+    var vodGeneration = state.playerGeneration;
+    apiCall('POST', '/api/ott/vod-hls/prepare', {
+      token: state.auth.token, deviceId: state.auth.deviceId,
+      playlistId: state.currentPlaylist.id, url: streamUrl
+    }, function(status, result) {
+      if (state.screen !== 'player' || state.playerGeneration !== vodGeneration) {
+        if (result && result.sessionId) apiCall('POST', '/api/ott/vod-hls/stop', {
+          token: state.auth.token, deviceId: state.auth.deviceId, sessionId: result.sessionId
+        }, function() {});
+        return;
+      }
+      if (status === 200 && result && result.ok && result.sessionId && result.url) {
+        state.vodHlsSession = result.sessionId;
+        var vodHlsUrl = (API_BASE || '') + result.url;
+        // Legacy NetCast cannot demux many Matroska variants in its HTML5 element.
+        // Feed it the normalized HLS output through its hardware MediaPlayer.
+        if (isLegacyNetcast && netcastObj && !forceHtml5Player) {
+          startNetcastPlayer(v, netcastObj, vodHlsUrl, vodHlsUrl, c);
+        } else {
+          startSelectedPlayer(vodHlsUrl);
+        }
+      } else {
+        showToast((result && result.error) || 'No se pudo preparar el MKV compatible.');
+        startSelectedPlayer(playUrl);
+      }
+    });
+    return;
+  }
   var androidLiveAudio = /Android/i.test(ua) && !/NetCast|webOS|Web0S|Tizen/i.test(ua) && !state.recoveryVod && !isDirectCdn;
   // A continuous TS response is not an HLS manifest. Package it for HTML5/TV
   // playback and convert unsupported broadcast audio (such as MP2) to AAC.
@@ -7538,7 +7573,8 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c, androidFallbackEngine) 
 
   var nativeHls = !!(v.canPlayType && v.canPlayType('application/vnd.apple.mpegurl'));
   var androidHls = /Android/i.test(navigator.userAgent || '') && !/NetCast|webOS|Web0S|Tizen/i.test(navigator.userAgent || '');
-  var wantsJs = state.auth.hlsPlayer === 'JS player (hls.js)' ||
+  var isPreparedVodHls = /\/api\/ott\/vod-hls\//i.test(playUrl);
+  var wantsJs = (isPreparedVodHls && !nativeHls) || state.auth.hlsPlayer === 'JS player (hls.js)' ||
     (state.auth.hlsPlayer !== 'Native HLS player' && (!nativeHls || androidHls));
   if (androidHls && androidFallbackEngine) wantsJs = androidFallbackEngine === 'js';
   var isHlsStream = (playUrl.indexOf('.m3u8') !== -1 || streamUrl.indexOf('.m3u8') !== -1 || playUrl.indexOf('/chunks') !== -1 || streamUrl.indexOf('/chunks') !== -1);
