@@ -2037,7 +2037,7 @@ body.smart-tv #player-music-yt-container { display:none !important; }
         <h3>Información</h3>
         <p id="optDescText">También puedes ingresar manualmente tu usuario y contraseña con el teclado en pantalla.</p>
         <div style="margin-top:16px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.5.60 — Reproducción directa Dropbox VOD
+          VERSIÓN: v2.5.61 — Reproducción directa Dropbox VOD
         </div>
       </div>
     </div>
@@ -2128,9 +2128,6 @@ body.smart-tv #player-music-yt-container { display:none !important; }
   <!-- REPRODUCTOR DE VIDEO A PANTALLA COMPLETA (Foto 2 y 3) -->
   <div id="player-container">
     <video id="video-el" preload="auto" playsinline webkit-playsinline tabindex="-1"></video>
-    <object id="netcast-player" type="application/x-netcast-av" width="100%" height="100%" style="display:none;" tabindex="-1">
-      <param name="wmode" value="transparent">
-    </object>
     <object id="samsung-player" type="application/avplayer" style="display:none;" tabindex="-1"></object>
     <!-- Renderizado Universal de Subtítulos en Pantalla -->
     <div id="player-subtitles-overlay"></div>
@@ -2242,8 +2239,8 @@ body.smart-tv #player-music-yt-container { display:none !important; }
 
 <!-- Script HLS Vendor -->
 <script src="/ott/vendor/hls.min.js"></script>
-<script src="/ott/native-player.js?v=2.5.60"></script>
-<script src="/ott/hls-variant.js?v=2.5.60"></script>
+<script src="/ott/native-player.js?v=2.5.61"></script>
+<script src="/ott/hls-variant.js?v=2.5.61"></script>
 <script src="/ott/catalog-images.js?v=1"></script>
 <script>
 (function() {
@@ -2550,7 +2547,7 @@ var OPT_HLS_ENGINES = ['Automático', 'Native HLS player', 'JS player (hls.js)']
 function availableVideoEngines() {
   var out = [{id:'auto', label:'Auto (Recomendado)'}];
   var obj = $('netcast-player');
-  if (/NetCast/i.test(navigator.userAgent || '') && !/Web0S|webOS/i.test(navigator.userAgent || '') && obj) out.push({id:'mediaplayer',label:'MediaPlayer (LG NetCast)'});
+  if (/NetCast/i.test(navigator.userAgent || '') && !/Web0S|webOS/i.test(navigator.userAgent || '') && (obj || typeof getOrCreateNetcastObject === 'function')) out.push({id:'mediaplayer',label:'MediaPlayer (LG NetCast)'});
   if (window.TeamGNative && TeamGNative.available()) out.push({id:'avplay',label:'AVPlay (Samsung)'});
   out.push({id:'html5',label:'HTML5 player'});
   return out;
@@ -6046,8 +6043,8 @@ function cleanPlayerEngines() {
   var netcastObj = $('netcast-player');
   if (netcastObj) {
     try { netcastObj.onPlayStateChange = null; } catch (eN1) {}
-    try { if (netcastObj.style.display !== 'none') netcastObj.stop(); } catch (eN2) {}
-    netcastObj.style.display = 'none';
+    try { netcastObj.stop(); } catch (eN2) {}
+    try { if (netcastObj.parentNode) netcastObj.parentNode.removeChild(netcastObj); } catch (eN3) {}
   }
 
   stopPlaybackTicker();
@@ -6954,12 +6951,12 @@ function playItem(c, recovering) {
   if (forceHtml5Player) { engine = 'html5'; useNative = false; }
   if (forceNativePlayer && window.TeamGNative && TeamGNative.available()) useNative = true;
   var preferNetcast = false;
-  if (!forceHtml5Player && engine === 'mediaplayer' && isLegacyNetcast && netcastObj) {
+  if (!forceHtml5Player && engine === 'mediaplayer' && isLegacyNetcast && (netcastObj || typeof getOrCreateNetcastObject === 'function')) {
     preferNetcast = true;
-  } else if (!forceHtml5Player && forceNativePlayer && isLegacyNetcast && netcastObj) {
+  } else if (!forceHtml5Player && forceNativePlayer && isLegacyNetcast && (netcastObj || typeof getOrCreateNetcastObject === 'function')) {
     preferNetcast = true;
   } else if (!forceHtml5Player && engine === 'auto') {
-    if (isLegacyNetcast && netcastObj && (typeof netcastObj.play === 'function' || typeof netcastObj.play === 'object' || !isHls)) {
+    if (isLegacyNetcast && (netcastObj || typeof getOrCreateNetcastObject === 'function') && ((netcastObj && typeof netcastObj.play === 'function') || (netcastObj && typeof netcastObj.play === 'object') || typeof getOrCreateNetcastObject === 'function' || !isHls)) {
       preferNetcast = true;
     }
   }
@@ -6969,7 +6966,7 @@ function playItem(c, recovering) {
   function startSelectedPlayer(url) {
     if (useNative) {
       startSamsungPlayer(v, netcastObj, url, streamUrl, c);
-    } else if (preferNetcast && netcastObj) {
+    } else if (preferNetcast && (netcastObj || typeof getOrCreateNetcastObject === 'function')) {
       startNetcastPlayer(v, netcastObj, url, streamUrl, c);
     } else {
       playHtml5(v, netcastObj, url, streamUrl, c);
@@ -7068,6 +7065,43 @@ function startSamsungPlayer(v, netcastObj, playUrl, streamUrl, c, forceProxy) {
   });
 }
 
+function getOrCreateNetcastObject(mimeType) {
+  var container = $('player-container') || document.body;
+  var existing = $('netcast-player');
+  if (existing) {
+    var curType = existing.getAttribute('type') || existing.type;
+    if (curType !== mimeType) {
+      try { existing.onPlayStateChange = null; existing.stop(); } catch(e) {}
+      if (existing.parentNode) existing.parentNode.removeChild(existing);
+      existing = null;
+    }
+  }
+  if (!existing) {
+    existing = document.createElement('object');
+    existing.id = 'netcast-player';
+    existing.style.position = 'absolute';
+    existing.style.top = '0';
+    existing.style.left = '0';
+    existing.style.width = '100%';
+    existing.style.height = '100%';
+    existing.style.zIndex = '1';
+    existing.tabIndex = -1;
+    existing.setAttribute('type', mimeType);
+    existing.setAttribute('preBufferingTime', '0');
+    existing.setAttribute('oneshot_url', 'true');
+    existing.setAttribute('autoStart', 'true');
+    existing.setAttribute('downloadable', 'false');
+    var param = document.createElement('param');
+    param.name = 'wmode';
+    param.value = 'transparent';
+    existing.appendChild(param);
+    if (container) {
+      container.insertBefore(existing, container.firstChild);
+    }
+  }
+  return existing;
+}
+
 function startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c, forceProxy) {
   if (streamUrl && streamUrl.indexOf('/api/ott/music/') !== -1 && v && (!c || !c._triedHtml5)) {
     playHtml5(v, netcastObj, playUrl, streamUrl, c);
@@ -7090,6 +7124,13 @@ function startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c, forceProxy) {
   if (/^https:\/\/[^\/]*teamg\.store\//i.test(selectedUrl)) {
     selectedUrl = 'http://' + selectedUrl.substring(8);
   }
+
+  var isVodNetcast = !!(state.recoveryVod || /\.(?:mkv|mp4|avi|mov|webm)(?:[?#]|$)/i.test(selectedUrl || streamUrl));
+  var netcastMime = isVodNetcast ? 'video/mp4' : 'application/x-netcast-av';
+  if (typeof getOrCreateNetcastObject === 'function') {
+    netcastObj = getOrCreateNetcastObject(netcastMime);
+  }
+
   var failed = false, startedAt = new Date().getTime();
   function current() { return state.screen === 'player' && state.playerGeneration === generation; }
   function fail() {
@@ -7188,18 +7229,6 @@ function startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c, forceProxy) {
     }
   }, 400);
   try {
-    var isVodNetcast = !!(state.recoveryVod || /\.(?:mkv|mp4|avi|mov|webm)(?:[?#]|$)/i.test(selectedUrl || streamUrl));
-    var netcastMime = isVodNetcast ? 'video/mp4' : 'application/x-netcast-av';
-    try {
-      if (typeof netcastObj.setAttribute === 'function') {
-        netcastObj.setAttribute('type', netcastMime);
-        netcastObj.setAttribute('preBufferingTime', '0');
-        netcastObj.setAttribute('oneshot_url', 'true');
-        netcastObj.setAttribute('autoStart', 'true');
-        netcastObj.setAttribute('downloadable', 'false');
-      }
-      netcastObj.type = netcastMime;
-    } catch (eNetType) {}
     netcastObj.data = selectedUrl;
     try {
       if (typeof netcastObj.play === 'function' || typeof netcastObj.play === 'object' || netcastObj.play) {
@@ -7654,7 +7683,12 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c, androidFallbackEngine) 
     }
     if (v && typeof v.setAttribute === 'function') v.setAttribute('preload', 'auto');
     v.src = html5Url;
-    try { if (typeof v.removeAttribute === 'function') v.removeAttribute('type'); } catch (eType) {}
+    var vodMime = 'video/mp4';
+    if (/\.webm(?:[?#]|$)/i.test(html5Url)) vodMime = 'video/webm';
+    try {
+      v.type = vodMime;
+      v.setAttribute('type', vodMime);
+    } catch (eType) {}
     try {
       v.load(); // Esencial en Smart TVs (LG webOS / Samsung Tizen) para refrescar el pipeline de video
       var playPromise = v.play();
