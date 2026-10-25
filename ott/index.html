@@ -7599,14 +7599,15 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c, androidFallbackEngine) 
   if (useJsHls) {
     // Only legacy NetCast needs fixed 1080p startup; webOS/Tizen keep ABR, including 4K.
     var stableLgHls = isLegacyNetcast;
-    state.hlsInstance = new Hls({ maxBufferLength: 15, enableWorker: false, autoStartLoad: !stableLgHls });
+    var vodStartPos = (typeof isPreparedVodHls !== 'undefined' && isPreparedVodHls) ? 0 : -1;
+    state.hlsInstance = new Hls({ maxBufferLength: 15, enableWorker: false, autoStartLoad: !stableLgHls, startPosition: vodStartPos });
     state.hlsInstance.loadSource(playUrl);
     state.hlsInstance.attachMedia(v);
     // Iniciar durante el gesto del mando, sin esperar la descarga del manifiesto.
     if (androidHls) {
       try { var initialPlay = v.play(); if (initialPlay && initialPlay.catch) initialPlay.catch(androidPlayError); } catch (initialPlayError) { androidPlayError(initialPlayError); }
     }
-    state.hlsInstance.on(Hls.Events.LEVEL_LOADED, function(evt, data) { if (data && data.details) state.recoveryVod = !data.details.live; });
+    state.hlsInstance.on(Hls.Events.LEVEL_LOADED, function(evt, data) { if (data && data.details && !(typeof isPreparedVodHls !== 'undefined' && isPreparedVodHls)) state.recoveryVod = !data.details.live; });
     state.hlsInstance.on(Hls.Events.MANIFEST_PARSED, function() {
       if (stableLgHls) {
         var levels = state.hlsInstance.levels || [], selected = -1;
