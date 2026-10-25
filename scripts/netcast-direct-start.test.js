@@ -33,15 +33,22 @@ for(const engine of ['auto','mediaplayer']){
  for(const netcastObj of [{play(){}},{}]){
   const vodUrl='https://teamg.store/volvealos1726.mkv';
   const html5Calls=[];
+  const netcastCalls=[];
   const ctx={state:{auth:{playerEngine:engine,token:'test'},currentPlaylist:{id:'cine'},recoveryVod:true},
   window:{},netcastObj,v:{},isLegacyNetcast:true,isHls:false,isDirectCdn:false,ua:'Mozilla/5.0 NetCast/4.0',
   c:{url:vodUrl},streamUrl:vodUrl,playUrl:vodUrl,probeSubtitles(){},
-  startNetcastPlayer:()=>{throw Error('VOD MKV/MP4 must never instantiate NetCast NPAPI plugin')},
+  startNetcastPlayer:(v,obj,play)=>netcastCalls.push(play),
   playHtml5:(v,obj,play)=>html5Calls.push(play),
   apiCall:()=>{throw Error('Unexpected apiCall')}
   };
   vm.runInNewContext('(function(){'+source+')()',ctx);
-  assert.deepEqual(html5Calls,[vodUrl],engine+': VOD movies on NetCast always use HTML5 video element');
+  if(engine==='mediaplayer') {
+   assert.deepEqual(netcastCalls,[vodUrl],'Explicit MediaPlayer engine applies to standalone VOD');
+   assert.deepEqual(html5Calls,[],'Explicit MediaPlayer engine must not start HTML5 first');
+  } else {
+   assert.deepEqual(html5Calls,[vodUrl],'Automatic standalone VOD keeps HTML5 as its default');
+   assert.deepEqual(netcastCalls,[],'Automatic standalone VOD must not force MediaPlayer');
+  }
  }
 }
 for(const engine of ['auto','mediaplayer']){

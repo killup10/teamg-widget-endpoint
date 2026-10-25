@@ -2040,7 +2040,7 @@ body.smart-tv #player-music-yt-container { display:none !important; }
         <h3>Información</h3>
         <p id="optDescText">También puedes ingresar manualmente tu usuario y contraseña con el teclado en pantalla.</p>
         <div style="margin-top:16px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.5.55 — Activación remota por código TV (12h)
+          VERSIÓN: v2.5.56 — Selección de motor también para VOD
         </div>
       </div>
     </div>
@@ -2245,8 +2245,8 @@ body.smart-tv #player-music-yt-container { display:none !important; }
 
 <!-- Script HLS Vendor -->
 <script src="/ott/vendor/hls.min.js"></script>
-<script src="/ott/native-player.js?v=2.5.55"></script>
-<script src="/ott/hls-variant.js?v=2.5.55"></script>
+<script src="/ott/native-player.js?v=2.5.56"></script>
+<script src="/ott/hls-variant.js?v=2.5.56"></script>
 <script src="/ott/catalog-images.js?v=1"></script>
 <script>
 (function() {
@@ -3186,7 +3186,7 @@ var OPT_DESCRIPTIONS = [
   'Device registration/selection. Identificador de este TV LG en tu cuenta.',
   'App. language. Idioma de la interfaz de la aplicación.',
   'Motor de video. Automático detecta funciones reales del equipo; puedes elegir otra alternativa disponible.',
-  'Canales en vivo. Automático usa el motor de video seleccionado; HTML5 o nativo permiten cambiarlo para IPTV.',
+  'Motor de IPTV. Automático detecta el motor; HTML5 o nativo eligen cómo reproducir canales y títulos VOD.',
   'HLS en HTML5. Automático prioriza HLS nativo; HLS.js se usa cuando es necesario y está disponible.',
   'Color theme. Paleta de colores de la interfaz.',
   'Texto normal o grande para leer cómodamente desde el sofá.',
@@ -6947,20 +6947,24 @@ function playItem(c, recovering) {
   if (engine === 'mediaplayer' && !isLegacyNetcast) engine = 'auto';
   var useNative = window.TeamGNative && TeamGNative.available() &&
     (engine === 'avplay' || engine === 'auto');
-  if (!state.recoveryVod && state.auth.iptvPlayer === 'HTML5 player') { engine = 'html5'; useNative = false; }
-  if (!state.recoveryVod && state.auth.iptvPlayer === 'Native TV player' && window.TeamGNative && TeamGNative.available()) useNative = true;
+  var forceHtml5Player = state.auth.iptvPlayer === 'HTML5 player';
+  var forceNativePlayer = state.auth.iptvPlayer === 'Native TV player';
+  if (forceHtml5Player) { engine = 'html5'; useNative = false; }
+  if (forceNativePlayer && window.TeamGNative && TeamGNative.available()) useNative = true;
   var preferNetcast = false;
   var isVodMovie = !!(state.recoveryVod && !state.currentSeries);
   
-  if (engine === 'mediaplayer' && !isVodMovie) {
+  // Explicit engine choices apply to VOD too. Only automatic selection keeps
+  // standalone movies on HTML5; users can still force NetCast MediaPlayer.
+  if (!forceHtml5Player && engine === 'mediaplayer' && isLegacyNetcast && netcastObj) {
     preferNetcast = true;
-  } else if (engine === 'auto') {
+  } else if (!forceHtml5Player && forceNativePlayer && isLegacyNetcast && netcastObj) {
+    preferNetcast = true;
+  } else if (!forceHtml5Player && engine === 'auto') {
     if (!isVodMovie && isLegacyNetcast && netcastObj && (typeof netcastObj.play === 'function' || !isHls)) {
       preferNetcast = true;
     }
   }
-  if (!isVodMovie && state.auth.iptvPlayer === 'Native TV player' && isLegacyNetcast && netcastObj) preferNetcast = true;
-  if (!isVodMovie && state.auth.iptvPlayer === 'HTML5 player' && isLegacyNetcast && netcastObj && !isHls) preferNetcast = true;
 
   probeSubtitles(c.url || playUrl, c.subs);
 
