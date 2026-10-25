@@ -44,6 +44,21 @@ for(const engine of ['auto','mediaplayer']){
   assert.deepEqual(html5Calls,[vodUrl],engine+': VOD movies on NetCast always use HTML5 video element');
  }
 }
+for(const engine of ['auto','mediaplayer']){
+ for(const netcastObj of [{play(){}},{}]){
+  const seriesUrl='https://teamg.store/boruto1x257.mkv';
+  const netcastCalls=[];
+  const ctx={state:{auth:{playerEngine:engine,token:'test'},currentPlaylist:{id:'series'},recoveryVod:true,currentSeries:{id:'series_boruto',name:'Boruto'}},
+  window:{},netcastObj,v:{},isLegacyNetcast:true,isHls:false,isDirectCdn:false,ua:'Mozilla/5.0 NetCast/4.0',
+  c:{url:seriesUrl},streamUrl:seriesUrl,playUrl:seriesUrl,probeSubtitles(){},
+  startNetcastPlayer:(v,obj,play)=>netcastCalls.push(play),
+  playHtml5:()=>{throw Error('Series episodes on NetCast must use MediaPlayer directly so out-of-band AVCC MKVs like boruto1x257.mkv render video')},
+  apiCall:()=>{throw Error('Unexpected apiCall')}
+  };
+  vm.runInNewContext('(function(){'+source+')()',ctx);
+  assert.deepEqual(netcastCalls,[seriesUrl],engine+': Series episodes on NetCast open MediaPlayer directly');
+ }
+}
 {
  const hlsUrl='http://38.199.5.160:8000/play/a0bi/index.m3u8';
  const proxyUrl='https://ott.teamg.store/api/ott/stream.m3u8?url='+encodeURIComponent(hlsUrl);

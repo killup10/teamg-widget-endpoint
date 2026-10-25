@@ -6049,7 +6049,7 @@ function cleanPlayerEngines() {
   var netcastObj = $('netcast-player');
   if (netcastObj) {
     try { netcastObj.onPlayStateChange = null; } catch (eN1) {}
-    try { netcastObj.stop(); } catch (eN2) {}
+    try { if (netcastObj.style.display !== 'none') netcastObj.stop(); } catch (eN2) {}
     netcastObj.style.display = 'none';
   }
 
@@ -6950,16 +6950,17 @@ function playItem(c, recovering) {
   if (!state.recoveryVod && state.auth.iptvPlayer === 'HTML5 player') { engine = 'html5'; useNative = false; }
   if (!state.recoveryVod && state.auth.iptvPlayer === 'Native TV player' && window.TeamGNative && TeamGNative.available()) useNative = true;
   var preferNetcast = false;
+  var isVodMovie = !!(state.recoveryVod && !state.currentSeries);
   
-  if (engine === 'mediaplayer' && !state.recoveryVod) {
+  if (engine === 'mediaplayer' && !isVodMovie) {
     preferNetcast = true;
   } else if (engine === 'auto') {
-    if (!state.recoveryVod && isLegacyNetcast && netcastObj && (typeof netcastObj.play === 'function' || !isHls)) {
+    if (!isVodMovie && isLegacyNetcast && netcastObj && (typeof netcastObj.play === 'function' || !isHls)) {
       preferNetcast = true;
     }
   }
-  if (!state.recoveryVod && state.auth.iptvPlayer === 'Native TV player' && isLegacyNetcast && netcastObj) preferNetcast = true;
-  if (!state.recoveryVod && state.auth.iptvPlayer === 'HTML5 player' && isLegacyNetcast && netcastObj && !isHls) preferNetcast = true;
+  if (!isVodMovie && state.auth.iptvPlayer === 'Native TV player' && isLegacyNetcast && netcastObj) preferNetcast = true;
+  if (!isVodMovie && state.auth.iptvPlayer === 'HTML5 player' && isLegacyNetcast && netcastObj && !isHls) preferNetcast = true;
 
   probeSubtitles(c.url || playUrl, c.subs);
 
@@ -7128,13 +7129,15 @@ function startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c, forceProxy) {
       if (ps === 1 || ps === 4) { // Reproduciendo o Buffering
         hideTuning();
         $('btnPlayPause').textContent = '▶❚❚';
-        if (ps === 1 && state.tuningWatchdog) {
-          clearInterval(state.tuningWatchdog);
-          state.tuningWatchdog = null;
-        }
-        var mi = netcastObj.mediaInformation;
-        if (mi && mi.width && mi.height) {
-          $('player-res').textContent = mi.width + 'x' + mi.height;
+        if (ps === 1) {
+          if (state.tuningWatchdog) {
+            clearInterval(state.tuningWatchdog);
+            state.tuningWatchdog = null;
+          }
+          var mi = netcastObj.mediaInformation;
+          if (mi && mi.width && mi.height) {
+            $('player-res').textContent = mi.width + 'x' + mi.height;
+          }
         }
       } else if (ps === 2) {
         $('btnPlayPause').textContent = '▶';
