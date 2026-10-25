@@ -42,13 +42,8 @@ for(const engine of ['auto','mediaplayer']){
   apiCall:()=>{throw Error('Unexpected apiCall')}
   };
   vm.runInNewContext('(function(){'+source+')()',ctx);
-  if(engine==='mediaplayer'){
-   assert.deepEqual(netcastCalls,[vodUrl],'Explicit MediaPlayer engine applies to standalone VOD');
-   assert.deepEqual(html5Calls,[],'Explicit MediaPlayer engine must not start HTML5 first');
-  } else {
-   assert.deepEqual(html5Calls,[vodUrl],'Automatic standalone VOD keeps HTML5 as its default');
-   assert.deepEqual(netcastCalls,[],'Automatic standalone VOD must not force MediaPlayer');
-  }
+  assert.deepEqual(netcastCalls,[vodUrl],engine+': NetCast routes standalone VOD to hardware MediaPlayer');
+  assert.deepEqual(html5Calls,[],'NetCast must not start HTML5 for VOD');
  }
 }
 for(const engine of ['auto','mediaplayer']){
@@ -64,13 +59,8 @@ for(const engine of ['auto','mediaplayer']){
   apiCall:()=>{throw Error('Unexpected apiCall')}
   };
   vm.runInNewContext('(function(){'+source+')()',ctx);
-  if(engine==='mediaplayer'){
-   assert.deepEqual(netcastCalls,[seriesUrl],engine+': Explicit MediaPlayer opens series directly');
-   assert.deepEqual(html5Calls,[],'Explicit MediaPlayer must not start HTML5 first');
-  } else {
-   assert.deepEqual(html5Calls,[seriesUrl],engine+': Automatic series episodes use HTML5 directly');
-   assert.deepEqual(netcastCalls,[],'Automatic series must not force MediaPlayer');
-  }
+  assert.deepEqual(netcastCalls,[seriesUrl],engine+': NetCast routes series VOD to hardware MediaPlayer');
+  assert.deepEqual(html5Calls,[],'NetCast must not start HTML5 for series');
  }
 }
 {

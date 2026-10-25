@@ -2037,7 +2037,7 @@ body.smart-tv #player-music-yt-container { display:none !important; }
         <h3>Información</h3>
         <p id="optDescText">También puedes ingresar manualmente tu usuario y contraseña con el teclado en pantalla.</p>
         <div style="margin-top:16px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.5.59 — Reproducción directa Dropbox VOD
+          VERSIÓN: v2.5.60 — Reproducción directa Dropbox VOD
         </div>
       </div>
     </div>
@@ -2242,8 +2242,8 @@ body.smart-tv #player-music-yt-container { display:none !important; }
 
 <!-- Script HLS Vendor -->
 <script src="/ott/vendor/hls.min.js"></script>
-<script src="/ott/native-player.js?v=2.5.59"></script>
-<script src="/ott/hls-variant.js?v=2.5.59"></script>
+<script src="/ott/native-player.js?v=2.5.60"></script>
+<script src="/ott/hls-variant.js?v=2.5.60"></script>
 <script src="/ott/catalog-images.js?v=1"></script>
 <script>
 (function() {
@@ -6959,7 +6959,7 @@ function playItem(c, recovering) {
   } else if (!forceHtml5Player && forceNativePlayer && isLegacyNetcast && netcastObj) {
     preferNetcast = true;
   } else if (!forceHtml5Player && engine === 'auto') {
-    if (!state.recoveryVod && isLegacyNetcast && netcastObj && (typeof netcastObj.play === 'function' || !isHls)) {
+    if (isLegacyNetcast && netcastObj && (typeof netcastObj.play === 'function' || typeof netcastObj.play === 'object' || !isHls)) {
       preferNetcast = true;
     }
   }
