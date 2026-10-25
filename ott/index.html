@@ -2023,6 +2023,7 @@ body.smart-tv #player-music-yt-container { display:none !important; }
       </div>
       <div class="opt-right" id="optDescription">
         <div class="activation-card" id="activationCard">
+          <div id="activationPending">
           <div class="activation-badge">CÓDIGO DE ACTIVACIÓN</div>
           <div class="activation-code-box">
             <div class="activation-code-display" id="tvActivationCode">--- ---</div>
@@ -2036,13 +2037,22 @@ body.smart-tv #player-music-yt-container { display:none !important; }
           <p class="activation-help">
             Proporciona este código a tu administrador para activar esta TV al instante desde el panel de control sin escribir con el control remoto.
           </p>
+          </div>
+          <div id="subscriptionCard" style="display:none;">
+            <div class="activation-badge">TU PLAN TEAMG PLAY</div>
+            <div style="padding:18px 0 12px;font-size:26px;line-height:1.3;color:#2cd66d;font-weight:bold;" id="subscriptionPlan">Por confirmar</div>
+            <div style="font-size:15px;color:#cbd8e5;">Fecha de finalización</div>
+            <div style="font-size:26px;font-weight:bold;color:#ffffff;margin:8px 0 12px;" id="subscriptionExpires">Por confirmar</div>
+            <div class="activation-status" id="subscriptionStatus">✔ Dispositivo vinculado</div>
+            <p class="activation-help">Para renovar o cambiar tu plan, comunícate con TeamG Play.</p>
+          </div>
         </div>
 
         <h3>Información</h3>
         <p id="optDescText">También puedes ingresar manualmente tu usuario y contraseña con el teclado en pantalla.</p>
         <div id="themePreview" aria-label="Paleta de colores actual" style="margin-top:18px;"></div>
         <div style="margin-top:16px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.5.62
+          VERSIÓN: v2.5.63
         </div>
       </div>
     </div>
@@ -2652,6 +2662,7 @@ function playerOptionLabel(value) {
 }
 
 function updateOptionsDisplay() {
+  updateAccountCard();
   if ($('valClockMode')) $('valClockMode').textContent = state.auth.clockMode === 'manual' ? '< Manual >' : '< Automáticas (equipo) >';
   if ($('valClockManual')) $('valClockManual').textContent = manualClockValue();
   if ($('valClockFormat')) $('valClockFormat').textContent = state.auth.clockFormat === '12' ? '< 12 horas >' : '< 24 horas >';
@@ -3319,7 +3330,30 @@ function updateOptionsFocus() {
   }
 }
 
+function updateAccountCard() {
+  var linked = !!state.auth.token;
+  var pending = $('activationPending'), card = $('subscriptionCard');
+  if (pending) pending.style.display = linked ? 'none' : '';
+  if (card) card.style.display = linked ? '' : 'none';
+  if (!linked) return;
+  var subscription = state.subscription || {};
+  var due = subscription.expiresOn || state.paymentDueDate || '';
+  var hasDate = /^\d{4}-\d{2}-\d{2}$/.test(due);
+  var plan = subscription.planName || 'Plan por confirmar';
+  if (subscription.months > 0) plan += ' · ' + subscription.months + (subscription.months === 1 ? ' mes' : ' meses');
+  if ($('subscriptionPlan')) $('subscriptionPlan').textContent = plan;
+  if ($('subscriptionExpires')) $('subscriptionExpires').textContent = hasDate ? due.slice(8, 10) + '/' + due.slice(5, 7) + '/' + due.slice(0, 4) : 'Por confirmar con TeamG Play';
+  var status = $('subscriptionStatus');
+  if (status) {
+    var expiredPlan = hasDate && state.paymentServerDate && due < state.paymentServerDate;
+    status.textContent = expiredPlan ? 'Tu plan finalizó. Comunícate con TeamG Play para renovar.' : '✔ Dispositivo vinculado';
+    status.style.color = expiredPlan ? '#ffce80' : '#2cd66d';
+  }
+}
+
 function requestActivationCode() {
+  updateAccountCard();
+  if (state.auth.token) { stopActivationPolling(); return; }
   if (!state.auth.deviceId) {
     state.auth.deviceId = 'netcast-' + Math.random().toString(36).substring(2, 10);
     saveStorage();
@@ -3349,6 +3383,7 @@ function requestActivationCode() {
     name: state.auth.deviceName || 'Smart TV',
     platform: detectedPlatform()
   }, function(st, res) {
+    if (state.auth.token) { updateAccountCard(); return; }
     if (st === 200 && res && res.ok) {
       state.activationCode = res.code;
       state.activationExpiresAt = res.expiresAt;
@@ -3370,9 +3405,10 @@ function requestActivationCode() {
 
 function startActivationPolling() {
   stopActivationPolling();
+  if (state.auth.token) return;
   var pending = false;
   state._activationPollTimer = setInterval(function() {
-    if (state.screen !== 'options' && state.auth.token) {
+    if (state.auth.token) {
       stopActivationPolling();
       return;
     }
@@ -3394,6 +3430,7 @@ function startActivationPolling() {
         if (res.token) state.auth.token = res.token;
         state.paymentDueDate = res.paymentDueDate || '';
         state.paymentServerDate = res.serverDate || '';
+        state.subscription = res.subscription || null;
         if (res.user && res.user.login) state.auth.login = res.user.login;
         state.auth.password = '';
         state.activationCode = '';
@@ -3545,6 +3582,7 @@ function doSaveAndLogin() {
       if (res2 && res2.playlists && res2.playlists.length > 0) {
         state.paymentDueDate = res2.paymentDueDate || '';
         state.paymentServerDate = res2.serverDate || '';
+        state.subscription = res2.subscription || null;
         state.playlists = res2.playlists;
         closeOptions();
         if (state.playlists.length === 1) {
@@ -3579,6 +3617,7 @@ function fetchFeed() {
       state._feedRetries = 0;
       state.paymentDueDate = res.paymentDueDate || '';
       state.paymentServerDate = res.serverDate || '';
+        state.subscription = res.subscription || null;
       state.playlists = res.playlists || [];
       state._playlistCache = {};
       refreshRecentCoversFromFeed();

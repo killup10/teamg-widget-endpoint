@@ -300,6 +300,19 @@ function cachePlaylistContent(id, revision, text) {
   contentCacheBytes += bytes;
 }
 
+async function deviceSubscription(cols, dev, user) {
+  const ledger = require('./payment-ledger');
+  const today = ledger.limaDate();
+  const rows = cols.payments ? await cols.payments.find({ deviceId: String(dev._id) }) : [];
+  const payments = rows.filter(p => !p.voided && ledger.validDate(p.date) && p.date <= today);
+  payments.sort((a, b) => String(b.date).localeCompare(String(a.date)) || String(b.created || '').localeCompare(String(a.created || '')));
+  const latest = payments[0];
+  const plan = latest && ledger.plans.find(p => p.id === latest.planId);
+  const dates = [dev.paymentDueDate, user && user.expires].filter(d => ledger.validDate(d));
+  dates.sort();
+  return { planName: plan ? plan.name : '', months: plan ? plan.months : 0, expiresOn: dates[0] || '' };
+}
+
 const pub = (p) => {
   const isHw = isHalloween(p);
   let color = normalizeColor(p.color);
@@ -536,6 +549,7 @@ async function handle(req, res, pathname, query, body) {
         user: item.user,
         playlists: buildAssignedPlaylists(playlists, ids),
         paymentDueDate: dev.paymentDueDate || '',
+        subscription: await deviceSubscription(cols, dev, user),
         serverDate: require('./payment-ledger').limaDate()
       });
     }
@@ -580,7 +594,7 @@ async function handle(req, res, pathname, query, body) {
     const devPls = (dev && dev.playlists ? dev.playlists : []).map(String);
     const mine = buildAssignedPlaylists(pls, devPls);
     return json(res, 200, { ok: true, device: { id: dev._id, name: dev.name }, playlists: mine,
-      paymentDueDate: dev.paymentDueDate || '', serverDate: require('./payment-ledger').limaDate() });
+      paymentDueDate: dev.paymentDueDate || '', subscription: await deviceSubscription(cols, dev, user), serverDate: require('./payment-ledger').limaDate() });
   }
 
   // ---- TV: botón rojo = refrescar carpetas asignadas ----
@@ -591,7 +605,7 @@ async function handle(req, res, pathname, query, body) {
     const pls = await a.cols.playlists.find({}, PLAYLIST_METADATA_PROJECTION);
     const devPls = (a.dev.playlists || []).map(String);
     const mine = buildAssignedPlaylists(pls, devPls);
-    return json(res, 200, { ok: true, playlists: mine, paymentDueDate: a.dev.paymentDueDate || '',
+    return json(res, 200, { ok: true, playlists: mine, paymentDueDate: a.dev.paymentDueDate || '', subscription: await deviceSubscription(a.cols, a.dev, a.user),
       serverDate: require('./payment-ledger').limaDate() });
   }
 
