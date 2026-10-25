@@ -425,33 +425,6 @@ async function handle(req, res, pathname, query, body) {
     try { return json(res, 200, { ok: true, ...(await audio.prepare(owner, url, body.forceHls === true)) }); }
     catch (err) { return json(res, 503, { ok: false, error: err.message || 'Audio compatible no disponible' }); }
   }
-  if ((pathname === '/api/ott/vod-hls/prepare' || pathname === '/api/ott/vod-hls/stop') && req.method === 'POST') {
-    const a = await authedDevice(body, query);
-    if (a.err) return json(res, 401, { ok: false, error: a.err });
-    const owner = String(a.user._id) + '/' + String(a.dev._id);
-    const vod = require('./vod-hls');
-    if (pathname.endsWith('/stop')) {
-      await vod.stop(owner, String(body.sessionId || ''));
-      return json(res, 200, { ok: true });
-    }
-    const pl = await findById(cols.playlists, body.playlistId, { _id: 1, url: 1, expiresAt: 1, updatedAt: 1, created: 1 });
-    if (!pl || !(a.dev.playlists || []).map(String).includes(String(pl._id))) return json(res, 403, { ok: false, error: 'Lista no asignada' });
-    if (playlistExpired(pl)) return json(res, 410, { ok: false, error: 'Lista expirada' });
-    const url = String(body.url || '').trim();
-    if (!/^https?:\/\//i.test(url) || url.length > 4096 || !/\.(?:mkv|avi|mov)(?:[?#]|$)/i.test(url)) {
-      return json(res, 400, { ok: false, error: 'Solo se pueden preparar archivos MKV, AVI o MOV asignados' });
-    }
-    const cached = playlistContentCache.get(String(pl._id));
-    let text;
-    if (cached && cached.revision === String(pl.updatedAt || pl.created || '')) text = cached.text;
-    else {
-      const content = await findById(cols.playlists, pl._id, { _id: 1, customM3u: 1 });
-      text = content?.customM3u || (pl.url ? await getCachedOrFetchText(pl.url) : '');
-    }
-    if (!parseM3uText(text).channels.some(channel => channel.url === url)) return json(res, 403, { ok: false, error: 'Video no asignado' });
-    try { return json(res, 200, { ok: true, ...(await vod.prepare(owner, url)) }); }
-    catch (err) { return json(res, 503, { ok: false, error: err.message || 'No se pudo preparar el video' }); }
-  }
 
   // ---- TV: buscar trailer oficial de película o serie ----
   if (pathname === '/api/ott/trailer' && req.method === 'GET') {
