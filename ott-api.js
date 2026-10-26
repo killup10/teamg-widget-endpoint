@@ -435,8 +435,8 @@ async function handle(req, res, pathname, query, body) {
       text = content?.customM3u || (pl.url ? await getCachedOrFetchText(pl.url) : '');
     }
     if (!parseM3uText(text).channels.some(channel => channel.url === url)) return json(res, 403, { ok: false, error: 'Señal no asignada' });
-    try { return json(res, 200, { ok: true, ...(await audio.prepare(owner, url, body.forceHls === true, body.forceVideo === true)) }); }
-    catch (err) { return json(res, 503, { ok: false, error: err.message || 'Conversión compatible no disponible' }); }
+    try { return json(res, 200, { ok: true, ...(await audio.prepare(owner, url, body.forceHls === true)) }); }
+    catch (err) { return json(res, 503, { ok: false, error: err.message || 'Audio compatible no disponible' }); }
   }
 
   // ---- TV: buscar trailer oficial de película o serie ----

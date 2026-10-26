@@ -76,9 +76,8 @@ async function dispose(id) {
   if (session.child.exitCode === null) session.child.kill('SIGKILL');
   await fs.promises.rm(session.dir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 }).catch(() => {});
 }
-async function prepare(owner, url, forceHls = false, forceVideo = false) {
+async function prepare(owner, url, forceHls = false) {
   validUrl(url);
-  forceHls = forceHls || forceVideo;
   // Raw TS already requires packaging; FFmpeg discovers and converts its audio
   // in the same connection. A separate probe must not block live startup.
   const codec = forceHls ? 'auto' : await probe(url);
@@ -90,11 +89,7 @@ async function prepare(owner, url, forceHls = false, forceVideo = false) {
   const id = crypto.randomBytes(24).toString('hex');
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'teamg-audio-'));
   const args = relay ? ['-hide_banner', '-nostdin', '-loglevel', 'info', '-analyzeduration', '6000000', '-probesize', '6000000', '-i', 'pipe:0'] : inputArgs(url);
-  const videoArgs = forceVideo
-    ? ['-c:v', 'libx264', '-preset', 'veryfast', '-tune', 'zerolatency', '-profile:v', 'baseline', '-level:v', '3.1',
-      '-vf', 'scale=1280:720:force_original_aspect_ratio=decrease', '-r', '30', '-g', '60', '-keyint_min', '60', '-sc_threshold', '0']
-    : ['-c:v', 'copy'];
-  const child = spawn(bin(), args.concat(['-map', '0:v:0', '-map', '0:a:0?'].concat(videoArgs),
+  const child = spawn(bin(), args.concat(['-map', '0:v:0', '-map', '0:a:0?', '-c:v', 'copy',
     ...(convertAudio ? ['-c:a', 'aac', '-profile:a', 'aac_low', '-b:a', '128k', '-ac', '2', '-ar', '48000'] : ['-c:a', 'copy']),
     '-max_muxing_queue_size', '1024', '-f', 'hls', '-hls_time', '2', '-hls_list_size', '5',
     '-hls_flags', 'delete_segments+omit_endlist', '-hls_delete_threshold', '2',
@@ -131,7 +126,7 @@ async function prepare(owner, url, forceHls = false, forceVideo = false) {
     throw new Error(session.error || ('No se creó HLS en 16 segundos. ' + (stderrTail.split('\n').slice(-5).join(' | ').replace(/https?:\/\/[^\s]+/g, '[fuente]').slice(-700) || 'FFmpeg no informó un error detallado')));
   })();
   await session.ready;
-  return { transcoded: true, videoTranscoded: forceVideo, codec, sessionId: id, url: '/api/ott/android-audio/' + id + '/index.m3u8' };
+  return { transcoded: true, codec, sessionId: id, url: '/api/ott/android-audio/' + id + '/index.m3u8' };
 }
 function stop(owner, id) {
   if (sessions.get(id)?.owner === owner) return dispose(id);
