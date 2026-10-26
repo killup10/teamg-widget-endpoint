@@ -2052,7 +2052,7 @@ body.smart-tv #player-music-yt-container { display:none !important; }
         <p id="optDescText">También puedes ingresar manualmente tu usuario y contraseña con el teclado en pantalla.</p>
         <div id="themePreview" aria-label="Paleta de colores actual" style="margin-top:18px;"></div>
         <div style="margin-top:16px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.5.63
+          VERSIÓN: v2.5.64
         </div>
       </div>
     </div>
@@ -2558,7 +2558,7 @@ var OPT_VIDEO_ENGINES = [
   { id: 'html5', label: 'HTML5' }
 ];
 var OPT_IPTV_ENGINES = ['Automático', 'HTML5 player', 'Native TV player'];
-var OPT_HLS_ENGINES = ['Automático', 'Native HLS player', 'JS player (hls.js)'];
+var OPT_HLS_ENGINES = ['Automático', 'Native HLS player', 'JS player (hls.js)', 'Samsung compatible (720p)'];
 function availableVideoEngines() {
   var out = [{id:'auto', label:'Auto (Recomendado)'}];
   var obj = $('netcast-player');
@@ -2579,6 +2579,7 @@ function availableHlsEngines() {
   var out = ['Automático'], v = $('video-el');
   if (v && v.canPlayType && v.canPlayType('application/vnd.apple.mpegurl')) out.push('Native HLS player');
   if (window.Hls && Hls.isSupported()) out.push('JS player (hls.js)');
+  if (/Tizen/i.test(navigator.userAgent || '')) out.push('Samsung compatible (720p)');
   return out;
 }
 function availableIptvEngines() {
@@ -2644,25 +2645,31 @@ function applyTheme(themeId) {
 
 function updatePlayerEngineDisplay() {
   var eng = state.auth.playerEngine || 'auto';
-  var label = '< Auto (Recomendado) >';
+  var label = '< Automático (recomendado) >';
   if (eng === 'mediaplayer') label = '< MediaPlayer (LG NetCast) >';
   else if (eng === 'avplay') label = '< AVPlay (Samsung) >';
-  else if (eng === 'html5') label = '< HTML5 >';
-  else {
-    var choices = availableVideoEngines();
-    label = '< Auto · ' + choices[1].label + ' >';
-    if (/Tizen/i.test(navigator.userAgent || '') && window.TeamGNative && !TeamGNative.available()) {
-      label = TeamGNative.status() === 'loading'
-        ? '< Auto · Detectando AVPlay… >'
-        : '< Auto · HTML5 (AVPlay no disponible) >';
-    }
-  }
+  else if (eng === 'html5') label = '< HTML5 (manual) >';
   var el = $('valVideoPlayer');
   if (el) el.textContent = label;
+  if (state.optIdx === 5 && $('optDescText')) $('optDescText').textContent = videoEngineDescription();
+}
+
+function videoEngineDescription() {
+  var text = 'Automático elige el motor disponible. HTML5 (manual) fija el reproductor web.';
+  if ((state.auth.playerEngine || 'auto') === 'auto') {
+    var choices = availableVideoEngines();
+    text += ' Motor detectado: ' + choices[1].label + '.';
+    if (/Tizen/i.test(navigator.userAgent || '') && window.TeamGNative && !TeamGNative.available()) {
+      text += TeamGNative.status() === 'loading' ? ' Buscando AVPlay…' : ' AVPlay no disponible en este entorno.';
+    }
+  }
+  if (state.auth.iptvPlayer === 'HTML5 player') text += ' Reproductor de canales fuerza HTML5 y tiene prioridad.';
+  if (state.auth.hlsPlayer === 'Samsung compatible (720p)') text += ' Convierte canales HLS a H.264 Baseline 720p/30 y audio AAC para este Samsung; puede tardar unos segundos.';
+  return text;
 }
 
 function playerOptionLabel(value) {
-  var labels = {'HTML5 player':'HTML5', 'Native TV player':'Nativo del televisor', 'Native HLS player':'HLS nativo', 'JS player':'HLS.js', 'JS player (hls.js)':'HLS.js'};
+  var labels = {'HTML5 player':'HTML5', 'Native TV player':'Nativo del televisor', 'Native HLS player':'HLS nativo', 'JS player':'HLS.js', 'JS player (hls.js)':'HLS.js', 'Samsung compatible (720p)':'Samsung 720p compatible'};
   return labels[value] || value;
 }
 
@@ -3320,7 +3327,10 @@ function updateOptionsFocus() {
   
   if (state.optIdx < rows.length) {
     rows[state.optIdx].classList.add('focused');
-    $('optDescText').textContent = OPT_DESCRIPTIONS[state.optIdx] || '';
+    $('optDescText').textContent = state.optIdx === 5 ? videoEngineDescription() :
+      (state.optIdx === 7 && state.auth.hlsPlayer === 'Samsung compatible (720p)'
+        ? 'Convierte la señal del canal a H.264 Baseline 720p/30 y AAC. Solo afecta los canales HLS de este televisor.'
+        : (OPT_DESCRIPTIONS[state.optIdx] || ''));
   } else if (state.optIdx === rows.length) {
     $('btnDoSave').classList.add('focused');
     $('optDescText').textContent = OPT_DESCRIPTIONS[OPT_DESCRIPTIONS.length - 1];
@@ -7178,6 +7188,28 @@ function playItem(c, recovering) {
         if (rawLiveTransport) startSelectedPlayer(playUrl);
         hideTuning();
         showToast((result && result.error) || 'No se pudo preparar la señal compatible. Intentando señal original.');
+      }
+    });
+    return;
+  }
+  if (/Tizen/i.test(ua) && state.auth.hlsPlayer === 'Samsung compatible (720p)' && isHls &&
+      !state.recoveryVod && state.currentPlaylist && state.auth.token) {
+    var compatGeneration = state.playerGeneration;
+    apiCall('POST', '/api/ott/android-audio/prepare', {
+      token: state.auth.token, deviceId: state.auth.deviceId,
+      playlistId: state.currentPlaylist.id, url: streamUrl, forceHls: true, forceVideo: true
+    }, function(status, result) {
+      if (state.screen !== 'player' || state.playerGeneration !== compatGeneration) {
+        if (result && result.sessionId) apiCall('POST', '/api/ott/android-audio/stop', { token: state.auth.token, deviceId: state.auth.deviceId, sessionId: result.sessionId }, function() {});
+        return;
+      }
+      if (status === 200 && result && result.ok && result.transcoded && result.videoTranscoded) {
+        state.androidAudioSession = result.sessionId || null;
+        startSelectedPlayer((API_BASE || '') + result.url);
+      } else {
+        hideTuning();
+        showToast((result && result.error) || 'No se pudo convertir la señal para Samsung.');
+        startSelectedPlayer(playUrl);
       }
     });
     return;
