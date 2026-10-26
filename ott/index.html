@@ -2061,7 +2061,7 @@ body.smart-tv #player-music-yt-container { display:none !important; }
         <p id="optDescText">También puedes ingresar manualmente tu usuario y contraseña con el teclado en pantalla.</p>
         <div id="themePreview" aria-label="Paleta de colores actual" style="margin-top:18px;"></div>
         <div style="margin-top:16px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.5.66
+          VERSIÓN: v2.5.67
         </div>
       </div>
     </div>
@@ -2238,7 +2238,7 @@ body.smart-tv #player-music-yt-container { display:none !important; }
       <div class="player-hud-btn" id="btnSeekRewind" title="Retroceder 15s">⏪ -15s</div>
       <div class="player-play-btn" id="btnPlayPause" title="Pausar / Reanudar">▶❚❚</div>
       <div class="player-hud-btn" id="btnSeekForward" title="Adelantar 15s">⏩ +15s</div>
-      <div class="player-progress-wrap" id="playerProgressWrap" tabindex="0" title="Arriba para seleccionar; flechas ← → para buscar y OK para confirmar.">
+      <div class="player-progress-wrap" id="playerProgressWrap" tabindex="0" title="Pulsa → desde Adelantar para seleccionar; ← / → mueven 30 s y OK confirma.">
         <div class="player-progress-bar" id="playerProgressBar">
           <div id="player-epg-fill"></div>
           <div id="player-epg-thumb"></div>
@@ -4642,6 +4642,7 @@ function loadPlaylistContent(pl, forceFresh, onReady) {
   state.tabIdx = 0;
   restorePlaylistSurface();
   state.homeLastPlaylist = pl;
+  clearChannelGridViewCache();
   state.currentPlaylist = pl;
   state.currentPage = 0;
   if (!state._playlistCache) state._playlistCache = {};
@@ -5387,21 +5388,54 @@ function renderTabs() {
 
 /* Cuadrícula de 6 columnas exactas x 3 filas exactas (18 canales por pantalla - Turbo Paginada) */
 var PAGE_SIZE = 18;
+var channelGridViewCache = Object.create(null);
+var channelGridViewCacheKeys = [];
+function rememberChannelGridView(key, area) {
+  if (!key || !area || !area.firstChild) return;
+  var fragment = document.createDocumentFragment();
+  while (area.firstChild) fragment.appendChild(area.firstChild);
+  var oldIndex = channelGridViewCacheKeys.indexOf(key);
+  if (oldIndex !== -1) channelGridViewCacheKeys.splice(oldIndex, 1);
+  channelGridViewCache[key] = fragment;
+  channelGridViewCacheKeys.push(key);
+  while (channelGridViewCacheKeys.length > 4) delete channelGridViewCache[channelGridViewCacheKeys.shift()];
+}
+function takeChannelGridView(key) {
+  var fragment = channelGridViewCache[key];
+  if (!fragment) return null;
+  delete channelGridViewCache[key];
+  var index = channelGridViewCacheKeys.indexOf(key);
+  if (index !== -1) channelGridViewCacheKeys.splice(index, 1);
+  return fragment;
+}
+function clearChannelGridViewCache() {
+  channelGridViewCache = Object.create(null);
+  channelGridViewCacheKeys = [];
+  state.renderedChannelViewKey = '';
+  state.renderedChannelViewCacheable = false;
+}
 
 function renderChannels() {
   var musicImages = typeof window !== 'undefined' ? window.TeamGCatalogImages : null;
-  if (musicImages) musicImages.stop();
   var legacyMusicGrid = !!(musicImages && musicImages.legacy());
   if (typeof stopMarquee === 'function' && state.currentFocusedEl) {
     stopMarquee(state.currentFocusedEl);
   }
   var area = $('content-area');
-  area.innerHTML = '';
   var list = getFilteredChannels();
   
   var totalPages = Math.ceil(list.length / PAGE_SIZE) || 1;
   if (state.currentPage >= totalPages) state.currentPage = totalPages - 1;
   if (state.currentPage < 0) state.currentPage = 0;
+  var viewKey = String(state.currentPlaylist ? state.currentPlaylist.id : '') + '|' + String(state.currentGroup || '__all') + '|' + state.currentPage;
+  if (!legacyMusicGrid && state.renderedChannelViewCacheable && state.renderedChannelViewKey &&
+      state.renderedChannelViewKey !== viewKey && area.firstChild) {
+    rememberChannelGridView(state.renderedChannelViewKey, area);
+  }
+  if (musicImages) musicImages.stop();
+  area.innerHTML = '';
+  state.renderedChannelViewKey = legacyMusicGrid ? '' : viewKey;
+  state.renderedChannelViewCacheable = !legacyMusicGrid;
 
   var title = state.currentPlaylist ? state.currentPlaylist.name : 'Canales';
   if (state.currentGroup && state.currentGroup !== '__all' && state.currentGroup !== '__fav') {
@@ -5423,11 +5457,15 @@ function renderChannels() {
     return;
   }
 
+  var pageItems = list.slice(state.currentPage * PAGE_SIZE, state.currentPage * PAGE_SIZE + PAGE_SIZE);
+  var cachedView = !legacyMusicGrid ? takeChannelGridView(viewKey) : null;
+  if (cachedView) area.appendChild(cachedView);
+  else {
+
   var fallbackSvg = '<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#555555" stroke-width="2" style="margin-top:24px;"><rect x="2" y="7" width="20" height="14" rx="2"/><polyline points="17 2 12 7 7 2"/></svg>';
   var frag = document.createDocumentFragment();
 
   var startIdx = state.currentPage * PAGE_SIZE;
-  var pageItems = list.slice(startIdx, startIdx + PAGE_SIZE);
 
   for (var i = 0; i < pageItems.length; i++) {
     var c = pageItems[i];
@@ -5467,6 +5505,7 @@ function renderChannels() {
   }
   area.appendChild(frag);
   if (legacyMusicGrid) musicImages.start(area, fitChannelImage);
+  }
 
   // Barra vertical de progreso de páginas en el extremo derecho (Foto 2)
   var sbTrack = $('grid-scrollbar');
@@ -8171,13 +8210,19 @@ function handlePlayerNav(kc, eObj) {
   showPlayerOverlay(); // renueva temporizador de ocultación
 
   if (state.playerArea === 'bottom') {
-    // 0: btnDrawerTrigger, 1: btnSeekRewind, 2: btnPlayPause, 3: btnSeekForward
+    // 0: drawer, 1: rewind, 2: play/pause, 3: forward; derecha desde 3 entra a la barra.
     if (kc === KEY.LEFT) {
       state.playerBotIdx = Math.max(0, state.playerBotIdx - 1);
       updatePlayerFocus();
     } else if (kc === KEY.RIGHT) {
-      state.playerBotIdx = Math.min(3, state.playerBotIdx + 1);
-      updatePlayerFocus();
+      if (state.playerBotIdx >= 3) {
+        state.playerArea = 'progress';
+        beginProgressSeek();
+        updatePlayerFocus();
+      } else {
+        state.playerBotIdx++;
+        updatePlayerFocus();
+      }
     } else if (kc === KEY.UP) {
       state.playerArea = 'progress';
       beginProgressSeek();
@@ -8197,7 +8242,7 @@ function handlePlayerNav(kc, eObj) {
     }
   } else if (state.playerArea === 'progress') {
     if (kc === KEY.LEFT || kc === KEY.RIGHT) {
-      moveProgressSeek(kc === KEY.RIGHT ? 10 : -10);
+      moveProgressSeek(kc === KEY.RIGHT ? 30 : -30);
     } else if (kc === KEY.UP) {
       cancelProgressSeek();
       state.playerArea = 'top';
@@ -9207,7 +9252,7 @@ function beginProgressSeek() {
   var wrap = $('playerProgressWrap');
   if (wrap) wrap.classList.add('seeking');
   renderProgressSeekPreview();
-  showToast('← / →: mover 10 s · OK: confirmar · Atrás: cancelar');
+  showToast('← / →: mover 30 s · OK: confirmar · Atrás: cancelar');
   return true;
 }
 
