@@ -1417,6 +1417,15 @@ body::-webkit-scrollbar {
   outline: none;
 }
 
+.player-progress-wrap.seeking .player-progress-bar {
+  outline: 3px solid #ffcc00;
+  box-shadow: 0 0 18px rgba(255, 204, 0, 0.9);
+}
+
+.player-progress-wrap.seeking #player-time-text {
+  color: #ffdf72;
+}
+
 .player-progress-wrap.focused .player-progress-bar {
   background: #3b3b4a;
   outline: 3px solid #ffcc00;
@@ -2052,7 +2061,7 @@ body.smart-tv #player-music-yt-container { display:none !important; }
         <p id="optDescText">También puedes ingresar manualmente tu usuario y contraseña con el teclado en pantalla.</p>
         <div id="themePreview" aria-label="Paleta de colores actual" style="margin-top:18px;"></div>
         <div style="margin-top:16px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.5.65
+          VERSIÓN: v2.5.66
         </div>
       </div>
     </div>
@@ -2229,7 +2238,7 @@ body.smart-tv #player-music-yt-container { display:none !important; }
       <div class="player-hud-btn" id="btnSeekRewind" title="Retroceder 15s">⏪ -15s</div>
       <div class="player-play-btn" id="btnPlayPause" title="Pausar / Reanudar">▶❚❚</div>
       <div class="player-hud-btn" id="btnSeekForward" title="Adelantar 15s">⏩ +15s</div>
-      <div class="player-progress-wrap" id="playerProgressWrap" tabindex="0" title="Línea de tiempo (Clic o flechas ← → para avanzar)">
+      <div class="player-progress-wrap" id="playerProgressWrap" tabindex="0" title="Arriba para seleccionar; flechas ← → para buscar y OK para confirmar.">
         <div class="player-progress-bar" id="playerProgressBar">
           <div id="player-epg-fill"></div>
           <div id="player-epg-thumb"></div>
@@ -2520,6 +2529,9 @@ var state = {
   drawerOpen: false,
   playerHudVisible: false,
   playerArea: 'bottom', // 'bottom', 'progress', 'top'
+  progressSeekActive: false,
+  progressSeekFrom: 0,
+  progressSeekTarget: 0,
   playerTopIdx: 4, // 0: ratio, 1: epg, 2: audio, 3: subs, 4: close
   playerBotIdx: 2, // Por defecto en 2 (btnPlayPause: 0=drawer, 1=rew, 2=play, 3=fwd)
   playerFocusedEl: null,
@@ -6581,6 +6593,7 @@ function updateDurationDisplay(v) {
 }
 
 function updateProgressDisplay(v) {
+  if (state.progressSeekActive) { renderProgressSeekPreview(); return; }
   var fillEl = $('player-epg-fill');
   var thumbEl = $('player-epg-thumb');
   var timeEl = $('player-time-text');
@@ -6650,7 +6663,9 @@ function startPlaybackTicker() {
     var thumbEl = $('player-epg-thumb');
     var timeEl = $('player-time-text');
 
-    if (!isLive && dur > 0) {
+    if (state.progressSeekActive) {
+      renderProgressSeekPreview();
+    } else if (!isLive && dur > 0) {
       var pct = Math.min(100, Math.max(0, (cur / dur) * 100));
       if (fillEl) fillEl.style.width = pct + '%';
       if (thumbEl) {
@@ -6984,6 +6999,8 @@ function playItem(c, recovering) {
   startPlayerHeartbeat();
 
   state.activeDuration = 0;
+  state.progressSeekActive = false;
+  if ($('playerProgressWrap')) $('playerProgressWrap').classList.remove('seeking');
   state.activeSubTracks = [];
   state.selectedSubTrack = -1;
   stopPlaybackTicker();
@@ -8115,6 +8132,11 @@ function handlePlayerNav(kc, eObj) {
 
   // 5. Teclas de acción directa con el HUD visible
   if (isBackKey(kc, eObj)) {
+    if (state.playerArea === 'progress' && state.progressSeekActive) {
+      cancelProgressSeek();
+      showPlayerOverlay();
+      return;
+    }
     hidePlayerOverlay();
     return;
   }
@@ -8158,6 +8180,7 @@ function handlePlayerNav(kc, eObj) {
       updatePlayerFocus();
     } else if (kc === KEY.UP) {
       state.playerArea = 'progress';
+      beginProgressSeek();
       updatePlayerFocus();
     } else if (kc === KEY.DOWN) {
       hidePlayerOverlay();
@@ -8174,19 +8197,19 @@ function handlePlayerNav(kc, eObj) {
     }
   } else if (state.playerArea === 'progress') {
     if (kc === KEY.LEFT || kc === KEY.RIGHT) {
-      state.playerArea = 'bottom';
-      state.playerBotIdx = kc === KEY.RIGHT ? 3 : 1;
-      updatePlayerFocus();
+      moveProgressSeek(kc === KEY.RIGHT ? 10 : -10);
     } else if (kc === KEY.UP) {
+      cancelProgressSeek();
       state.playerArea = 'top';
       state.playerTopIdx = 0;
       updatePlayerFocus();
     } else if (kc === KEY.DOWN) {
+      cancelProgressSeek();
       state.playerArea = 'bottom';
       state.playerBotIdx = 2; // Vuelve a Play/Pause
       updatePlayerFocus();
     } else if (kc === KEY.ENTER) {
-      $('btnPlayPause').click();
+      confirmProgressSeek();
     }
   } else if (state.playerArea === 'top') {
     if (kc === KEY.LEFT) {
@@ -8197,6 +8220,7 @@ function handlePlayerNav(kc, eObj) {
       updatePlayerFocus();
     } else if (kc === KEY.DOWN) {
       state.playerArea = 'progress';
+      beginProgressSeek();
       updatePlayerFocus();
     } else if (kc === KEY.ENTER) {
       var topBtns = [$('btnPlayerRatio'), $('btnPlayerEpg'), $('btnPlayerAudio'), $('btnPlayerSubs'), $('btnPlayerClose')];
@@ -9157,8 +9181,94 @@ function seekToPercent(pct) {
   }
 }
 
+function getProgressTimeline() {
+  if (window.TeamGNative && TeamGNative.active()) {
+    var nativeInfo = TeamGNative.info();
+    return {current: nativeInfo.currentTime || 0, duration: nativeInfo.duration || 0};
+  }
+  var netcastObj = $('netcast-player');
+  if (netcastObj && netcastObj.style.display !== 'none' && Number(netcastObj.playTime) > 0) {
+    return {current: Number(netcastObj.playPosition || 0) / 1000, duration: Number(netcastObj.playTime) / 1000};
+  }
+  var v = $('video-el');
+  var duration = state.activeDuration || (v && isFinite(v.duration) ? v.duration : 0);
+  return {current: v && isFinite(v.currentTime) ? v.currentTime : 0, duration: duration || 0};
+}
+
+function beginProgressSeek() {
+  var timeline = getProgressTimeline();
+  if (!(timeline.duration > 0)) {
+    showToast('La barra de avance solo está disponible cuando el video tiene duración.');
+    return false;
+  }
+  state.progressSeekActive = true;
+  state.progressSeekFrom = Math.max(0, Math.min(timeline.duration, timeline.current));
+  state.progressSeekTarget = state.progressSeekFrom;
+  var wrap = $('playerProgressWrap');
+  if (wrap) wrap.classList.add('seeking');
+  renderProgressSeekPreview();
+  showToast('← / →: mover 10 s · OK: confirmar · Atrás: cancelar');
+  return true;
+}
+
+function renderProgressSeekPreview() {
+  if (!state.progressSeekActive) return;
+  var timeline = getProgressTimeline();
+  var duration = timeline.duration || state.activeDuration || 0;
+  if (!(duration > 0)) return;
+  var target = Math.max(0, Math.min(duration, state.progressSeekTarget));
+  var pct = target / duration * 100;
+  var fill = $('player-epg-fill'), thumb = $('player-epg-thumb'), time = $('player-time-text');
+  if (fill) fill.style.width = pct + '%';
+  if (thumb) { thumb.style.display = 'block'; thumb.style.left = pct + '%'; }
+  if (time) time.textContent = formatTime(state.progressSeekFrom) + ' → ' + formatTime(target) + ' / ' + formatTime(duration);
+}
+
+function moveProgressSeek(seconds) {
+  if (!state.progressSeekActive && !beginProgressSeek()) return;
+  var timeline = getProgressTimeline();
+  var duration = timeline.duration || state.activeDuration || 0;
+  state.progressSeekTarget = Math.max(0, Math.min(duration, state.progressSeekTarget + seconds));
+  renderProgressSeekPreview();
+}
+
+function cancelProgressSeek() {
+  state.progressSeekActive = false;
+  var wrap = $('playerProgressWrap');
+  if (wrap) wrap.classList.remove('seeking');
+  var timeline = getProgressTimeline();
+  if (timeline.duration > 0) {
+    var pct = Math.min(100, Math.max(0, timeline.current / timeline.duration * 100));
+    var fill = $('player-epg-fill'), thumb = $('player-epg-thumb'), time = $('player-time-text');
+    if (fill) fill.style.width = pct + '%';
+    if (thumb) { thumb.style.display = 'block'; thumb.style.left = pct + '%'; }
+    if (time) time.textContent = formatTime(timeline.current) + ' / ' + formatTime(timeline.duration);
+  } else updateProgressDisplay($('video-el'));
+}
+
+function confirmProgressSeek() {
+  if (!state.progressSeekActive) return beginProgressSeek();
+  var from = state.progressSeekFrom;
+  var target = state.progressSeekTarget;
+  var timeline = getProgressTimeline();
+  var duration = timeline.duration || state.activeDuration || 0;
+  state.progressSeekActive = false;
+  var wrap = $('playerProgressWrap');
+  if (wrap) wrap.classList.remove('seeking');
+  if (duration > 0) seekToPercent(Math.max(0, Math.min(1, target / duration)));
+  showToast(formatTime(from) + ' → ' + formatTime(target) + ' / ' + formatTime(duration));
+  showPlayerOverlay();
+  return true;
+}
+
 var pWrap = $('playerProgressWrap') || document.querySelector('.player-progress-bar');
 if (pWrap) {
+  pWrap.onmouseenter = function() {
+    state.playerArea = 'progress';
+    beginProgressSeek();
+    updatePlayerFocus();
+    showPlayerOverlay();
+  };
   pWrap.onclick = function(e) {
     var ev = e || window.event;
     if (ev && ev.stopPropagation) ev.stopPropagation();
@@ -9166,6 +9276,7 @@ if (pWrap) {
     var rect = bar.getBoundingClientRect();
     var clickX = (ev.clientX - rect.left);
     var pct = Math.min(1, Math.max(0, clickX / rect.width));
+    cancelProgressSeek();
     seekToPercent(pct);
     showPlayerOverlay();
   };
