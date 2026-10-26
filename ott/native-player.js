@@ -2,6 +2,7 @@
 (function(root) {
   'use strict';
   var generation = 0, active = false, timer = null, callbacks = null;
+  var loading = false, loadCallbacks = [], loadState = 'idle';
   function api() {
     try { return root.webapis && root.webapis.avplay; } catch (e) { return null; }
   }
@@ -79,14 +80,42 @@
     try { api().setSelectTrack(type, index); return true; } catch (e) { return false; }
   }
   function load(onReady) {
-    if (available()) { onReady(); return; }
-    if (!/Tizen/i.test((root.navigator && root.navigator.userAgent) || '')) return;
-    var script = root.document.createElement('script');
-    script.src = '$WEBAPIS/webapis/webapis.js';
-    script.onload = function() { onReady(); };
-    script.onerror = function() {};
-    root.document.head.appendChild(script);
+    if (available()) { loadState = 'available'; if (onReady) onReady(); return; }
+    if (!/Tizen/i.test((root.navigator && root.navigator.userAgent) || '')) {
+      loadState = 'unsupported'; if (onReady) onReady(); return;
+    }
+    if (onReady) loadCallbacks.push(onReady);
+    if (loading) return;
+    loading = true; loadState = 'loading';
+    var script = null, poll = null, attempts = 0, finished = false;
+    function finish() {
+      if (finished) return;
+      finished = true; root.clearTimeout(poll);
+      loading = false; loadState = available() ? 'available' : 'unavailable';
+      if (script) {
+        script.onload = script.onerror = null;
+        if (script.parentNode) script.parentNode.removeChild(script);
+      }
+      var pending = loadCallbacks; loadCallbacks = [];
+      for (var i = 0; i < pending.length; i++) pending[i]();
+    }
+    function check() {
+      if (finished) return;
+      if (available() || ++attempts >= 20) { finish(); return; }
+      poll = root.setTimeout(check, 250);
+    }
+    // The host may expose webapis after startup, even if script loading fails.
+    // Keep checking for five seconds and allow another attempt on Options entry.
+    try {
+      script = root.document.createElement('script');
+      script.src = '$WEBAPIS/webapis/webapis.js';
+      script.onload = function() { if (available()) finish(); };
+      script.onerror = function() { if (available()) finish(); };
+      root.document.head.appendChild(script);
+    } catch (loadError) {}
+    if (!finished) check();
   }
   root.TeamGNative = {available:available, active:function(){return active;}, start:start, stop:stop,
-    info:info, tracks:tracks, seek:seek, toggle:toggle, select:select, load:load};
+    info:info, tracks:tracks, seek:seek, toggle:toggle, select:select, load:load,
+    status:function(){return available() ? 'available' : loadState;}};
 })(window);

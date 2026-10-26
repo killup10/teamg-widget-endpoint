@@ -2254,7 +2254,7 @@ body.smart-tv #player-music-yt-container { display:none !important; }
 
 <!-- Script HLS Vendor -->
 <script src="/ott/vendor/hls.min.js"></script>
-<script src="/ott/native-player.js?v=2.5.61"></script>
+<script src="/ott/native-player.js?v=2.5.64"></script>
 <script src="/ott/hls-variant.js?v=2.5.61"></script>
 <script src="/ott/catalog-images.js?v=1"></script>
 <script>
@@ -2651,6 +2651,11 @@ function updatePlayerEngineDisplay() {
   else {
     var choices = availableVideoEngines();
     label = '< Auto · ' + choices[1].label + ' >';
+    if (/Tizen/i.test(navigator.userAgent || '') && window.TeamGNative && !TeamGNative.available()) {
+      label = TeamGNative.status() === 'loading'
+        ? '< Auto · Detectando AVPlay… >'
+        : '< Auto · HTML5 (AVPlay no disponible) >';
+    }
   }
   var el = $('valVideoPlayer');
   if (el) el.textContent = label;
@@ -3473,6 +3478,7 @@ function stopActivationPolling() {
 }
 
 function openOptions() {
+  if (window.TeamGNative) TeamGNative.load(function() { updateOptionsDisplay(); });
   state.optionsReturnNavigation = captureCatalogNavigation();
   state.screen = 'options';
   state.optIdx = 0;

@@ -40,3 +40,48 @@ unavailable.player.start('https://example/v',{failed:()=>failed++}); assert.equa
 const timed = setup(); timed.player.start('https://example/v',{failed:()=>failed++});
 timed.timers.get(1)(); timed.ready(); assert.equal(failed,2); assert.equal(timed.player.active(),false);
 console.log('AVPlay lifecycle, controls, cancellation, timeout fallback and explicit errors pass.');
+
+function loaderSetup() {
+  const queue = new Map(), scripts = []; let nextId = 0;
+  const root = {
+    navigator: {userAgent:'Mozilla/5.0 SMART-TV Tizen/5.0'},
+    setTimeout(fn) { const id = ++nextId; queue.set(id, fn); return id; },
+    clearTimeout(id) { queue.delete(id); },
+    document: {createElement() { return {}; }, head: {
+      appendChild(script) { scripts.push(script); script.parentNode = this; },
+      removeChild(script) { script.parentNode = null; }
+    }}
+  };
+  vm.runInNewContext(fs.readFileSync('ott/native-player.js','utf8'),{window:root});
+  function tick() { const [id, fn] = queue.entries().next().value; queue.delete(id); fn(); }
+  return {root, scripts, queue, tick, player:root.TeamGNative};
+}
+const delayed = loaderSetup(); let notifications = 0;
+delayed.player.load(() => notifications++);
+delayed.player.load(() => notifications++);
+assert.equal(delayed.scripts.length, 1, 'concurrent requests share a load');
+assert.equal(delayed.player.status(), 'loading');
+delayed.scripts[0].onerror();
+delayed.root.webapis = {avplay:setup().api};
+delayed.tick();
+assert.equal(delayed.player.available(), true, 'detect host API exposed after script failure');
+assert.equal(notifications, 2);
+assert.equal(delayed.queue.size, 0);
+const missing = loaderSetup(); let completed = 0;
+missing.player.load(() => completed++);
+missing.scripts[0].onload(); // A successful request alone does not mean AVPlay exists.
+while (missing.queue.size) missing.tick();
+assert.equal(missing.player.status(), 'unavailable');
+assert.equal(completed, 1);
+missing.player.load(() => completed++);
+assert.equal(missing.scripts.length, 2, 'retry after unavailable');
+missing.root.webapis = {avplay:setup().api};
+missing.scripts[1].onload();
+assert.equal(missing.player.status(), 'available');
+assert.equal(completed, 2);
+assert.equal(missing.queue.size, 0);
+const browser = loaderSetup(); browser.root.navigator.userAgent = 'Chrome';
+browser.player.load(() => {});
+assert.equal(browser.player.status(), 'unsupported');
+assert.equal(browser.scripts.length, 0);
+console.log('AVPlay delayed detection, bounded timeout, shared load, retry and browser isolation pass.');
