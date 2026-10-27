@@ -77,7 +77,7 @@
   }
   function select(type, index) {
     if (!active) return false;
-    try { api().setSelectTrack(type, index); return true; } catch (e) { return false; }
+    try { api().setSelectTrack(type, Number(index)); return true; } catch (e) { return false; }
   }
   function load(onReady) {
     if (available()) { loadState = 'available'; if (onReady) onReady(); return; }

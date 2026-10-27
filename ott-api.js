@@ -4,6 +4,9 @@ const crypto = require('crypto');
 const store = require('./ott-store');
 const artworkFill = require('./artwork-fill');
 
+const iconBufferCache = new Map();
+const MAX_ICON_BUFFER_CACHE = 250;
+
 const secret = () => process.env.TOKEN_SECRET || process.env.ADMIN_KEY || 'dev-secret';
 const ADMIN = () => process.env.ADMIN_KEY || '';
 
@@ -740,6 +743,16 @@ function fetchWithRedirects(targetUrl, options, maxRedirects, callback) {
   if (pathname === '/api/ott/tracks' && req.method === 'GET') {
     return json(res, 200, {ok:true, tracks:[], audioTracks:[], nativeOnly:true});
   }
+  if (pathname === '/api/ott/audio-tracks' && req.method === 'GET') {
+    const target = String(query.url || '').trim();
+    if (!target) return json(res, 400, { ok: false, error: 'Falta url' });
+    try {
+      const result = await require('./android-audio').probeTracks(target);
+      return json(res, 200, { ok: true, audioTracks: result.audioTracks || [], duration: result.duration || 0 });
+    } catch (err) {
+      return json(res, 200, { ok: false, audioTracks: [], duration: 0, error: err.message });
+    }
+  }
   if (pathname.indexOf('/api/ott/subtitle/') === 0 && req.method === 'GET') {
     const id = pathname.slice('/api/ott/subtitle/'.length).replace(/\.vtt$/, '');
     const saved = await cols.icons.findOne({_id:id});
@@ -784,14 +797,30 @@ function fetchWithRedirects(targetUrl, options, maxRedirects, callback) {
   if (pathname.indexOf('/api/ott/icon/') === 0 && req.method === 'GET') {
     const iconId = pathname.replace('/api/ott/icon/', '').trim();
     if (!iconId) return json(res, 404, { ok: false });
+    if (iconBufferCache.has(iconId)) {
+      const cached = iconBufferCache.get(iconId);
+      res.writeHead(200, {
+        'Content-Type': cached.mime,
+        'Content-Length': String(cached.buf.length),
+        'Access-Control-Allow-Origin': '*',
+        'Cache-Control': 'public, max-age=31536000, immutable'
+      });
+      return res.end(cached.buf);
+    }
     const icon = await cols.icons.findOne({ _id: iconId });
     if (!icon || !icon.data) return json(res, 404, { ok: false });
     try {
       const parts = String(icon.data).split(',');
       const mime = (parts[0] && parts[0].match(/:(.*?);/)) ? parts[0].match(/:(.*?);/)[1] : 'image/png';
       const buf = Buffer.from(parts[1] || parts[0], 'base64');
+      if (iconBufferCache.size >= MAX_ICON_BUFFER_CACHE) {
+        const oldest = iconBufferCache.keys().next().value;
+        iconBufferCache.delete(oldest);
+      }
+      iconBufferCache.set(iconId, { mime, buf });
       res.writeHead(200, {
         'Content-Type': mime,
+        'Content-Length': String(buf.length),
         'Access-Control-Allow-Origin': '*',
         'Cache-Control': 'public, max-age=31536000, immutable'
       });
@@ -1320,6 +1349,10 @@ function handleStream(req, res, query) {
   if (!targetUrl || (targetUrl.indexOf('http://') !== 0 && targetUrl.indexOf('https://') !== 0)) {
     res.writeHead(400, { 'Content-Type': 'text/plain', 'Access-Control-Allow-Origin': '*' });
     return res.end('Invalid URL');
+  }
+
+  if (query.audioTrack != null && query.audioTrack !== '') {
+    return require('./android-audio').streamAudioTrack(req, res, targetUrl, query);
   }
 
   const isHttps = targetUrl.indexOf('https://') === 0;

@@ -5,6 +5,229 @@ const os = require('node:os');
 const crypto = require('node:crypto');
 const { spawn } = require('node:child_process');
 const sessions = new Map(), codecs = new Map(), probes = new Map();
+const trackLists = new Map(), trackProbes = new Map(), remuxProcs = new Map();
+const LANG_LABELS = {
+  jpn: 'Japonés', ja: 'Japonés', jap: 'Japonés',
+  eng: 'Inglés', en: 'Inglés',
+  spa: 'Español', es: 'Español', esp: 'Español',
+  lat: 'Español Latino', 'es-419': 'Español Latino',
+  por: 'Portugués', pt: 'Portugués',
+  fra: 'Francés', fre: 'Francés', fr: 'Francés',
+  ita: 'Italiano', it: 'Italiano',
+  deu: 'Alemán', ger: 'Alemán', de: 'Alemán',
+  kor: 'Coreano', ko: 'Coreano',
+  zho: 'Chino', chi: 'Chino', zh: 'Chino',
+  rus: 'Ruso', ru: 'Ruso',
+  hin: 'Hindi', hi: 'Hindi',
+  ara: 'Árabe', ar: 'Árabe',
+  tur: 'Turco', tr: 'Turco'
+};
+function unwrapStreamUrl(rawUrl) {
+  let cleanUrl = String(rawUrl || '').trim();
+  if (cleanUrl.indexOf('/api/ott/stream') !== -1 && cleanUrl.indexOf('url=') !== -1) {
+    try {
+      const u = new URL(cleanUrl, 'http://localhost');
+      const inner = u.searchParams.get('url');
+      if (inner) cleanUrl = inner;
+    } catch {}
+  }
+  return cleanUrl;
+}
+function formatTrackLabel(lang, title, idx) {
+  const code = String(lang || '').trim().toLowerCase();
+  const rawTitle = String(title || '').trim();
+  let langName = LANG_LABELS[code] || '';
+  if (!langName && rawTitle) {
+    if (/japon[eé]s|japanese|\bjpn\b|\bjp\b/i.test(rawTitle)) langName = 'Japonés';
+    else if (/ingl[eé]s|english|\beng\b/i.test(rawTitle)) langName = 'Inglés';
+    else if (/latino/i.test(rawTitle)) langName = 'Español Latino';
+    else if (/castellano/i.test(rawTitle)) langName = 'Español (Castellano)';
+    else if (/espa[ñn]ol|spanish|\bspa\b/i.test(rawTitle)) langName = 'Español';
+    else if (/portugu[eê]s|portuguese|\bpor\b/i.test(rawTitle)) langName = 'Portugués';
+    else if (/franc[eé]s|french|\bfra\b|\bfre\b/i.test(rawTitle)) langName = 'Francés';
+    else if (/italiano|italian|\bita\b/i.test(rawTitle)) langName = 'Italiano';
+    else if (/alem[aá]n|german|\bdeu\b|\bger\b/i.test(rawTitle)) langName = 'Alemán';
+    else if (/coreano|korean|\bkor\b/i.test(rawTitle)) langName = 'Coreano';
+    else if (/chino|chinese|\bzho\b|\bchi\b/i.test(rawTitle)) langName = 'Chino';
+    else if (/ruso|russian|\brus\b/i.test(rawTitle)) langName = 'Ruso';
+  }
+  if (langName && rawTitle) {
+    if (/latino/i.test(rawTitle) && langName === 'Español') return 'Español Latino';
+    if (/castellano/i.test(rawTitle) && langName === 'Español') return 'Español (Castellano)';
+    return langName;
+  }
+  if (langName) return langName;
+  if (rawTitle) return rawTitle;
+  if (code && code !== 'und') return code.toUpperCase();
+  return 'Pista ' + (idx + 1);
+}
+function parseAudioTracksFromStderr(stderr) {
+  const text = String(stderr || '');
+  let duration = 0;
+  const durMatch = text.match(/Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)/i);
+  if (durMatch) {
+    duration = Number(durMatch[1]) * 3600 + Number(durMatch[2]) * 60 + Number(durMatch[3]);
+  }
+  const lines = text.split(/\r?\n/);
+  const audioTracks = [];
+  let current = null;
+  for (const line of lines) {
+    const streamMatch = line.match(/^\s*Stream #0:(\d+)(?:\[[^\]]+\])?(?:\(([a-zA-Z0-9_-]+)\))?:\s*([A-Za-z]+):\s*([^\r\n]*)/);
+    if (streamMatch) {
+      const kind = streamMatch[3].toLowerCase();
+      if (kind === 'audio') {
+        const rest = streamMatch[4].trim();
+        const codecMatch = rest.match(/^([a-zA-Z0-9_]+)/);
+        current = {
+          index: audioTracks.length,
+          streamIndex: Number(streamMatch[1]),
+          lang: (streamMatch[2] || '').toLowerCase(),
+          codec: codecMatch ? codecMatch[1].toLowerCase() : '',
+          title: ''
+        };
+        audioTracks.push(current);
+      } else {
+        current = null;
+      }
+      continue;
+    }
+    if (/^\s*(?:Output #|Stream mapping:|At least one output)/i.test(line)) {
+      current = null;
+      continue;
+    }
+    if (current) {
+      const titleMatch = line.match(/^\s*title\s*:\s*(.+)$/i);
+      if (titleMatch && !current.title) current.title = titleMatch[1].trim();
+      const langMetaMatch = line.match(/^\s*language\s*:\s*(.+)$/i);
+      if (langMetaMatch && !current.lang) current.lang = langMetaMatch[1].trim().toLowerCase();
+    }
+  }
+  for (const trk of audioTracks) {
+    trk.label = formatTrackLabel(trk.lang, trk.title, trk.index);
+  }
+  return { audioTracks, duration };
+}
+function probeTracks(rawUrl) {
+  const url = unwrapStreamUrl(rawUrl);
+  validUrl(url);
+  const cached = trackLists.get(url);
+  if (cached && Date.now() - cached.ts < 30 * 60 * 1000) {
+    return Promise.resolve({ audioTracks: cached.audioTracks, duration: cached.duration });
+  }
+  if (trackProbes.has(url)) return trackProbes.get(url);
+  const pending = new Promise((resolve, reject) => {
+    let stderr = '', timedOut = false;
+    const child = spawn(bin(), [
+      '-hide_banner', '-nostdin', '-loglevel', 'info',
+      '-rw_timeout', '8000000',
+      '-protocol_whitelist', 'http,https,tcp,tls,crypto',
+      '-analyzeduration', '3000000', '-probesize', '3000000',
+      '-i', url
+    ], { windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'] });
+    const timer = setTimeout(() => { timedOut = true; child.kill('SIGKILL'); }, 8000);
+    child.stderr.on('data', chunk => { stderr = (stderr + chunk).slice(-65536); });
+    child.on('error', () => { clearTimeout(timer); reject(new Error('Motor de análisis de audio no disponible')); });
+    child.on('close', () => {
+      clearTimeout(timer);
+      const parsed = parseAudioTracksFromStderr(stderr);
+      if (!parsed.audioTracks.length && timedOut) {
+        return reject(new Error('Tiempo agotado al consultar pistas de audio'));
+      }
+      if (parsed.audioTracks.length > 0) {
+        if (trackLists.size >= 500) trackLists.delete(trackLists.keys().next().value);
+        trackLists.set(url, { audioTracks: parsed.audioTracks, duration: parsed.duration, ts: Date.now() });
+      }
+      resolve(parsed);
+    });
+  }).finally(() => trackProbes.delete(url));
+  trackProbes.set(url, pending);
+  return pending;
+}
+function streamAudioTrack(req, res, rawUrl, query = {}) {
+  const url = unwrapStreamUrl(rawUrl);
+  try { validUrl(url); } catch (err) {
+    res.writeHead(400, { 'Content-Type': 'text/plain', 'Access-Control-Allow-Origin': '*' });
+    return res.end(err.message);
+  }
+  const audioIdx = Math.max(0, parseInt(query.audioTrack, 10) || 0);
+  const startSec = Math.max(0, Number(query.start) || 0);
+  const reqUrl = String(req.url || '');
+  let outFormat = 'matroska';
+  let contentType = 'video/x-matroska';
+  let extraOutArgs = [];
+  if (query.format === 'mpegts' || /\.ts(?:[?#]|$)/i.test(reqUrl)) {
+    outFormat = 'mpegts';
+    contentType = 'video/mp2t';
+  } else if (query.format === 'mp4' || /\.mp4(?:[?#]|$)/i.test(url)) {
+    outFormat = 'mp4';
+    contentType = 'video/mp4';
+    extraOutArgs = ['-movflags', 'frag_keyframe+empty_moov+default_base_moof'];
+  }
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+    'Access-Control-Allow-Headers': 'Range, Origin, Content-Type, Accept, User-Agent',
+    'Content-Type': contentType,
+    'Cache-Control': 'no-cache, no-store, must-revalidate'
+  };
+  if (req.method === 'HEAD') {
+    res.writeHead(200, headers);
+    return res.end();
+  }
+  const ffArgs = [
+    '-hide_banner', '-nostdin', '-loglevel', 'error',
+    '-rw_timeout', '15000000',
+    '-protocol_whitelist', 'http,https,tcp,tls,crypto',
+    '-analyzeduration', '3000000', '-probesize', '3000000'
+  ];
+  if (startSec > 0) {
+    ffArgs.push('-ss', String(startSec));
+  }
+  ffArgs.push(
+    '-i', url,
+    '-map', '0:v:0',
+    '-map', '0:a:' + audioIdx,
+    '-c:v', 'copy',
+    '-c:a', 'aac', '-b:a', '160k', '-ac', '2', '-ar', '48000',
+    '-max_muxing_queue_size', '1024',
+    '-f', outFormat,
+    ...extraOutArgs,
+    'pipe:1'
+  );
+  const clientKey = String((req.headers && (req.headers['x-forwarded-for'] || req.headers['user-agent'])) || 'default').slice(0, 120);
+  if (remuxProcs.has(clientKey)) {
+    try { remuxProcs.get(clientKey)(); } catch {}
+    remuxProcs.delete(clientKey);
+  }
+  if (remuxProcs.size >= MAX_SESSIONS * 2) {
+    const oldestKey = remuxProcs.keys().next().value;
+    try { remuxProcs.get(oldestKey)(); } catch {}
+    remuxProcs.delete(oldestKey);
+  }
+  const child = spawn(bin(), ffArgs, { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+  let closed = false;
+  const cleanup = () => {
+    if (closed) return;
+    closed = true;
+    if (remuxProcs.get(clientKey) === cleanup) remuxProcs.delete(clientKey);
+    if (child.exitCode === null) {
+      try { child.kill('SIGKILL'); } catch {}
+    }
+  };
+  remuxProcs.set(clientKey, cleanup);
+  const maxLifeTimer = setTimeout(cleanup, MAX_AGE_MS);
+  if (maxLifeTimer.unref) maxLifeTimer.unref();
+  req.on && req.on('close', () => { clearTimeout(maxLifeTimer); cleanup(); });
+  res.on && res.on('close', () => { clearTimeout(maxLifeTimer); cleanup(); });
+  res.writeHead(200, headers);
+  child.stdout.pipe(res);
+  child.on('close', () => { clearTimeout(maxLifeTimer); cleanup(); });
+  child.on('error', () => {
+    clearTimeout(maxLifeTimer);
+    cleanup();
+    try { res.end(); } catch {}
+  });
+}
 const MAX_SESSIONS = Math.max(1, Math.min(4, Number(process.env.ANDROID_AUDIO_MAX_SESSIONS) || 2));
 const IDLE_MS = 45000, MAX_AGE_MS = 30 * 60 * 1000;
 let runtimeReady;
@@ -160,4 +383,4 @@ const reaper = setInterval(() => {
   }
 }, 5000);
 reaper.unref();
-module.exports = { prepare, stop, serve, probe };
+module.exports = { prepare, stop, serve, probe, probeTracks, streamAudioTrack, parseAudioTracksFromStderr };
