@@ -1381,7 +1381,12 @@ function handleStream(req, res, query) {
         upRes.resume();
         const { URL } = require('url');
         const redirectUrl = new URL(upRes.headers.location, targetUrl).href;
-        return handleStream(req, res, { url: redirectUrl, manifestOnly: query.manifestOnly });
+        return handleStream(req, res, {
+          url: redirectUrl,
+          manifestOnly: query.manifestOnly,
+          httpSegments: query.httpSegments,
+          _variantDepth: query._variantDepth
+        });
       } catch (e) {}
     }
 
@@ -1405,31 +1410,125 @@ function handleStream(req, res, query) {
 
         const { URL } = require('url');
         const lines = m3uData.split(/\r?\n/);
+        const isNetcastHttpSegments = query.httpSegments === '1';
+        const reqUa = (req && req.headers && req.headers['user-agent']) ? String(req.headers['user-agent']) : '';
+        const isLegacyNetcastReq = isNetcastHttpSegments || (reqUa.indexOf('NetCast') !== -1 && reqUa.indexOf('Web0S') === -1 && reqUa.indexOf('webOS') === -1);
 
-        const rewritten = lines.map((line) => {
+        if (isNetcastHttpSegments && !query._variantDepth && m3uData.indexOf('#EXT-X-STREAM-INF') !== -1) {
+          let bestVariantUrl = '';
+          let bestHeight = -1;
+          let bestBandwidth = -1;
+          for (let vi = 0; vi < lines.length; vi++) {
+            const vLine = lines[vi].trim();
+            if (vLine.indexOf('#EXT-X-STREAM-INF:') !== 0) continue;
+            const codecsMatch = vLine.match(/CODECS="([^"]+)"/i);
+            if (codecsMatch && /(?:hvc1|hev1|av01|vp09)/i.test(codecsMatch[1])) continue;
+            const resMatch = vLine.match(/RESOLUTION=(\d+)x(\d+)/i);
+            const bwMatch = vLine.match(/(?:^|,)BANDWIDTH=(\d+)/i);
+            const vw = resMatch ? parseInt(resMatch[1], 10) : 0;
+            const vh = resMatch ? parseInt(resMatch[2], 10) : 0;
+            const bw = bwMatch ? parseInt(bwMatch[1], 10) : 0;
+            if (vw > 1920 || vh > 1080) continue;
+            let nextUri = '';
+            for (let vj = vi + 1; vj < lines.length; vj++) {
+              const cand = lines[vj].trim();
+              if (!cand) continue;
+              if (cand.charAt(0) === '#') break;
+              nextUri = cand;
+              vi = vj;
+              break;
+            }
+            if (!nextUri) continue;
+            try {
+              const absVar = new URL(nextUri, targetUrl).href;
+              if (vh > bestHeight || (vh === bestHeight && bw > bestBandwidth)) {
+                bestHeight = vh;
+                bestBandwidth = bw;
+                bestVariantUrl = absVar;
+              }
+            } catch (eVar) {}
+          }
+          if (bestVariantUrl) {
+            return handleStream(req, res, {
+              url: bestVariantUrl,
+              manifestOnly: query.manifestOnly,
+              httpSegments: query.httpSegments,
+              _variantDepth: 1
+            });
+          }
+        }
+
+        const outLines = [];
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
           const l = line.trim();
-          if (!l) return line;
+          if (!l) {
+            if (!isNetcastHttpSegments) outLines.push(line);
+            continue;
+          }
+          if (isNetcastHttpSegments) {
+            if (l.indexOf('#EXT-X-KEY:METHOD=NONE') === 0 ||
+                l.indexOf('#EXT-X-MEDIA:TYPE=SUBTITLES') === 0 ||
+                l.indexOf('#EXT-X-START:') === 0 ||
+                l.indexOf('#EXT-X-INDEPENDENT-SEGMENTS') === 0 ||
+                l.indexOf('#EXT-X-DATERANGE') === 0 ||
+                l.indexOf('#EXT-X-CUE-') === 0 ||
+                l.indexOf('#EXT-X-OATCLS-') === 0 ||
+                l.indexOf('#EXT-X-ASSET') === 0) {
+              continue;
+            }
+            if (l.indexOf('#EXTINF:') === 0) {
+              outLines.push(l.replace(/^(#EXTINF:[^,]*),.*$/, '$1,'));
+              continue;
+            }
+          }
           if (l.indexOf('#EXT-X-KEY:') === 0) {
-            return l.replace(/URI="(.*?)"/i, (match, uri) => {
+            outLines.push(l.replace(/URI="(.*?)"/i, (match, uri) => {
               try {
                 const absKey = new URL(uri, targetUrl).href;
                 return 'URI="/api/ott/stream?url=' + encodeURIComponent(absKey) + '"';
               } catch (e) { return match; }
-            });
+            }));
+            continue;
           }
-          if (l.charAt(0) === '#') return line;
+          if (l.charAt(0) === '#') {
+            outLines.push(line);
+            continue;
+          }
           try {
-            const absChunk = new URL(l, targetUrl).href;
-            // Read only the playlist through our origin; video remains direct.
-            if (query.manifestOnly === '1') return absChunk;
-            const ext = (absChunk.indexOf('.m3u8') !== -1 || absChunk.indexOf('chunks') !== -1 || absChunk.indexOf('playlist') !== -1) ? '.m3u8' : '.ts';
+            let absChunk = new URL(l, targetUrl).href;
+            try {
+              const parsedChunk = new URL(absChunk);
+              const redirParam = parsedChunk.searchParams.get('redirect_url');
+              if (redirParam && /^https?:\/\//i.test(redirParam)) {
+                absChunk = redirParam;
+              }
+            } catch (eRedir) {}
             const hostHeader = (req && req.headers && req.headers.host) ? req.headers.host : 'ott.teamg.store';
-            const proto = (req && req.headers && req.headers['x-forwarded-proto']) ? req.headers['x-forwarded-proto'].split(',')[0].trim() : 'https';
-            return proto + '://' + hostHeader + '/api/ott/stream' + ext + '?url=' + encodeURIComponent(absChunk);
+            // Read only the playlist through our origin; video remains direct.
+            if (query.manifestOnly === '1') {
+              if (isNetcastHttpSegments) {
+                const isChildM3u8 = /\.(?:m3u8)(?:[?#]|$)|\/playlist\/|\/chunks\./i.test(absChunk);
+                if (isChildM3u8) {
+                  outLines.push('http://' + hostHeader + '/api/ott/stream.m3u8?manifestOnly=1&httpSegments=1&url=' + encodeURIComponent(absChunk));
+                } else {
+                  outLines.push(absChunk.replace(/^https:\/\//i, 'http://'));
+                }
+              } else {
+                outLines.push(absChunk);
+              }
+              continue;
+            }
+            const ext = (absChunk.indexOf('.m3u8') !== -1 || absChunk.indexOf('chunks') !== -1 || absChunk.indexOf('playlist') !== -1) ? '.m3u8' : '.ts';
+            const proto = isLegacyNetcastReq
+              ? 'http'
+              : ((req && req.headers && req.headers['x-forwarded-proto']) ? req.headers['x-forwarded-proto'].split(',')[0].trim() : 'https');
+            outLines.push(proto + '://' + hostHeader + '/api/ott/stream' + ext + '?url=' + encodeURIComponent(absChunk));
           } catch (e) {
-            return l;
+            outLines.push(l);
           }
-        }).join('\n');
+        }
+        const rewritten = outLines.join('\n');
 
         res.writeHead(200, {
           'Content-Type': 'application/vnd.apple.mpegurl',

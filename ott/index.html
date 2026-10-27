@@ -7390,10 +7390,18 @@ function playItem(c, recovering) {
       ? (streamUrl.match(/[?&]url=([^&]+)/) ? decodeURIComponent(streamUrl.match(/[?&]url=([^&]+)/)[1]) : streamUrl)
       : streamUrl;
     var manifestUrl = (API_BASE || '') + '/api/ott/stream.m3u8?manifestOnly=1&url=' + encodeURIComponent(rawStreamUrl);
-    state.cancelHlsVariant = TeamGHlsVariant.resolve(playUrl, function(variant) {
+    state.cancelHlsVariant = TeamGHlsVariant.resolve(rawStreamUrl, function(variant) {
       if (state.screen !== 'player' || state.playerGeneration !== variantGeneration) return;
       if (variant) $('player-res').textContent = variant.width + 'x' + variant.height;
-      startSelectedPlayer(variant ? variant.url : playUrl);
+      var targetHls = (variant && variant.url && variant.url.length <= 320) ? variant.url : rawStreamUrl;
+      var netcastHost = (window.location && window.location.host && window.location.host.indexOf('teamg.store') !== -1)
+        ? window.location.host
+        : 'ott.teamg.store';
+      var needsHttpSegments = (/^https:\/\//i.test((variant && variant.url) || targetHls) || /(?:wurl\.tv|amagi\.tv|rakuten|plex\.tv|pluto\.tv|samsung\.wurl)/i.test(((variant && variant.url) || '') + ' ' + rawStreamUrl));
+      var resolvedPlayUrl = needsHttpSegments
+        ? ('http://' + netcastHost + '/api/ott/stream.m3u8?manifestOnly=1&httpSegments=1&url=' + encodeURIComponent(targetHls))
+        : (variant ? variant.url : playUrl);
+      startSelectedPlayer(resolvedPlayUrl);
     }, manifestUrl);
   } else {
     startSelectedPlayer(playUrl);
@@ -7494,6 +7502,8 @@ function startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c, forceProxy) {
     selectedUrl = streamUrl;
   } else if (!forceProxy && !state.recoveryVod && /^https:\/\/[^\/]*teamg\.store\/api\/ott\/stream\.m3u8\?url=/i.test(playUrl) && /^http:\/\//i.test(streamUrl)) {
     selectedUrl = streamUrl;
+  } else if (forceProxy && !state.recoveryVod && /(?:\.m3u8|\/chunks|\/playlist)/i.test(playUrl + ' ' + streamUrl) && selectedUrl.indexOf('/api/ott/stream') === -1) {
+    selectedUrl = 'http://ott.teamg.store/api/ott/stream.m3u8?manifestOnly=1&httpSegments=1&url=' + encodeURIComponent(playUrl || streamUrl);
   }
   // 3. Toda URL hacia teamg.store / ott.teamg.store enviada al reproductor nativo debe usar http:// en puerto 80
   if (/^https:\/\/[^\/]*teamg\.store\//i.test(selectedUrl)) {
@@ -8058,7 +8068,7 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c, androidFallbackEngine) 
     }
     if (v && typeof v.setAttribute === 'function') v.setAttribute('preload', 'auto');
     v.src = html5Url;
-    var vodMime = 'video/mp4';
+    var vodMime = isHlsStream ? 'application/vnd.apple.mpegurl' : 'video/mp4';
     if (/\.webm(?:[?#]|$)/i.test(html5Url)) vodMime = 'video/webm';
     try {
       v.type = vodMime;
