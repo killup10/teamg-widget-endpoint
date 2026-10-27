@@ -291,9 +291,7 @@ function extractBlock(source, startToken, endToken) {
     ctx.renderChannels();
     assert.strictEqual(area.children.length, 18, 'Returning to Page 0 must restore 18 cards');
     assert.strictEqual(area.children[0], firstCardRef, 'Restored Page 0 must reuse cached DOM card nodes (useLegacyDevice=' + useLegacyDevice + ')');
-    if (useLegacyDevice) {
-      assert.strictEqual(imageLoaderStarts, loaderStartsAfterFirst + 1, 'Restored Page 0 with already-loaded images must NOT restart TeamGCatalogImages');
-    }
+    assert.strictEqual(imageLoaderStarts, 0, 'Regular playlists must render card <img src> directly without 2-by-2 music throttling');
   }
 })();
 

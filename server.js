@@ -31,7 +31,7 @@ const baseOf = (req) => getProto(req) + '://' + getHost(req);
 
 // Caché en RAM de carátulas para que la TV abra carpetas a 0ms sin lag
 const ottImgCache = new Map();
-const MAX_OTT_IMG_CACHE = 250;
+const MAX_OTT_IMG_CACHE = 1000;
 
 // Función que crea el JSON dinámico para Media Station X
 // APP 1 (existente, no tocar IDs): TeamG Play en /

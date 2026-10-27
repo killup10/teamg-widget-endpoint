@@ -1993,6 +1993,7 @@ body.smart-tv #player-music-yt-container { display:none !important; }
       <div class="sb-clear-btn" id="btnSearchClear">✕ Borrar búsqueda</div>
     </div>
     <div id="content-area"></div>
+    <div id="channel-grid-cache-host" style="display:none;position:absolute;width:0;height:0;overflow:hidden;" aria-hidden="true"></div>
     <div id="grid-scrollbar" style="display:none; position:absolute; right:4px; top:6px; bottom:54px; width:3px; background:rgba(255,255,255,0.08); border-radius:2px; z-index:12;">
       <div id="grid-scrollbar-thumb" style="position:absolute; width:100%; border-radius:2px; background:#ff7700; top:0; height:20%;"></div>
     </div>
@@ -2318,14 +2319,18 @@ function resolveIconUrl(url) {
     if (!/[?&]format=/i.test(u)) u += (u.indexOf('?') === -1 ? '?' : '&') + 'format=jpeg';
     u = u.replace(/([?&])width=\d+/i, '$1width=400');
     if (!/[?&]width=/i.test(u)) u += '&width=400';
+  } else if (/^https?:\/\/image\.tmdb\.org\/t\/p\/(?:original|w1280|w780|w500)\//i.test(u)) {
+    u = u.replace(/\/t\/p\/(?:original|w1280|w780|w500)\//i, '/t/p/w300/');
   }
+  var isLegacyNetcastImg = (typeof navigator !== 'undefined' && navigator.userAgent && navigator.userAgent.indexOf('NetCast') !== -1 && navigator.userAgent.indexOf('Web0S') === -1 && navigator.userAgent.indexOf('webOS') === -1);
   if (u.indexOf('/api/ott/icon/') !== -1) {
     var parts = u.split('/api/ott/icon/');
-    return (API_BASE || '') + '/api/ott/icon/' + parts[1];
+    var iconBase = (API_BASE || '');
+    if (isLegacyNetcastImg) iconBase = iconBase.replace(/^https:/, 'http:');
+    return iconBase + '/api/ott/icon/' + parts[1];
   }
   if (u.indexOf('/api/ott/subtitle/') !== -1) return (API_BASE || '') + '/api/ott/subtitle/' + u.split('/api/ott/subtitle/')[1];
   var isTv = (typeof isSmartTvDevice === 'function') ? isSmartTvDevice() : false;
-  var isLegacyNetcastImg = (typeof navigator !== 'undefined' && navigator.userAgent && navigator.userAgent.indexOf('NetCast') !== -1 && navigator.userAgent.indexOf('Web0S') === -1 && navigator.userAgent.indexOf('webOS') === -1);
   var isHttp = (typeof window !== 'undefined' && window.location && window.location.protocol === 'http:');
   if (isLegacyNetcastImg && isHttp && /^https?:\/\/(images\.unsplash\.com|is\d+-ssl\.mzstatic\.com|[^\/]*\.sndcdn\.com)/i.test(u)) {
     if (u.indexOf('images.unsplash.com') !== -1) {
@@ -2375,7 +2380,7 @@ window.fitTvImage = fitTvImage;
 // NetCast antiguo ignora object-fit: dimensionar los logos dentro de su caja.
 function fitChannelImage(img) {
   if (!img || !img.parentNode) return;
-  if (img.removeAttribute && img.getAttribute && img.getAttribute('data-music-src') && img.getAttribute('src')) {
+  if (img.removeAttribute && img.getAttribute && img.getAttribute('data-music-src') && (img.getAttribute('src') || img.src)) {
     img.removeAttribute('data-music-src');
   }
   if (typeof rememberCardImage === 'function' && img.src) {
@@ -2385,6 +2390,21 @@ function fitChannelImage(img) {
   var w = box.clientWidth, h = box.clientHeight;
   var iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
   if (!w || !h || !iw || !ih) return;
+  try {
+    img.onload = null;
+    if (img.removeAttribute) img.removeAttribute('onload');
+  } catch (eOnload) {}
+  var isBoxHorizontal = w >= h;
+  var isImg169 = Math.abs((iw / ih) - (16 / 9)) < 0.08;
+  var matchesBoxRatio = Math.abs((iw / ih) - (w / h)) < 0.08;
+  if ((isBoxHorizontal && isImg169) || matchesBoxRatio) {
+    img.style.position = 'absolute';
+    img.style.width = '100%';
+    img.style.height = '100%';
+    img.style.left = '0px';
+    img.style.top = '0px';
+    return;
+  }
   var scale = Math.min(w / iw, h / ih);
   img.style.position = 'absolute';
   img.style.width = Math.round(iw * scale) + 'px';
@@ -4674,20 +4694,20 @@ function loadPlaylistContent(pl, forceFresh, onReady) {
   var nowTime = (new Date()).getTime();
   if (!forceFresh && state._playlistCache[pl.id]) {
     var cached = state._playlistCache[pl.id];
-    if (cached.time && (nowTime - cached.time < 1800000)) {
+    if (cached.time && (nowTime - cached.time < 21600000)) {
       state.channels = cached.channels;
       state.groups = cached.groups;
-      state.currentGroup = '__all';
-      state.currentPage = 0;
+      state.currentGroup = cached.lastGroup || '__all';
+      state.currentPage = cached.lastPage || 0;
       var hasMultiCat = (state.groups && state.groups.length > 1);
       if (!hasMultiCat) {
         state.categoryConfirmed = true;
         state.currentFocusArea = 'content';
-        state.tileIdx = 0;
+        state.tileIdx = cached.lastTile || 0;
       } else {
         state.categoryConfirmed = false;
         state.currentFocusArea = 'tabs';
-        state.tabIdx = 0;
+        state.tabIdx = cached.lastTab || 0;
       }
       if (!state.pendingRecentContent) {
         renderChannels();
@@ -5414,12 +5434,12 @@ function renderTabs() {
 
 /* Cuadrícula de 6 columnas exactas x 3 filas exactas (18 canales por pantalla - Turbo Paginada) */
 var PAGE_SIZE = 18;
-var MAX_CHANNEL_GRID_CACHE = 30;
+var MAX_CHANNEL_GRID_CACHE = 60;
 var channelGridViewCache = Object.create(null);
 var channelGridViewCacheKeys = [];
 var cardImageCache = Object.create(null);
 var cardImageCacheKeys = [];
-var MAX_CARD_IMAGE_CACHE = 300;
+var MAX_CARD_IMAGE_CACHE = 600;
 function rememberCardImage(src) {
   if (!src || cardImageCache[src] || typeof Image === 'undefined') return;
   try {
@@ -5431,15 +5451,42 @@ function rememberCardImage(src) {
   } catch (eImg) {}
 }
 window.rememberCardImage = rememberCardImage;
+function preloadUpcomingCardImages(list, startIndex, count) {
+  if (!list || !list.length || typeof rememberCardImage !== 'function' || typeof setTimeout !== 'function') return;
+  if (state._preloadCardsTimer && typeof clearTimeout === 'function') clearTimeout(state._preloadCardsTimer);
+  state._preloadCardsTimer = setTimeout(function() {
+    state._preloadCardsTimer = null;
+    var end = Math.min(list.length, startIndex + (count || PAGE_SIZE));
+    for (var p = Math.max(0, startIndex); p < end; p++) {
+      var item = list[p];
+      if (item && item.logo) {
+        var resolved = resolveIconUrl(item.logo);
+        if (resolved) rememberCardImage(resolved);
+      }
+    }
+  }, 90);
+}
 function rememberChannelGridView(key, area) {
   if (!key || !area || !area.firstChild) return;
-  var fragment = document.createDocumentFragment();
-  while (area.firstChild) fragment.appendChild(area.firstChild);
+  var host = (typeof $ === 'function') ? $('channel-grid-cache-host') : null;
+  var useLiveBucket = !!(host && typeof host.appendChild === 'function' && typeof host.removeChild === 'function' && typeof document !== 'undefined' && typeof document.createElement === 'function');
+  var bucket = useLiveBucket ? document.createElement('div') : document.createDocumentFragment();
+  while (area.firstChild) bucket.appendChild(area.firstChild);
+  if (useLiveBucket) host.appendChild(bucket);
   var oldIndex = channelGridViewCacheKeys.indexOf(key);
-  if (oldIndex !== -1) channelGridViewCacheKeys.splice(oldIndex, 1);
-  channelGridViewCache[key] = fragment;
+  if (oldIndex !== -1) {
+    var prev = channelGridViewCache[key];
+    if (prev && prev.parentNode) { try { prev.parentNode.removeChild(prev); } catch (eRmPrev) {} }
+    channelGridViewCacheKeys.splice(oldIndex, 1);
+  }
+  channelGridViewCache[key] = bucket;
   channelGridViewCacheKeys.push(key);
-  while (channelGridViewCacheKeys.length > MAX_CHANNEL_GRID_CACHE) delete channelGridViewCache[channelGridViewCacheKeys.shift()];
+  while (channelGridViewCacheKeys.length > MAX_CHANNEL_GRID_CACHE) {
+    var oldKey = channelGridViewCacheKeys.shift();
+    var oldBucket = channelGridViewCache[oldKey];
+    if (oldBucket && oldBucket.parentNode) { try { oldBucket.parentNode.removeChild(oldBucket); } catch (eRmOld) {} }
+    delete channelGridViewCache[oldKey];
+  }
 }
 function stashCurrentChannelGridView() {
   var area = $('content-area');
@@ -5450,15 +5497,25 @@ function stashCurrentChannelGridView() {
   state.renderedChannelViewCacheable = false;
 }
 function takeChannelGridView(key) {
-  var fragment = channelGridViewCache[key];
-  if (!fragment) return null;
+  var bucket = channelGridViewCache[key];
+  if (!bucket) return null;
   delete channelGridViewCache[key];
   var index = channelGridViewCacheKeys.indexOf(key);
   if (index !== -1) channelGridViewCacheKeys.splice(index, 1);
-  return fragment;
+  if (bucket.parentNode && typeof document !== 'undefined' && typeof document.createDocumentFragment === 'function') {
+    var frag = document.createDocumentFragment();
+    while (bucket.firstChild) frag.appendChild(bucket.firstChild);
+    try { bucket.parentNode.removeChild(bucket); } catch (eRmBucket) {}
+    return frag;
+  }
+  return bucket;
 }
 function clearChannelGridViewCache(playlistId) {
   if (!playlistId) {
+    for (var c = 0; c < channelGridViewCacheKeys.length; c++) {
+      var bAll = channelGridViewCache[channelGridViewCacheKeys[c]];
+      if (bAll && bAll.parentNode) { try { bAll.parentNode.removeChild(bAll); } catch (eRmAll) {} }
+    }
     channelGridViewCache = Object.create(null);
     channelGridViewCacheKeys = [];
     state.renderedChannelViewKey = '';
@@ -5469,6 +5526,8 @@ function clearChannelGridViewCache(playlistId) {
   for (var i = channelGridViewCacheKeys.length - 1; i >= 0; i--) {
     var k = channelGridViewCacheKeys[i];
     if (k.indexOf(prefix) === 0) {
+      var bPl = channelGridViewCache[k];
+      if (bPl && bPl.parentNode) { try { bPl.parentNode.removeChild(bPl); } catch (eRmPl) {} }
       delete channelGridViewCache[k];
       channelGridViewCacheKeys.splice(i, 1);
     }
@@ -5481,7 +5540,15 @@ function clearChannelGridViewCache(playlistId) {
 
 function renderChannels() {
   var musicImages = typeof window !== 'undefined' ? window.TeamGCatalogImages : null;
-  var legacyMusicGrid = !!(musicImages && musicImages.legacy());
+  var isMusicCatalog = !!(state.currentPlaylist && (state.currentPlaylist.id === '__music' || state.currentPlaylist.isMusic));
+  var legacyMusicGrid = !!(isMusicCatalog && musicImages && musicImages.legacy());
+  if (state.currentPlaylist && state._playlistCache && state._playlistCache[state.currentPlaylist.id]) {
+    var plCacheEntry = state._playlistCache[state.currentPlaylist.id];
+    plCacheEntry.lastGroup = state.currentGroup || '__all';
+    plCacheEntry.lastPage = state.currentPage || 0;
+    plCacheEntry.lastTab = state.tabIdx || 0;
+    plCacheEntry.lastTile = state.tileIdx || 0;
+  }
   if (typeof stopMarquee === 'function' && state.currentFocusedEl) {
     stopMarquee(state.currentFocusedEl);
   }
@@ -5580,6 +5647,7 @@ function renderChannels() {
     var badge4k = is4k ? '<div class="tile-4k-badge">4K UHD</div>' : '';
     
     var logoSrc = resolveIconUrl(legacyMusicGrid ? musicImages.thumbnail(c.logo) : c.logo);
+    if (logoSrc && !legacyMusicGrid) rememberCardImage(logoSrc);
     var thumbContent = logoSrc
       ? (legacyMusicGrid ? '<img data-music-src="' + escapeHtml(logoSrc) + '" />' : '<img src="' + escapeHtml(logoSrc) + '" onload="fitChannelImage(this)" onerror="this.style.display=\'none\';" />')
       : fallbackSvg;
@@ -5624,6 +5692,9 @@ function renderChannels() {
   }
 
   if (state.tileIdx >= pageItems.length) state.tileIdx = Math.max(0, pageItems.length - 1);
+  if (!legacyMusicGrid && list.length > (state.currentPage + 1) * PAGE_SIZE) {
+    preloadUpcomingCardImages(list, (state.currentPage + 1) * PAGE_SIZE, PAGE_SIZE);
+  }
   updateMainFocus();
   updateTopBar();
 }

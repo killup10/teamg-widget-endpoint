@@ -49,8 +49,13 @@
         img.onload = img.onerror = null;
         active--;
         if (!cancelled) {
-          if (ok && fit) fit(img);
-          else { img.removeAttribute('src'); img.style.display = 'none'; }
+          if (ok) {
+            if (img.removeAttribute) img.removeAttribute('data-music-src');
+            if (fit) fit(img);
+          } else {
+            img.removeAttribute('src');
+            img.style.display = 'none';
+          }
           schedule();
         }
       }

@@ -5,7 +5,51 @@ const store = require('./ott-store');
 const artworkFill = require('./artwork-fill');
 
 const iconBufferCache = new Map();
-const MAX_ICON_BUFFER_CACHE = 250;
+const MAX_ICON_BUFFER_CACHE = 3000;
+
+function cacheIconRow(iconId, rawData) {
+  if (!iconId || !rawData || iconBufferCache.has(iconId)) return iconBufferCache.get(iconId) || null;
+  try {
+    const parts = String(rawData).split(',');
+    const mime = (parts[0] && parts[0].match(/:(.*?);/)) ? parts[0].match(/:(.*?);/)[1] : 'image/png';
+    const buf = Buffer.from(parts[1] || parts[0], 'base64');
+    if (iconBufferCache.size >= MAX_ICON_BUFFER_CACHE) {
+      const oldest = iconBufferCache.keys().next().value;
+      iconBufferCache.delete(oldest);
+    }
+    const entry = { mime, buf };
+    iconBufferCache.set(iconId, entry);
+    return entry;
+  } catch (e) {
+    return null;
+  }
+}
+
+function prewarmPlaylistIcons(cols, m3uText) {
+  if (!cols || cols.mode !== 'mongo' || !cols.icons || typeof cols.icons.find !== 'function' || !m3uText) return;
+  try {
+    const missing = [];
+    const seen = new Set();
+    const re = /\/api\/ott\/icon\/([A-Za-z0-9_-]+)/g;
+    let m;
+    while ((m = re.exec(m3uText)) !== null && missing.length < 120) {
+      const id = m[1];
+      if (!seen.has(id) && !iconBufferCache.has(id)) {
+        seen.add(id);
+        missing.push(id);
+      }
+    }
+    if (!missing.length) return;
+    Promise.resolve(cols.icons.find({ _id: { $in: missing } })).then((rows) => {
+      if (!Array.isArray(rows)) return;
+      for (let i = 0; i < rows.length; i++) {
+        if (rows[i] && rows[i]._id && rows[i].data) {
+          cacheIconRow(String(rows[i]._id), rows[i].data);
+        }
+      }
+    }).catch(() => {});
+  } catch (e) {}
+}
 
 const secret = () => process.env.TOKEN_SECRET || process.env.ADMIN_KEY || 'dev-secret';
 const ADMIN = () => process.env.ADMIN_KEY || '';
@@ -654,6 +698,7 @@ async function handle(req, res, pathname, query, body) {
         }
       }
       if (text) {
+      prewarmPlaylistIcons(a.cols, text);
       const headers = {
         'Content-Type': 'text/plain; charset=utf-8',
         'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
@@ -797,34 +842,42 @@ function fetchWithRedirects(targetUrl, options, maxRedirects, callback) {
   if (pathname.indexOf('/api/ott/icon/') === 0 && req.method === 'GET') {
     const iconId = pathname.replace('/api/ott/icon/', '').trim();
     if (!iconId) return json(res, 404, { ok: false });
+    const etag = '"' + iconId + '"';
+    const inm = (req && req.headers && req.headers['if-none-match']) ? String(req.headers['if-none-match']) : '';
+    if (inm && inm.indexOf(iconId) !== -1) {
+      res.writeHead(304, {
+        'ETag': etag,
+        'Access-Control-Allow-Origin': '*',
+        'Cache-Control': 'public, max-age=31536000, immutable'
+      });
+      return res.end();
+    }
     if (iconBufferCache.has(iconId)) {
       const cached = iconBufferCache.get(iconId);
       res.writeHead(200, {
         'Content-Type': cached.mime,
         'Content-Length': String(cached.buf.length),
+        'ETag': etag,
         'Access-Control-Allow-Origin': '*',
-        'Cache-Control': 'public, max-age=31536000, immutable'
+        'Cache-Control': 'public, max-age=31536000, immutable',
+        'Expires': new Date(Date.now() + 31536000000).toUTCString()
       });
       return res.end(cached.buf);
     }
     const icon = await cols.icons.findOne({ _id: iconId });
     if (!icon || !icon.data) return json(res, 404, { ok: false });
     try {
-      const parts = String(icon.data).split(',');
-      const mime = (parts[0] && parts[0].match(/:(.*?);/)) ? parts[0].match(/:(.*?);/)[1] : 'image/png';
-      const buf = Buffer.from(parts[1] || parts[0], 'base64');
-      if (iconBufferCache.size >= MAX_ICON_BUFFER_CACHE) {
-        const oldest = iconBufferCache.keys().next().value;
-        iconBufferCache.delete(oldest);
-      }
-      iconBufferCache.set(iconId, { mime, buf });
+      const cached = cacheIconRow(iconId, icon.data);
+      if (!cached) return json(res, 500, { ok: false });
       res.writeHead(200, {
-        'Content-Type': mime,
-        'Content-Length': String(buf.length),
+        'Content-Type': cached.mime,
+        'Content-Length': String(cached.buf.length),
+        'ETag': etag,
         'Access-Control-Allow-Origin': '*',
-        'Cache-Control': 'public, max-age=31536000, immutable'
+        'Cache-Control': 'public, max-age=31536000, immutable',
+        'Expires': new Date(Date.now() + 31536000000).toUTCString()
       });
-      res.end(buf);
+      res.end(cached.buf);
       return;
     } catch (e) {
       return json(res, 500, { ok: false });
