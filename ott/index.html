@@ -3665,7 +3665,7 @@ function doSaveAndLogin() {
   });
 }
 
-function fetchFeed() {
+function fetchFeed(forceFresh) {
   var feedId = (state.feedLoadId || 0) + 1;
   state.feedLoadId = feedId;
   if (!state.auth.token && state.auth.login && state.auth.password) {
@@ -3678,7 +3678,8 @@ function fetchFeed() {
     return;
   }
   showToast('Cargando tu catálogo...');
-  apiCall('GET', '/api/ott/feed?token=' + encodeURIComponent(state.auth.token) + '&deviceId=' + encodeURIComponent(state.auth.deviceId), null, function(st, res) {
+  var feedCb = forceFresh ? ('&_cb=' + (new Date()).getTime()) : '';
+  apiCall('GET', '/api/ott/feed?token=' + encodeURIComponent(state.auth.token) + '&deviceId=' + encodeURIComponent(state.auth.deviceId) + feedCb, null, function(st, res) {
     if (state.feedLoadId !== feedId) return;
     if (st === 200 && res && res.ok) {
       state._feedRetries = 0;
@@ -3687,13 +3688,20 @@ function fetchFeed() {
         state.subscription = res.subscription || null;
       state.playlists = res.playlists || [];
       state._playlistCache = {};
+      if (forceFresh) {
+        state._forceFreshPlaylists = {};
+        for (var fp = 0; fp < state.playlists.length; fp++) {
+          if (state.playlists[fp] && state.playlists[fp].id) state._forceFreshPlaylists[state.playlists[fp].id] = true;
+        }
+      }
+      if (typeof clearChannelGridViewCache === 'function') clearChannelGridViewCache();
       refreshRecentCoversFromFeed();
       closeOptions();
       if (state.playlists.length === 0) {
         showToast('TV registrado. Aún sin categorías disponibles.');
         renderPlaylistsView();
       } else if (state.playlists.length === 1) {
-        loadPlaylistContent(state.playlists[0]);
+        loadPlaylistContent(state.playlists[0], !!forceFresh);
       } else {
         renderPlaylistsView();
         showToast(state.playlists.length + ' categorías disponibles.');
@@ -4502,6 +4510,10 @@ function handleSeriesDetailNav(kc, eObj) {
     closeSeriesDetail();
     return;
   }
+  if (isRedKey(kc, eObj)) {
+    refreshPlaylists();
+    return;
+  }
   var s = state.currentSeries;
   if (!s) {
     closeSeriesDetail();
@@ -4685,6 +4697,10 @@ function loadPlaylistContent(pl, forceFresh, onReady) {
   state.tabIdx = 0;
   restorePlaylistSurface();
   state.homeLastPlaylist = pl;
+  if (pl && pl.id && state._forceFreshPlaylists && state._forceFreshPlaylists[pl.id]) {
+    forceFresh = true;
+    delete state._forceFreshPlaylists[pl.id];
+  }
   if (typeof stashCurrentChannelGridView === 'function') stashCurrentChannelGridView();
   if (forceFresh && typeof clearChannelGridViewCache === 'function') clearChannelGridViewCache(pl && pl.id);
   state.currentPlaylist = pl;
@@ -5996,9 +6012,7 @@ function handleMainNav(kc, eObj) {
         updateMainFocus(true);
       } else if (kc === KEY.ENTER) {
         if (state.topIconIdx === 0) {
-          state._playlistCache = {};
-          showToast('🔄 Actualizando el catálogo de TeamG Play...');
-          fetchFeed();
+          refreshPlaylists();
         } else if (state.topIconIdx === 1) {
           focusRecentContent();
         } else if (state.topIconIdx === 2) {
@@ -8778,13 +8792,26 @@ if (state.auth.token) {
 
 function refreshPlaylists() {
   if (state.currentPlaylist) {
+    var reopenSeriesName = (state.screen === 'series-detail' && state.currentSeries && state.currentSeries.name) ? state.currentSeries.name : '';
     if (state._playlistCache) delete state._playlistCache[state.currentPlaylist.id];
+    if (typeof clearChannelGridViewCache === 'function') clearChannelGridViewCache(state.currentPlaylist.id);
     showToast('Actualizando categoría...');
-    loadPlaylistContent(state.currentPlaylist, true);
+    loadPlaylistContent(state.currentPlaylist, true, reopenSeriesName ? function() {
+      if (!state.channels) return;
+      for (var i = 0; i < state.channels.length; i++) {
+        var c = state.channels[i];
+        if (c && c.isSeries && c.name === reopenSeriesName) {
+          openSeriesDetail(c);
+          break;
+        }
+      }
+    } : undefined);
   } else if (state.auth.token) {
+    state._playlistCache = {};
+    if (typeof clearChannelGridViewCache === 'function') clearChannelGridViewCache();
     showToast('Actualizando el catálogo de TeamG Play...');
     state._feedRetries = 0;
-    fetchFeed();
+    fetchFeed(true);
   } else {
     showToast('Vincula tu TV con TeamG Play para actualizar el catálogo.');
   }

@@ -691,10 +691,26 @@ async function handle(req, res, pathname, query, body) {
       let text = null;
       if (!isFresh && cached && cached.revision === revision && Date.now() - cached.ts < CACHE_TTL_MS) text = cached.text;
       else {
-        const content = await findById(a.cols.playlists, query.pid, { _id: 1, customM3u: 1, updatedAt: 1, created: 1 });
+        const content = await findById(a.cols.playlists, query.pid, { _id: 1, url: 1, customM3u: 1, updatedAt: 1, created: 1 });
         if (content && content.customM3u) {
           text = content.customM3u;
-          cachePlaylistContent(id, String(content.updatedAt || content.created || ''), text);
+          let rev = String(content.updatedAt || content.created || '');
+          const srcUrl = content.url || pl.url || '';
+          if (isFresh && srcUrl) {
+            try {
+              const source = await getCachedOrFetchText(srcUrl, true);
+              const incoming = parseM3uText(source).channels;
+              if (incoming.length) {
+                const merged = mergePlaylistSource(parseM3uText(text).channels, incoming);
+                if (merged.added > 0 || merged.updated > 0) {
+                  text = serializeChannelsToM3u(merged.channels);
+                  rev = store.nowIso();
+                  await a.cols.playlists.updateOne({ _id: pl._id }, { $set: { customM3u: text, count: merged.channels.length, updatedAt: rev } });
+                }
+              }
+            } catch (eSync) {}
+          }
+          cachePlaylistContent(id, rev, text);
         }
       }
       if (text) {
