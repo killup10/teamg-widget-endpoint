@@ -5,7 +5,7 @@ const store = require('./ott-store');
 const artworkFill = require('./artwork-fill');
 
 const iconBufferCache = new Map();
-const MAX_ICON_BUFFER_CACHE = 3000;
+const MAX_ICON_BUFFER_CACHE = 6000;
 
 function cacheIconRow(iconId, rawData) {
   if (!iconId || !rawData || iconBufferCache.has(iconId)) return iconBufferCache.get(iconId) || null;
@@ -32,7 +32,7 @@ function prewarmPlaylistIcons(cols, m3uText) {
     const seen = new Set();
     const re = /\/api\/ott\/icon\/([A-Za-z0-9_-]+)/g;
     let m;
-    while ((m = re.exec(m3uText)) !== null && missing.length < 120) {
+    while ((m = re.exec(m3uText)) !== null && missing.length < 600) {
       const id = m[1];
       if (!seen.has(id) && !iconBufferCache.has(id)) {
         seen.add(id);
@@ -40,14 +40,19 @@ function prewarmPlaylistIcons(cols, m3uText) {
       }
     }
     if (!missing.length) return;
-    Promise.resolve(cols.icons.find({ _id: { $in: missing } })).then((rows) => {
-      if (!Array.isArray(rows)) return;
-      for (let i = 0; i < rows.length; i++) {
-        if (rows[i] && rows[i]._id && rows[i].data) {
-          cacheIconRow(String(rows[i]._id), rows[i].data);
+    const batchSize = 150;
+    (async () => {
+      for (let b = 0; b < missing.length; b += batchSize) {
+        const chunk = missing.slice(b, b + batchSize);
+        const rows = await Promise.resolve(cols.icons.find({ _id: { $in: chunk } }));
+        if (!Array.isArray(rows)) continue;
+        for (let i = 0; i < rows.length; i++) {
+          if (rows[i] && rows[i]._id && rows[i].data) {
+            cacheIconRow(String(rows[i]._id), rows[i].data);
+          }
         }
       }
-    }).catch(() => {});
+    })().catch(() => {});
   } catch (e) {}
 }
 
@@ -687,50 +692,42 @@ async function handle(req, res, pathname, query, body) {
     const isFresh = (query.refresh === '1' || !!query._cb);
     if (pathname === '/api/ott/m3u') {
       const id = String(pl._id), revision = String(pl.updatedAt || pl.created || '');
-      const cached = playlistContentCache.get(id);
+      let cached = playlistContentCache.get(id);
       let text = null;
-      if (!isFresh && cached && cached.revision === revision && Date.now() - cached.ts < CACHE_TTL_MS) text = cached.text;
-      else {
+      if (!isFresh && cached && cached.revision === revision && Date.now() - cached.ts < CACHE_TTL_MS) {
+        text = cached.text;
+      } else {
         const content = await findById(a.cols.playlists, query.pid, { _id: 1, url: 1, customM3u: 1, updatedAt: 1, created: 1 });
         if (content && content.customM3u) {
           text = content.customM3u;
-          let rev = String(content.updatedAt || content.created || '');
-          const srcUrl = content.url || pl.url || '';
-          if (isFresh && srcUrl) {
-            try {
-              const source = await getCachedOrFetchText(srcUrl, true);
-              const incoming = parseM3uText(source).channels;
-              if (incoming.length) {
-                const merged = mergePlaylistSource(parseM3uText(text).channels, incoming);
-                if (merged.added > 0 || merged.updated > 0) {
-                  text = serializeChannelsToM3u(merged.channels);
-                  rev = store.nowIso();
-                  await a.cols.playlists.updateOne({ _id: pl._id }, { $set: { customM3u: text, count: merged.channels.length, updatedAt: rev } });
-                }
-              }
-            } catch (eSync) {}
-          }
+          const rev = String(content.updatedAt || content.created || '');
           cachePlaylistContent(id, rev, text);
+          cached = playlistContentCache.get(id);
         }
       }
       if (text) {
-      prewarmPlaylistIcons(a.cols, text);
-      const headers = {
-        'Content-Type': 'text/plain; charset=utf-8',
-        'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
-        'Pragma': 'no-cache',
-        'Expires': '0',
-        'Vary': 'Accept-Encoding'
-      };
-      let payload = text;
-      const encoding = req.headers['accept-encoding'] || '';
-      if (/\bgzip\b/i.test(encoding) && !/gzip\s*;\s*q=0(?:\.0*)?(?:\s*[,;]|\s*$)/i.test(encoding)) {
-        payload = await new Promise((resolve, reject) => require('node:zlib').gzip(text, (err, data) => err ? reject(err) : resolve(data)));
-        headers['Content-Encoding'] = 'gzip';
-      }
-      res.writeHead(200, headers);
-      res.end(payload);
-      return;
+        prewarmPlaylistIcons(a.cols, text);
+        const headers = {
+          'Content-Type': 'text/plain; charset=utf-8',
+          'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+          'Vary': 'Accept-Encoding'
+        };
+        let payload = text;
+        const encoding = req.headers['accept-encoding'] || '';
+        if (/\bgzip\b/i.test(encoding) && !/gzip\s*;\s*q=0(?:\.0*)?(?:\s*[,;]|\s*$)/i.test(encoding)) {
+          if (cached && cached.gzip) {
+            payload = cached.gzip;
+          } else {
+            payload = await new Promise((resolve, reject) => require('node:zlib').gzip(text, (err, data) => err ? reject(err) : resolve(data)));
+            if (cached) cached.gzip = payload;
+          }
+          headers['Content-Encoding'] = 'gzip';
+        }
+        res.writeHead(200, headers);
+        res.end(payload);
+        return;
       }
     }
     let target = pathname === '/api/ott/m3u' ? pl.url : (pl.epgUrl || '');

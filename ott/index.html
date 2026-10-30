@@ -2378,16 +2378,18 @@ function fitTvImage(img) {
 window.fitTvImage = fitTvImage;
 
 // NetCast antiguo ignora object-fit: dimensionar los logos dentro de su caja.
+var _lastTileThumbW = 0, _lastTileThumbH = 0;
 function fitChannelImage(img) {
   if (!img || !img.parentNode) return;
   if (img.removeAttribute && img.getAttribute && img.getAttribute('data-music-src') && (img.getAttribute('src') || img.src)) {
     img.removeAttribute('data-music-src');
   }
-  if (typeof rememberCardImage === 'function' && img.src) {
-    rememberCardImage(img.src);
-  }
   var box = img.parentNode;
-  var w = box.clientWidth, h = box.clientHeight;
+  var w = box.clientWidth || _lastTileThumbW, h = box.clientHeight || _lastTileThumbH;
+  if (box.clientWidth && box.clientHeight) {
+    _lastTileThumbW = box.clientWidth;
+    _lastTileThumbH = box.clientHeight;
+  }
   var iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
   if (!w || !h || !iw || !ih) return;
   try {
@@ -4036,6 +4038,31 @@ function extractTrailerInfo(c) {
 
 function aggregateSeriesList(channels) {
   if (!channels || channels.length === 0) return [];
+  // Optimización de alto rendimiento: Si la lista o sus elementos son canales en vivo puros, omitir agregación de series
+  var hasSeriesMarkers = false;
+  for (var checkIdx = 0; checkIdx < Math.min(channels.length, 30); checkIdx++) {
+    var checkCh = channels[checkIdx];
+    if (!checkCh) continue;
+    var cGrp = checkCh.group || '';
+    if (/serie|anime|novela|dorama|drama|kdrama|temporada/i.test(cGrp) ||
+        /\b(?:T\d+\s*E\d+|S\d+\s*E\d+|\d+x\d+|Cap[íi]tulo|Episodio|Trailer)\b/i.test(checkCh.name)) {
+      hasSeriesMarkers = true;
+      break;
+    }
+  }
+  if (!hasSeriesMarkers && channels.length > 30) {
+    var sampleEnd = Math.min(channels.length, 120);
+    for (var checkIdx2 = 30; checkIdx2 < sampleEnd; checkIdx2 += 10) {
+      var checkCh2 = channels[checkIdx2];
+      if (checkCh2 && (/\b(?:T\d+\s*E\d+|S\d+\s*E\d+|\d+x\d+|Cap[íi]tulo|Episodio|Trailer)\b/i.test(checkCh2.name))) {
+        hasSeriesMarkers = true;
+        break;
+      }
+    }
+  }
+  if (!hasSeriesMarkers && state.currentPlaylist && /gplay|premium|sports|en vivo|tv en vivo|canales|deportes/i.test(state.currentPlaylist.name || '')) {
+    return channels;
+  }
   var result = [];
   var seriesMap = {};
   var trailersList = [];
@@ -4101,7 +4128,14 @@ function aggregateSeriesList(channels) {
     }
   }
 
-  // Paso 2: Asociar trailers a sus respectivas series o películas
+  // Paso 2: Asociar trailers a sus respectivas series o películas (con búsqueda acelerada por hash map)
+  var movieKeyMap = Object.create(null);
+  for (var rIdx = 0; rIdx < result.length; rIdx++) {
+    if (!result[rIdx].isSeries && result[rIdx].name) {
+      movieKeyMap[cleanTitleKey(result[rIdx].name)] = result[rIdx];
+    }
+  }
+
   for (var t = 0; t < trailersList.length; t++) {
     var tr = trailersList[t];
     var trKey = cleanTitleKey(tr.targetTitle);
@@ -4126,22 +4160,24 @@ function aggregateSeriesList(channels) {
       if (tr.item.seriesLogo) matchedSeries.logo = tr.item.seriesLogo;
       if (!matchedSeries.logo && tr.item.logo) matchedSeries.logo = tr.item.logo;
     } else {
-      // Buscar si pertenece a una película en result
-      var matchedMovie = null;
-      for (var r = 0; r < result.length; r++) {
-        if (!result[r].isSeries && result[r].name) {
-          var mKey = cleanTitleKey(result[r].name);
-          if (mKey === trKey || (mKey.length >= 3 && trKey.length >= 3 && (mKey.indexOf(trKey) > -1 || trKey.indexOf(mKey) > -1))) {
-            matchedMovie = result[r];
-            result[r].trailerUrl = tr.url;
-            result[r].trailerItem = tr.item;
-            break;
+      // Buscar si pertenece a una película en result (directo por hash o substring)
+      var matchedMovie = movieKeyMap[trKey];
+      if (!matchedMovie) {
+        for (var r = 0; r < result.length; r++) {
+          if (!result[r].isSeries && result[r].name) {
+            var mKey = cleanTitleKey(result[r].name);
+            if (mKey === trKey || (mKey.length >= 3 && trKey.length >= 3 && (mKey.indexOf(trKey) > -1 || trKey.indexOf(mKey) > -1))) {
+              matchedMovie = result[r];
+              break;
+            }
           }
         }
       }
-
-      // Si no se encontró serie ni película (ej: estreno próximo que por ahora solo tiene trailer en el M3U)
-      if (!matchedMovie) {
+      if (matchedMovie) {
+        matchedMovie.trailerUrl = tr.url;
+        matchedMovie.trailerItem = tr.item;
+      } else {
+        // Si no se encontró serie ni película (ej: estreno próximo que por ahora solo tiene trailer en el M3U)
         var orphanKey = trKey || cleanTitleKey(tr.rawName);
         if (orphanKey) {
           var cleanName = tr.targetTitle || tr.rawName.replace(/\b(?:tr[aá]iler|trailer)\b/gi, '').replace(/\s*\(\d{4}\).*$/, '').trim();
@@ -5480,7 +5516,7 @@ function preloadUpcomingCardImages(list, startIndex, count) {
         if (resolved) rememberCardImage(resolved);
       }
     }
-  }, 90);
+  }, 450);
 }
 function rememberChannelGridView(key, area) {
   if (!key || !area || !area.firstChild) return;
@@ -5663,9 +5699,8 @@ function renderChannels() {
     var badge4k = is4k ? '<div class="tile-4k-badge">4K UHD</div>' : '';
     
     var logoSrc = resolveIconUrl(legacyMusicGrid ? musicImages.thumbnail(c.logo) : c.logo);
-    if (logoSrc && !legacyMusicGrid) rememberCardImage(logoSrc);
     var thumbContent = logoSrc
-      ? (legacyMusicGrid ? '<img data-music-src="' + escapeHtml(logoSrc) + '" />' : '<img src="' + escapeHtml(logoSrc) + '" onload="fitChannelImage(this)" onerror="this.style.display=\'none\';" />')
+      ? (legacyMusicGrid ? '<img data-music-src="' + escapeHtml(logoSrc) + '" />' : '<img src="' + escapeHtml(logoSrc) + '" decoding="async" onload="fitChannelImage(this)" onerror="this.style.display=\'none\';" />')
       : fallbackSvg;
 
     tile.innerHTML = '<div class="tile-thumb">' +
@@ -6217,7 +6252,7 @@ function switchCategoryTab(dir) {
       state._catDebounceTimer = null;
       renderChannels();
       updateMainFocus(false);
-    }, 120);
+    }, 220);
   }
 }
 
