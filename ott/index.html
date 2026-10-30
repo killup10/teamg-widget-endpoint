@@ -6463,6 +6463,9 @@ function cleanPlayerEngines() {
 
   var v = $('video-el');
   if (v) {
+    v.muted = false;
+    v.defaultMuted = false;
+    v.volume = 1.0;
     v.onloadeddata = null;
     v.onplaying = null;
     v.onloadedmetadata = null;
@@ -7594,6 +7597,13 @@ function getOrCreateNetcastObject(mimeType) {
     existing.setAttribute('oneshot_url', 'true');
     existing.setAttribute('autoStart', 'true');
     existing.setAttribute('downloadable', 'false');
+    // Forzar desmuteo y volumen completo para decodificador nativo
+    try {
+      if (typeof existing.setVolume === 'function') existing.setVolume(100);
+      else if (typeof existing.volume !== 'undefined') existing.volume = 100;
+      if (typeof existing.audioMute === 'function') existing.audioMute(false);
+      else if (typeof existing.mute !== 'undefined') existing.mute = false;
+    } catch (eVol) {}
     var param = document.createElement('param');
     param.name = 'wmode';
     param.value = 'transparent';
@@ -7661,6 +7671,9 @@ function startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c, forceProxy) {
   }
   c._triedNetcast = true;
   if (v) {
+    v.muted = false;
+    v.defaultMuted = false;
+    v.volume = 1.0;
     v.onloadeddata = null;
     v.onplaying = null;
     v.onloadedmetadata = null;
@@ -7688,6 +7701,16 @@ function startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c, forceProxy) {
           if (nw && nh) {
             $('player-res').textContent = nw + 'x' + nh;
           }
+          // Verificación de audio y pista activa en NetCast
+          try {
+            if (typeof netcastObj.audioMute === 'function') netcastObj.audioMute(false);
+            else if (typeof netcastObj.mute !== 'undefined') netcastObj.mute = false;
+            var totA = Number(netcastObj.totalAudioTrack || netcastObj.audioTrackCount || netcastObj.numberOfAudioLanguage || (mi && (mi.totalAudioTrack || mi.numberOfAudioLanguage)) || 0);
+            if (totA > 1 && (typeof netcastObj.audioTrack === 'undefined' || netcastObj.audioTrack < 0)) {
+              if (typeof netcastObj.changeAudioTrack === 'function') netcastObj.changeAudioTrack(0);
+              else if (typeof netcastObj.setAudioTrack === 'function') netcastObj.setAudioTrack(0);
+            }
+          } catch (eAudInit) {}
         }
       } else if (ps === 2) {
         $('btnPlayPause').textContent = '▶';
