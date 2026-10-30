@@ -311,7 +311,7 @@ async function prepare(owner, url, forceHls = false) {
   if (sessions.size >= MAX_SESSIONS) throw new Error('Conversión de audio ocupada. Intenta nuevamente.');
   const id = crypto.randomBytes(24).toString('hex');
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'teamg-audio-'));
-  const args = relay ? ['-hide_banner', '-nostdin', '-loglevel', 'info', '-analyzeduration', '6000000', '-probesize', '6000000', '-i', 'pipe:0'] : inputArgs(url);
+  const args = relay ? ['-hide_banner', '-nostdin', '-loglevel', 'info', '-analyzeduration', '6000000', '-probesize', '6000000', '-f', 'mpegts', '-i', 'pipe:0'] : inputArgs(url);
   const child = spawn(bin(), args.concat(['-map', '0:v:0', '-map', '0:a:0?', '-c:v', 'copy',
     ...(convertAudio ? ['-c:a', 'aac', '-profile:a', 'aac_low', '-b:a', '128k', '-ac', '2', '-ar', '48000'] : ['-c:a', 'copy']),
     '-max_muxing_queue_size', '1024', '-f', 'hls', '-hls_time', '2', '-hls_list_size', '5',

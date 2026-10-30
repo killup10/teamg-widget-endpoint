@@ -7449,12 +7449,18 @@ function playItem(c, recovering) {
   if (forceHtml5Player) { engine = 'html5'; useNative = false; }
   if (forceNativePlayer && window.TeamGNative && TeamGNative.available()) useNative = true;
   var preferNetcast = false;
-  if (!forceHtml5Player && engine === 'mediaplayer' && isLegacyNetcast && (netcastObj || typeof getOrCreateNetcastObject === 'function')) {
-    preferNetcast = true;
-  } else if (!forceHtml5Player && forceNativePlayer && isLegacyNetcast && (netcastObj || typeof getOrCreateNetcastObject === 'function')) {
-    preferNetcast = true;
-  } else if (!forceHtml5Player && engine === 'auto') {
-    if (isLegacyNetcast && (netcastObj || typeof getOrCreateNetcastObject === 'function') && ((netcastObj && typeof netcastObj.play === 'function') || (netcastObj && typeof netcastObj.play === 'object') || typeof getOrCreateNetcastObject === 'function' || !isHls)) {
+  if (isLegacyNetcast && (netcastObj || typeof getOrCreateNetcastObject === 'function')) {
+    if (!forceHtml5Player && engine === 'mediaplayer') {
+      preferNetcast = true;
+    } else if (!forceHtml5Player && forceNativePlayer) {
+      preferNetcast = true;
+    } else if (!forceHtml5Player && engine === 'auto') {
+      if ((netcastObj && typeof netcastObj.play === 'function') || (netcastObj && typeof netcastObj.play === 'object') || typeof getOrCreateNetcastObject === 'function' || !isHls) {
+        preferNetcast = true;
+      }
+    } else if (!isHls && !state.recoveryVod) {
+      // Flujos TS raw en vivo: NetCast WebKit jamas soporta MPEG-TS en HTML5 <video>.
+      // Fuerza el decodificador nativo por hardware incluso si iptvPlayer estaba en HTML5.
       preferNetcast = true;
     }
   }

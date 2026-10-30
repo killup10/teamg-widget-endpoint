@@ -159,4 +159,17 @@ const samsungSource=html.slice(html.indexOf('function startSamsungPlayer('),html
  ctx.startSamsungPlayer({style:{}},{style:{}},proxy,direct,{});
  assert.deepEqual(calls,[direct,proxy,'html5'],'Samsung AVPlay must try direct HTTP first, then proxy, then HTML5');
 }
-console.log('NetCast and Samsung AVPlay live startup: both raw HTTP MPEG-TS (a013) and HTTP HLS (a0bi/index.m3u8) pass.');
+{
+ const astraUrl='http://181.65.191.173:8069/play/a0bq';
+ const calls=[];
+ const ctx={
+  state:{auth:{iptvPlayer:'HTML5 player',playerEngine:'html5',token:'test'},currentPlaylist:{id:'teamg-premium'},recoveryVod:false},
+  window:{},netcastObj:{play(){}},v:{},isLegacyNetcast:true,isHls:false,isDirectCdn:false,ua:'Mozilla/5.0 (SmartTV; NetCast) AppleWebKit/534.34',
+  c:{name:'América TV (PER)',url:astraUrl},streamUrl:astraUrl,playUrl:astraUrl,probeSubtitles(){},
+  startNetcastPlayer:(v,obj,play)=>calls.push(play),playHtml5:()=>{throw Error('HTML5 route must not be used on NetCast for raw TS')},
+  apiCall:()=>{throw Error('NetCast must never call android-audio')}
+ };
+ vm.runInNewContext('(function(){'+source+')()',ctx);
+ assert.deepEqual(calls,[astraUrl],'Astra raw TS (a0bq) on NetCast must route directly to MediaPlayer even if iptvPlayer is set to HTML5');
+}
+console.log('NetCast and Samsung AVPlay live startup: both raw HTTP MPEG-TS (a013, a0bq) and HTTP HLS (a0bi/index.m3u8) pass.');
