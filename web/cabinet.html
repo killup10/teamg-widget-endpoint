@@ -300,6 +300,7 @@ document.getElementById("who").textContent = sessionStorage.getItem("ottname") |
 var DATA = null, TAB = "Playlists", OPENFU = null;
 var CURRENT_PL = null, CURRENT_GROUP = null, EDITING_CH_IDX = -1;
 var CURRENT_VIEW_MODE = "list";
+var FORCE_SERIES_COVER_GROUPS = {};
 
 function api(p, m, b) {
   var requestStarted = Date.now();
@@ -760,13 +761,31 @@ function loadPlaylistChannels(pObj) {
   });
 }
 
-function isSeriesGroup(channels) {
+function isSeriesGroup(channels, groupName, playlist) {
+  if (!channels) channels = [];
+  // 1. Si algún canal del grupo ya tiene seriesLogo o seriesPoster configurado
   for (var i = 0; i < channels.length; i++) {
-    var name = channels[i].name || '';
-    if (/(?:^|[^a-z0-9])(?:s|t)\s*\d{1,3}\s*(?:e|ep|episodio)\s*\d{1,3}(?:[^0-9]|$)/i.test(name) ||
-        /(?:^|[^0-9])\d{1,3}\s*x\s*\d{1,3}(?:[^0-9]|$)/i.test(name) ||
-        /\b(?:temporada|season)\s*\d+.*\b(?:episodio|episode|cap[ií]tulo)\s*\d+/i.test(name) ||
-        /\b(?:episodio|episode|cap[ií]tulo)\s*\d+/i.test(name)) return true;
+    if (channels[i].seriesLogo || channels[i].seriesPoster) return true;
+  }
+
+  // 2. Si la playlist completa es de series, novelas, animes o doramas
+  var plName = (playlist && playlist.name) || (typeof CURRENT_PL !== 'undefined' && CURRENT_PL && CURRENT_PL.name) || '';
+  if (/(?:serie|anime|novela|dorama|drama|kdrama|temporada)/i.test(plName)) return true;
+
+  // 3. Si el nombre del grupo indica serie, novela, anime o temporada
+  var gName = groupName || (typeof CURRENT_GROUP !== 'undefined' ? CURRENT_GROUP : '');
+  if (/(?:serie|anime|novela|dorama|drama|kdrama|temporada)/i.test(gName)) return true;
+
+  // 4. Analizar títulos de canales/episodios (soporta T1 E1, EP. 1, Ep 1, Cap. 1, 1x01, 01 - ..., etc.)
+  for (var j = 0; j < channels.length; j++) {
+    var name = channels[j].name || '';
+    if (
+      /(?:^|[^a-z0-9])(?:s|t)\s*\d{1,3}\s*[-_:/xX\s.]?\s*(?:e|ep|episodio|cap|capitulo|capítulo)\s*\d{1,4}(?:[^0-9]|$)/i.test(name) ||
+      /(?:^|[^0-9])\d{1,3}\s*x\s*\d{1,4}(?:[^0-9]|$)/i.test(name) ||
+      /\b(?:temporada|season|temp)\s*\d+/i.test(name) ||
+      /(?:^|[\s\-_:\[\(])(?:episodio|episode|cap[ií]tulo|capitulo|cap\.|cap|ep\.|ep|e)\s*[\.:#]?\s*\d{1,4}(?:[^0-9]|$)/i.test(name) ||
+      /^\s*#?\d{1,4}\s*[-_.:]\s*\S+/i.test(name)
+    ) return true;
   }
   return false;
 }
@@ -784,7 +803,7 @@ function renderPlaylistEditor(a) {
     return c.group === CURRENT_GROUP;
   });
 
-  var showSeriesCover = isSeriesGroup(filteredChannels);
+  var showSeriesCover = isSeriesGroup(filteredChannels, CURRENT_GROUP, CURRENT_PL) || !!FORCE_SERIES_COVER_GROUPS[CURRENT_GROUP];
   var h = "<div class='editor-top-nav'>" +
     "<div class='breadcrumb'><a href='#' id='btnBackToPlaylists'>playlists</a> / <b>" + esc(CURRENT_PL.name) + "</b></div>" +
     "<div><button class='act' id='btnDownloadPlaylist'>Descargar M3U</button><button class='act' id='btnImportArtwork'>Completar carátulas locales</button><input type='file' accept='.json' id='artworkBundle' style='display:none'/><span id='artworkProgress' class='small' role='status'></span><button class='act' id='btnSyncSource'>Actualizar desde fuente</button><button class='act green' id='btnSaveWholePlaylist'>💾 Guardar Cambios en Servidor</button></div>" +
@@ -842,6 +861,7 @@ function renderPlaylistEditor(a) {
       "<button id='btnSaveSeriesPoster' class='btn-create-channel'>Guardar póster</button>" +
       "<span class='small'>Usa una imagen vertical 2:3, recomendada 300 × 450 píxeles, para la ficha que muestra temporadas y episodios. Se prepara como JPEG ligero para TV, conservando la proporción. Solo cambia el póster interior de «" + esc(CURRENT_GROUP) + "». Sus episodios y trailer conservan sus propias imágenes. Pulsa Guardar carátula para publicar el cambio.</span>" +
     "</div></details>" : "") +
+    (!showSeriesCover ? "<div style='margin:10px 0;'><button type='button' id='btnEnableGroupCover' class='plain small' style='cursor:pointer;padding:6px 14px;border-radius:4px;border:1px dashed #666;'>+ Configurar imagen horizontal y vertical para «" + esc(CURRENT_GROUP) + "»</button></div>" : "") +
     "<div class='channels-container " + (CURRENT_VIEW_MODE === "grid" ? "grid-view" : "") + "' id='channelsListContainer'>";
 
   if (!filteredChannels.length) {
@@ -986,6 +1006,14 @@ function renderPlaylistEditor(a) {
       }
     }
   };
+
+  var enableCoverBtn = document.getElementById("btnEnableGroupCover");
+  if (enableCoverBtn) {
+    enableCoverBtn.onclick = function() {
+      FORCE_SERIES_COVER_GROUPS[CURRENT_GROUP] = true;
+      render();
+    };
+  }
 
   (function() {
   var coverInput = document.getElementById("seriesCoverUrl");
