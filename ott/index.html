@@ -2039,6 +2039,8 @@ body.smart-tv #player-music-yt-container { display:none !important; }
           <span class="opt-value" id="valTheme">&lt; Rojo vino &gt;</span>
         </div>
         <div class="opt-row" data-action="textsize"><span class="opt-label">Tamaño de texto</span><span class="opt-value" id="valTextSize">Normal</span></div>
+        <div class="opt-row" data-action="subcolor"><span class="opt-label">Color de subtítulos SRT</span><span class="opt-value" id="valSubColor">&lt; Amarillo &gt;</span></div>
+        <div class="opt-row" data-action="subsize"><span class="opt-label">Tamaño de subtítulos SRT</span><span class="opt-value" id="valSubSize">&lt; Normal &gt;</span></div>
         <div class="opt-row" data-action="resetprefs"><span class="opt-label">Restablecer preferencias</span><span class="opt-value">OK</span></div>
         <div class="opt-row" data-action="reloadapp"><span class="opt-label">Actualizar / Recargar app</span><span class="opt-value">OK</span></div>
         <div class="opt-row" data-action="clockmode"><span class="opt-label">Fecha y hora</span><span class="opt-value" id="valClockMode">Automáticas</span></div>
@@ -2079,7 +2081,7 @@ body.smart-tv #player-music-yt-container { display:none !important; }
         <p id="optDescText">También puedes ingresar manualmente tu usuario y contraseña con el teclado en pantalla.</p>
         <div id="themePreview" aria-label="Paleta de colores actual" style="margin-top:18px;"></div>
         <div style="margin-top:16px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.5.68
+          VERSIÓN: v2.5.69
         </div>
       </div>
     </div>
@@ -2460,8 +2462,8 @@ function safeScrollIntoView(el) {
   var episodes = $('seriesEpisodesList');
   if (episodes && episodes.contains(el)) {
     var y = el.getBoundingClientRect().top - episodes.getBoundingClientRect().top + episodes.scrollTop;
-    if (y < episodes.scrollTop) episodes.scrollTop = y;
-    else if (y + el.offsetHeight > episodes.scrollTop + episodes.clientHeight) episodes.scrollTop = y + el.offsetHeight - episodes.clientHeight;
+    if (y < episodes.scrollTop) episodes.scrollTop = Math.max(0, y - 8);
+    else if (y + el.offsetHeight > episodes.scrollTop + episodes.clientHeight) episodes.scrollTop = y + el.offsetHeight - episodes.clientHeight + 8;
     return;
   }
   var dList = $('player-drawer-list');
@@ -2654,6 +2656,58 @@ var OPT_THEMES = [
   { id: 'graphite', label: 'Grafito y hielo', bg:'#10161a', surface:'#1a252c', raised:'#293941', focus:'#2e5968', accent:'#a3e2ee', muted:'#bfd0d7' }
 ];
 
+var OPT_SUB_COLORS = [
+  { id: 'yellow', label: 'Amarillo', color: '#ffff55' },
+  { id: 'white',  label: 'Blanco',   color: '#ffffff' },
+  { id: 'cyan',   label: 'Cian',     color: '#00ffff' },
+  { id: 'green',  label: 'Verde',    color: '#66ff66' }
+];
+
+var OPT_SUB_SIZES = [
+  { id: 'small',  label: 'Pequeño',     size: '34px', cueSize: '30px' },
+  { id: 'normal', label: 'Normal',      size: '44px', cueSize: '38px' },
+  { id: 'large',  label: 'Grande',      size: '54px', cueSize: '46px' },
+  { id: 'xlarge', label: 'Extra grande',size: '64px', cueSize: '54px' }
+];
+
+function applySubtitleStyles() {
+  var colorId = (state.auth && state.auth.subColor) || 'yellow';
+  var sizeId = (state.auth && state.auth.subSize) || 'normal';
+
+  var colorHex = '#ffff55';
+  for (var i = 0; i < OPT_SUB_COLORS.length; i++) {
+    if (OPT_SUB_COLORS[i].id === colorId) { colorHex = OPT_SUB_COLORS[i].color; break; }
+  }
+
+  var fontSize = '44px';
+  var cueSize = '38px';
+  for (var j = 0; j < OPT_SUB_SIZES.length; j++) {
+    if (OPT_SUB_SIZES[j].id === sizeId) {
+      fontSize = OPT_SUB_SIZES[j].size;
+      cueSize = OPT_SUB_SIZES[j].cueSize;
+      break;
+    }
+  }
+
+  var subEl = typeof $ === 'function' ? $('player-subtitles-overlay') : null;
+  if (subEl && subEl.style) {
+    subEl.style.color = colorHex;
+    subEl.style.fontSize = fontSize;
+  }
+
+  if (typeof document !== 'undefined' && document.head) {
+    var sheet = $('subtitles-dynamic-style');
+    if (!sheet) {
+      sheet = document.createElement('style');
+      sheet.id = 'subtitles-dynamic-style';
+      document.head.appendChild(sheet);
+    }
+    sheet.textContent =
+      '#player-subtitles-overlay { color: ' + colorHex + ' !important; font-size: ' + fontSize + ' !important; }\n' +
+      'video::cue { color: ' + colorHex + ' !important; font-size: ' + cueSize + ' !important; }';
+  }
+}
+
 function applyTheme(themeId) {
   var palette = OPT_THEMES[0];
   for (var i = 0; i < OPT_THEMES.length; i++) {
@@ -2747,34 +2801,77 @@ function updateOptionsDisplay() {
   }
   if ($('valTheme')) $('valTheme').textContent = '< ' + curTh.label + ' >';
 
+  var curSubColor = OPT_SUB_COLORS[0];
+  for (var sc = 0; sc < OPT_SUB_COLORS.length; sc++) {
+    if (OPT_SUB_COLORS[sc].id === (state.auth.subColor || 'yellow')) { curSubColor = OPT_SUB_COLORS[sc]; break; }
+  }
+  if ($('valSubColor')) $('valSubColor').textContent = '< ' + curSubColor.label + ' >';
+
+  var curSubSize = OPT_SUB_SIZES[1];
+  for (var ss = 0; ss < OPT_SUB_SIZES.length; ss++) {
+    if (OPT_SUB_SIZES[ss].id === (state.auth.subSize || 'normal')) { curSubSize = OPT_SUB_SIZES[ss]; break; }
+  }
+  if ($('valSubSize')) $('valSubSize').textContent = '< ' + curSubSize.label + ' >';
+
   updatePlayerEngineDisplay();
 }
 
 function cycleOption(idx, dir) {
-  if (idx === 11) {
+  var rows = (typeof document !== 'undefined' && document.getElementsByClassName) ? document.getElementsByClassName('opt-row') : null;
+  var action = (rows && rows[idx] && rows[idx].getAttribute) ? rows[idx].getAttribute('data-action') : null;
+  var d = (dir === -1) ? -1 : 1;
+
+  if (action === 'clockmode' || (idx === 11 && !action)) {
     if (state.auth.clockMode === 'manual') state.auth.clockMode = 'auto';
     else if (typeof state.auth.clockOffset === 'number') state.auth.clockMode = 'manual';
     else { editManualClock(); return; }
     saveStorage(); updateClock(); updateOptionsDisplay(); return;
   }
-  if (idx === 12) { editManualClock(); return; }
-  if (idx === 13) {
+  if (action === 'clockmanual' || (idx === 12 && !action)) { editManualClock(); return; }
+  if (action === 'clockformat' || (idx === 13 && !action)) {
     state.auth.clockFormat = state.auth.clockFormat === '12' ? '24' : '12';
     saveStorage(); updateClock(); updateOptionsDisplay(); return;
   }
-  if (idx === 8) {
+  if (action === 'textsize' || (idx === 8 && !action)) {
     state.auth.textSize = state.auth.textSize === 'large' ? 'normal' : 'large';
     applyTextSize(); saveStorage(); updateOptionsDisplay(); return;
   }
-  if (idx === 9 || idx === 10) return;
-  // La URL de origen se administra exclusivamente desde el panel.
-  if (idx >= 3) idx++;
-  var d = (dir === -1) ? -1 : 1;
-  if (idx === 0) {
+  if (action === 'subcolor') {
+    var curColorId = state.auth.subColor || 'yellow';
+    var curColorIdx = 0;
+    for (var ci = 0; ci < OPT_SUB_COLORS.length; ci++) {
+      if (OPT_SUB_COLORS[ci].id === curColorId) { curColorIdx = ci; break; }
+    }
+    var nextColorIdx = (curColorIdx + d + OPT_SUB_COLORS.length) % OPT_SUB_COLORS.length;
+    state.auth.subColor = OPT_SUB_COLORS[nextColorIdx].id;
+    if (typeof applySubtitleStyles === 'function') applySubtitleStyles();
+    saveStorage(); updateOptionsDisplay();
+    showToast('Subtítulos color: ' + OPT_SUB_COLORS[nextColorIdx].label);
+    return;
+  }
+  if (action === 'subsize') {
+    var curSizeId = state.auth.subSize || 'normal';
+    var curSizeIdx = 1;
+    for (var si = 0; si < OPT_SUB_SIZES.length; si++) {
+      if (OPT_SUB_SIZES[si].id === curSizeId) { curSizeIdx = si; break; }
+    }
+    var nextSizeIdx = (curSizeIdx + d + OPT_SUB_SIZES.length) % OPT_SUB_SIZES.length;
+    state.auth.subSize = OPT_SUB_SIZES[nextSizeIdx].id;
+    if (typeof applySubtitleStyles === 'function') applySubtitleStyles();
+    saveStorage(); updateOptionsDisplay();
+    showToast('Subtítulos tamaño: ' + OPT_SUB_SIZES[nextSizeIdx].label);
+    return;
+  }
+  if (action === 'resetprefs' || action === 'reloadapp' || (!action && (idx === 9 || idx === 10))) return;
+
+  var mappedIdx = idx;
+  if (!action && mappedIdx >= 3) mappedIdx++;
+
+  if (action === 'login' || mappedIdx === 0) {
     openKeyboard('Usuario o correo', state.auth.login, 'login');
-  } else if (idx === 1) {
+  } else if (action === 'password' || mappedIdx === 1) {
     openKeyboard('Contraseña', state.auth.password, 'password');
-  } else if (idx === 2) {
+  } else if (action === 'device' || mappedIdx === 2) {
     var curDevIdx = OPT_DEVICES.indexOf(state.auth.deviceName || 'LG NetCast TV');
     if (curDevIdx < 0) curDevIdx = 0;
     var nextDevIdx = (curDevIdx + d + OPT_DEVICES.length) % OPT_DEVICES.length;
@@ -2782,7 +2879,7 @@ function cycleOption(idx, dir) {
     saveStorage();
     updateOptionsDisplay();
     showToast('Dispositivo: ' + state.auth.deviceName);
-  } else if (idx === 4) {
+  } else if (action === 'language' || mappedIdx === 4) {
     var curLangIdx = OPT_LANGUAGES.indexOf(state.auth.lang || 'Español');
     if (curLangIdx < 0) curLangIdx = 0;
     var nextLangIdx = (curLangIdx + d + OPT_LANGUAGES.length) % OPT_LANGUAGES.length;
@@ -2790,7 +2887,7 @@ function cycleOption(idx, dir) {
     saveStorage();
     updateOptionsDisplay();
     showToast('Idioma: ' + state.auth.lang);
-  } else if (idx === 5) {
+  } else if (action === 'videoplayer' || mappedIdx === 5) {
     OPT_VIDEO_ENGINES = availableVideoEngines();
     var curEngIdx = 0;
     for (var ve = 0; ve < OPT_VIDEO_ENGINES.length; ve++) {
@@ -2801,7 +2898,7 @@ function cycleOption(idx, dir) {
     saveStorage();
     updateOptionsDisplay();
     showToast('Motor: ' + OPT_VIDEO_ENGINES[nextEngIdx].label);
-  } else if (idx === 6) {
+  } else if (action === 'iptvplayer' || mappedIdx === 6) {
     OPT_IPTV_ENGINES = availableIptvEngines();
     var curIptvIdx = OPT_IPTV_ENGINES.indexOf(state.auth.iptvPlayer || 'HTML5 player');
     if (curIptvIdx < 0) curIptvIdx = 0;
@@ -2810,7 +2907,7 @@ function cycleOption(idx, dir) {
     saveStorage();
     updateOptionsDisplay();
     showToast('Reproductor de canales: ' + playerOptionLabel(state.auth.iptvPlayer));
-  } else if (idx === 7) {
+  } else if (action === 'hlsplayer' || mappedIdx === 7) {
     OPT_HLS_ENGINES = availableHlsEngines();
     var curHlsIdx = OPT_HLS_ENGINES.indexOf(state.auth.hlsPlayer || 'JS player');
     if (curHlsIdx < 0) curHlsIdx = 0;
@@ -2819,7 +2916,7 @@ function cycleOption(idx, dir) {
     saveStorage();
     updateOptionsDisplay();
     showToast('HLS: ' + playerOptionLabel(state.auth.hlsPlayer));
-  } else if (idx === 8) {
+  } else if (action === 'theme' || mappedIdx === 8) {
     var curThIdx = 0;
     for (var th = 0; th < OPT_THEMES.length; th++) {
       if (OPT_THEMES[th].id === (state.auth.theme || 'wine')) { curThIdx = th; break; }
@@ -2830,7 +2927,7 @@ function cycleOption(idx, dir) {
     saveStorage();
     updateOptionsDisplay();
     showToast('Tema: ' + OPT_THEMES[nextThIdx].label);
-  } else if (idx === 9) {
+  } else if (action === 'save' || mappedIdx === 9) {
     doSaveAndLogin();
   }
 }
@@ -2950,6 +3047,8 @@ function loadStorage() {
   state.auth.platform = detectedPlatform();
   state.auth.deviceName = state.auth.platform;
   if (!state.auth.theme) state.auth.theme = 'wine';
+  if (!state.auth.subColor) state.auth.subColor = 'yellow';
+  if (!state.auth.subSize) state.auth.subSize = 'normal';
   if (state.auth.engineOptionsVersion !== 1) {
     state.auth.playerEngine = 'auto';
     state.auth.iptvPlayer = 'Automático';
@@ -2959,6 +3058,7 @@ function loadStorage() {
 
   applyTheme(state.auth.theme);
   applyTextSize();
+  if (typeof applySubtitleStyles === 'function') applySubtitleStyles();
   updateClock();
   updateOptionsDisplay();
 }
@@ -2974,7 +3074,9 @@ function resetPlaybackPreferences() {
   state.auth.hlsPlayer = 'Automático';
   state.auth.theme = 'wine';
   state.auth.textSize = 'normal';
-  applyTheme('wine'); applyTextSize(); saveStorage(); updateOptionsDisplay();
+  state.auth.subColor = 'yellow';
+  state.auth.subSize = 'normal';
+  applyTheme('wine'); applyTextSize(); if (typeof applySubtitleStyles === 'function') applySubtitleStyles(); saveStorage(); updateOptionsDisplay();
   showToast('Preferencias restablecidas. Tu cuenta e historial se conservan.');
 }
 
@@ -3368,6 +3470,8 @@ var OPT_DESCRIPTIONS = [
   'HLS en HTML5. Automático prioriza HLS nativo; HLS.js se usa cuando es necesario y está disponible.',
   'Tema de color. Paleta de colores de la interfaz.',
   'Texto normal o grande para leer cómodamente desde el sofá.',
+  'Color de subtítulos SRT externos. Elige entre amarillo, blanco, cian y verde.',
+  'Tamaño de subtítulos SRT externos. Elige entre pequeño, normal, grande y extra grande.',
   'Pulsa OK para restablecer pantalla y motores de reproducción. Conserva tu cuenta, catálogo e historial.',
   'Actualizar aplicación. Pulsa OK para recargar por completo la app desde el servidor e instalar la última versión.',
   'Automáticas: usa la fecha y hora del equipo. Manual: usa el ajuste guardado en esta aplicación.',
@@ -3382,8 +3486,14 @@ function updateOptionsFocus() {
   $('btnDoSave').classList.remove('focused');
   
   if (state.optIdx < rows.length) {
-    rows[state.optIdx].classList.add('focused');
-    $('optDescText').textContent = state.optIdx === 5 ? videoEngineDescription() : (OPT_DESCRIPTIONS[state.optIdx] || '');
+    var curRow = rows[state.optIdx];
+    curRow.classList.add('focused');
+    var act = (curRow && curRow.getAttribute) ? curRow.getAttribute('data-action') : '';
+    if (act === 'videoplayer' || (state.optIdx === 4 && !act)) {
+      $('optDescText').textContent = videoEngineDescription();
+    } else {
+      $('optDescText').textContent = OPT_DESCRIPTIONS[state.optIdx] || '';
+    }
   } else if (state.optIdx === rows.length) {
     $('btnDoSave').classList.add('focused');
     $('optDescText').textContent = OPT_DESCRIPTIONS[OPT_DESCRIPTIONS.length - 1];
@@ -3587,13 +3697,15 @@ function handleOptionsNav(kc, eObj) {
   } else if (kc === KEY.RIGHT) {
     cycleOption(state.optIdx, 1);
   } else if (kc === KEY.ENTER) {
-    if (state.optIdx === 9) { resetPlaybackPreferences(); return; }
-    if (state.optIdx === 10) { reloadAppForce(); return; }
+    var curRow = rows[state.optIdx];
+    var act = (curRow && curRow.getAttribute) ? curRow.getAttribute('data-action') : '';
+    if (act === 'resetprefs') { resetPlaybackPreferences(); return; }
+    if (act === 'reloadapp') { reloadAppForce(); return; }
     if (state.optIdx === totalItems - 1) {
       doSaveAndLogin();
-    } else if (state.optIdx === 0) {
+    } else if (act === 'login' || (state.optIdx === 0 && !act)) {
       openKeyboard('Usuario o correo', state.auth.login, 'login');
-    } else if (state.optIdx === 1) {
+    } else if (act === 'password' || (state.optIdx === 1 && !act)) {
       openKeyboard('Contraseña', state.auth.password, 'password');
     } else {
       cycleOption(state.optIdx, 1);
@@ -4504,7 +4616,11 @@ function updateSeriesFocus() {
     if (sTabs && sTabs[state.seriesSeasonIdx]) target = sTabs[state.seriesSeasonIdx];
   } else if (state.seriesArea === 'episodes') {
     var epTiles = document.getElementsByClassName('series-ep-tile');
-    if (epTiles && epTiles[state.seriesEpIdx]) target = epTiles[state.seriesEpIdx];
+    if (epTiles && epTiles.length > 0) {
+      if (state.seriesEpIdx >= epTiles.length) state.seriesEpIdx = epTiles.length - 1;
+      if (state.seriesEpIdx < 0) state.seriesEpIdx = 0;
+      target = epTiles[state.seriesEpIdx];
+    }
   }
 
   if (target) {
@@ -4539,6 +4655,20 @@ function playSeriesEpisode(series, ep) {
   var view = $('view-series-detail');
   if (view) view.style.display = 'none';
   playItem(ep);
+}
+
+function getSeriesEpisodesColumns() {
+  if (typeof document === 'undefined' || !document.getElementsByClassName) return 2;
+  var tiles = document.getElementsByClassName('series-ep-tile');
+  if (tiles && tiles.length >= 2 && tiles[0].offsetWidth > 0) {
+    var top0 = tiles[0].offsetTop;
+    for (var c = 1; c < tiles.length && c <= 6; c++) {
+      if (Math.abs(tiles[c].offsetTop - top0) > 8) {
+        return c;
+      }
+    }
+  }
+  return 2;
 }
 
 function handleSeriesDetailNav(kc, eObj) {
@@ -4619,8 +4749,17 @@ function handleSeriesDetailNav(kc, eObj) {
       updateSeriesFocus();
     }
   } else if (state.seriesArea === 'episodes') {
-    var epCols = 3;
-    if (kc === KEY.LEFT) {
+    var epCols = getSeriesEpisodesColumns();
+    var isPageUp = (kc === KEY.CH_UP || kc === KEY.CH_UP_LG || kc === KEY.CH_UP_SAMSUNG || (eObj && (eObj.key === 'ChannelUp' || eObj.key === 'PageUp')));
+    var isPageDown = (kc === KEY.CH_DOWN || kc === KEY.CH_DOWN_LG || kc === KEY.CH_DOWN_SAMSUNG || (eObj && (eObj.key === 'ChannelDown' || eObj.key === 'PageDown')));
+
+    if (isPageUp) {
+      state.seriesEpIdx = Math.max(0, state.seriesEpIdx - (epCols * 3));
+      updateSeriesFocus();
+    } else if (isPageDown) {
+      state.seriesEpIdx = Math.min(epList.length - 1, state.seriesEpIdx + (epCols * 3));
+      updateSeriesFocus();
+    } else if (kc === KEY.LEFT) {
       if (state.seriesEpIdx > 0) {
         state.seriesEpIdx--;
         updateSeriesFocus();
@@ -4637,6 +4776,7 @@ function handleSeriesDetailNav(kc, eObj) {
       } else {
         if (seasonList.length > 1) {
           state.seriesArea = 'seasons';
+          state.seriesSeasonIdx = Math.max(0, seasonList.indexOf(state.seriesSelectedSeason));
         } else {
           state.seriesArea = 'actions';
         }
@@ -4646,6 +4786,13 @@ function handleSeriesDetailNav(kc, eObj) {
       if (state.seriesEpIdx + epCols < epList.length) {
         state.seriesEpIdx += epCols;
         updateSeriesFocus();
+      } else if (state.seriesEpIdx < epList.length - 1) {
+        var curRow = Math.floor(state.seriesEpIdx / epCols);
+        var lastRow = Math.floor((epList.length - 1) / epCols);
+        if (curRow < lastRow) {
+          state.seriesEpIdx = epList.length - 1;
+          updateSeriesFocus();
+        }
       }
     } else if (kc === KEY.ENTER) {
       if (epList[state.seriesEpIdx]) {
@@ -7194,6 +7341,7 @@ function probeSubtitles(rawUrl, channelSubs) {
   state.currentRawStreamUrl = rawUrl || '';
   var subEl = $('player-subtitles-overlay');
   if (subEl) { subEl.style.display = 'none'; subEl.textContent = ''; }
+  if (typeof applySubtitleStyles === 'function') applySubtitleStyles();
   if (channelSubs) {
     var subtitleUrl = resolveIconUrl(channelSubs);
     state.activeSubTracks.push({id:'custom', type:'external',
