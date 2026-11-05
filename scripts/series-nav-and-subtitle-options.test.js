@@ -68,9 +68,11 @@ function load(name) {
 }
 
 // Load definitions
-const subColorsStart = html.indexOf('var OPT_SUB_COLORS =');
-const subColorsEnd = html.indexOf('\nfunction applyTheme', subColorsStart);
-vm.runInContext(html.slice(subColorsStart, subColorsEnd), ctx);
+const themesStart = html.indexOf('var OPT_THEMES =');
+const subColorsEnd = html.indexOf('\nfunction applyTheme', themesStart);
+vm.runInContext(html.slice(themesStart, subColorsEnd), ctx);
+ctx.availableHlsEngines = () => ['JS player', 'Native HLS player'];
+ctx.playerOptionLabel = (v) => v;
 
 // Test OPT_SUB_COLORS and OPT_SUB_SIZES
 assert.equal(ctx.OPT_SUB_COLORS.length, 4, '4 subtitle colors available');
@@ -92,11 +94,13 @@ ctx.resetPlaybackPreferences();
 assert.equal(ctx.state.auth.subColor, 'yellow');
 assert.equal(ctx.state.auth.subSize, 'normal');
 
-// Test cycleOption for subcolor and subsize
+// Test cycleOption for subcolor, subsize, and theme
 load('cycleOption');
 const optRows = [
   { getAttribute: (attr) => attr === 'data-action' ? 'subcolor' : null },
-  { getAttribute: (attr) => attr === 'data-action' ? 'subsize' : null }
+  { getAttribute: (attr) => attr === 'data-action' ? 'subsize' : null },
+  { getAttribute: (attr) => attr === 'data-action' ? 'hlsplayer' : null },
+  { getAttribute: (attr) => attr === 'data-action' ? 'theme' : null }
 ];
 ctx.document.getElementsByClassName = (cls) => cls === 'opt-row' ? optRows : [];
 
@@ -113,6 +117,18 @@ ctx.cycleOption(1, 1);
 assert.equal(ctx.state.auth.subSize, 'large', 'Cycled from normal to large');
 ctx.cycleOption(1, 1);
 assert.equal(ctx.state.auth.subSize, 'xlarge', 'Cycled from large to xlarge');
+
+// Ensure theme option cycles themes and does NOT collide with or touch hlsPlayer
+ctx.state.auth.theme = 'wine';
+ctx.state.auth.hlsPlayer = 'JS player';
+ctx.cycleOption(3, 1);
+assert.equal(ctx.state.auth.theme, 'dark', 'Cycled theme from wine to dark');
+assert.equal(ctx.state.auth.hlsPlayer, 'JS player', 'hlsPlayer must remain untouched when cycling theme');
+
+// And ensure cycling hlsplayer touches hlsPlayer and does NOT touch theme
+ctx.cycleOption(2, 1);
+assert.notEqual(ctx.state.auth.hlsPlayer, 'JS player', 'hlsPlayer cycled');
+assert.equal(ctx.state.auth.theme, 'dark', 'theme must remain untouched when cycling hlsplayer');
 
 // Test Series Detail Navigation free movement
 load('getSeriesEpisodesColumns');

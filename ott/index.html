@@ -2081,7 +2081,7 @@ body.smart-tv #player-music-yt-container { display:none !important; }
         <p id="optDescText">También puedes ingresar manualmente tu usuario y contraseña con el teclado en pantalla.</p>
         <div id="themePreview" aria-label="Paleta de colores actual" style="margin-top:18px;"></div>
         <div style="margin-top:16px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.5.69
+          VERSIÓN: v2.5.70
         </div>
       </div>
     </div>
@@ -2761,7 +2761,9 @@ function updatePlayerEngineDisplay() {
   else if (eng === 'html5') label = '< HTML5 (manual) >';
   var el = $('valVideoPlayer');
   if (el) el.textContent = label;
-  if (state.optIdx === 5 && $('optDescText')) $('optDescText').textContent = videoEngineDescription();
+  var curOptRow = (typeof document !== 'undefined' && document.getElementsByClassName) ? document.getElementsByClassName('opt-row')[state.optIdx] : null;
+  var curOptAct = (curOptRow && curOptRow.getAttribute) ? curOptRow.getAttribute('data-action') : '';
+  if ((curOptAct === 'videoplayer' || state.optIdx === 4) && $('optDescText')) $('optDescText').textContent = videoEngineDescription();
 }
 
 function videoEngineDescription() {
@@ -2821,57 +2823,157 @@ function cycleOption(idx, dir) {
   var action = (rows && rows[idx] && rows[idx].getAttribute) ? rows[idx].getAttribute('data-action') : null;
   var d = (dir === -1) ? -1 : 1;
 
-  if (action === 'clockmode' || (idx === 11 && !action)) {
+  if (action) {
+    if (action === 'clockmode') {
+      if (state.auth.clockMode === 'manual') state.auth.clockMode = 'auto';
+      else if (typeof state.auth.clockOffset === 'number') state.auth.clockMode = 'manual';
+      else { editManualClock(); return; }
+      saveStorage(); updateClock(); updateOptionsDisplay(); return;
+    }
+    if (action === 'clockmanual') { editManualClock(); return; }
+    if (action === 'clockformat') {
+      state.auth.clockFormat = state.auth.clockFormat === '12' ? '24' : '12';
+      saveStorage(); updateClock(); updateOptionsDisplay(); return;
+    }
+    if (action === 'textsize') {
+      state.auth.textSize = state.auth.textSize === 'large' ? 'normal' : 'large';
+      applyTextSize(); saveStorage(); updateOptionsDisplay(); return;
+    }
+    if (action === 'subcolor') {
+      var curColorId = state.auth.subColor || 'yellow';
+      var curColorIdx = 0;
+      for (var ci = 0; ci < OPT_SUB_COLORS.length; ci++) {
+        if (OPT_SUB_COLORS[ci].id === curColorId) { curColorIdx = ci; break; }
+      }
+      var nextColorIdx = (curColorIdx + d + OPT_SUB_COLORS.length) % OPT_SUB_COLORS.length;
+      state.auth.subColor = OPT_SUB_COLORS[nextColorIdx].id;
+      if (typeof applySubtitleStyles === 'function') applySubtitleStyles();
+      saveStorage(); updateOptionsDisplay();
+      showToast('Subtítulos color: ' + OPT_SUB_COLORS[nextColorIdx].label);
+      return;
+    }
+    if (action === 'subsize') {
+      var curSizeId = state.auth.subSize || 'normal';
+      var curSizeIdx = 1;
+      for (var si = 0; si < OPT_SUB_SIZES.length; si++) {
+        if (OPT_SUB_SIZES[si].id === curSizeId) { curSizeIdx = si; break; }
+      }
+      var nextSizeIdx = (curSizeIdx + d + OPT_SUB_SIZES.length) % OPT_SUB_SIZES.length;
+      state.auth.subSize = OPT_SUB_SIZES[nextSizeIdx].id;
+      if (typeof applySubtitleStyles === 'function') applySubtitleStyles();
+      saveStorage(); updateOptionsDisplay();
+      showToast('Subtítulos tamaño: ' + OPT_SUB_SIZES[nextSizeIdx].label);
+      return;
+    }
+    if (action === 'resetprefs' || action === 'reloadapp') return;
+    if (action === 'login') {
+      openKeyboard('Usuario o correo', state.auth.login, 'login');
+      return;
+    }
+    if (action === 'password') {
+      openKeyboard('Contraseña', state.auth.password, 'password');
+      return;
+    }
+    if (action === 'device') {
+      var curDevIdx = OPT_DEVICES.indexOf(state.auth.deviceName || 'LG NetCast TV');
+      if (curDevIdx < 0) curDevIdx = 0;
+      var nextDevIdx = (curDevIdx + d + OPT_DEVICES.length) % OPT_DEVICES.length;
+      state.auth.deviceName = OPT_DEVICES[nextDevIdx];
+      saveStorage();
+      updateOptionsDisplay();
+      showToast('Dispositivo: ' + state.auth.deviceName);
+      return;
+    }
+    if (action === 'language') {
+      var curLangIdx = OPT_LANGUAGES.indexOf(state.auth.lang || 'Español');
+      if (curLangIdx < 0) curLangIdx = 0;
+      var nextLangIdx = (curLangIdx + d + OPT_LANGUAGES.length) % OPT_LANGUAGES.length;
+      state.auth.lang = OPT_LANGUAGES[nextLangIdx];
+      saveStorage();
+      updateOptionsDisplay();
+      showToast('Idioma: ' + state.auth.lang);
+      return;
+    }
+    if (action === 'videoplayer') {
+      OPT_VIDEO_ENGINES = availableVideoEngines();
+      var curEngIdx = 0;
+      for (var ve = 0; ve < OPT_VIDEO_ENGINES.length; ve++) {
+        if (OPT_VIDEO_ENGINES[ve].id === (state.auth.playerEngine || 'auto')) { curEngIdx = ve; break; }
+      }
+      var nextEngIdx = (curEngIdx + d + OPT_VIDEO_ENGINES.length) % OPT_VIDEO_ENGINES.length;
+      state.auth.playerEngine = OPT_VIDEO_ENGINES[nextEngIdx].id;
+      saveStorage();
+      updateOptionsDisplay();
+      showToast('Motor: ' + OPT_VIDEO_ENGINES[nextEngIdx].label);
+      return;
+    }
+    if (action === 'iptvplayer') {
+      OPT_IPTV_ENGINES = availableIptvEngines();
+      var curIptvIdx = OPT_IPTV_ENGINES.indexOf(state.auth.iptvPlayer || 'HTML5 player');
+      if (curIptvIdx < 0) curIptvIdx = 0;
+      var nextIptvIdx = (curIptvIdx + d + OPT_IPTV_ENGINES.length) % OPT_IPTV_ENGINES.length;
+      state.auth.iptvPlayer = OPT_IPTV_ENGINES[nextIptvIdx];
+      saveStorage();
+      updateOptionsDisplay();
+      showToast('Reproductor de canales: ' + playerOptionLabel(state.auth.iptvPlayer));
+      return;
+    }
+    if (action === 'hlsplayer') {
+      OPT_HLS_ENGINES = availableHlsEngines();
+      var curHlsIdx = OPT_HLS_ENGINES.indexOf(state.auth.hlsPlayer || 'JS player');
+      if (curHlsIdx < 0) curHlsIdx = 0;
+      var nextHlsIdx = (curHlsIdx + d + OPT_HLS_ENGINES.length) % OPT_HLS_ENGINES.length;
+      state.auth.hlsPlayer = OPT_HLS_ENGINES[nextHlsIdx];
+      saveStorage();
+      updateOptionsDisplay();
+      showToast('HLS: ' + playerOptionLabel(state.auth.hlsPlayer));
+      return;
+    }
+    if (action === 'theme') {
+      var curThIdx = 0;
+      for (var th = 0; th < OPT_THEMES.length; th++) {
+        if (OPT_THEMES[th].id === (state.auth.theme || 'wine')) { curThIdx = th; break; }
+      }
+      var nextThIdx = (curThIdx + d + OPT_THEMES.length) % OPT_THEMES.length;
+      state.auth.theme = OPT_THEMES[nextThIdx].id;
+      applyTheme(state.auth.theme);
+      saveStorage();
+      updateOptionsDisplay();
+      showToast('Tema: ' + OPT_THEMES[nextThIdx].label);
+      return;
+    }
+    if (action === 'save') {
+      doSaveAndLogin();
+      return;
+    }
+    return;
+  }
+
+  if (idx === 11) {
     if (state.auth.clockMode === 'manual') state.auth.clockMode = 'auto';
     else if (typeof state.auth.clockOffset === 'number') state.auth.clockMode = 'manual';
     else { editManualClock(); return; }
     saveStorage(); updateClock(); updateOptionsDisplay(); return;
   }
-  if (action === 'clockmanual' || (idx === 12 && !action)) { editManualClock(); return; }
-  if (action === 'clockformat' || (idx === 13 && !action)) {
+  if (idx === 12) { editManualClock(); return; }
+  if (idx === 13) {
     state.auth.clockFormat = state.auth.clockFormat === '12' ? '24' : '12';
     saveStorage(); updateClock(); updateOptionsDisplay(); return;
   }
-  if (action === 'textsize' || (idx === 8 && !action)) {
+  if (idx === 8) {
     state.auth.textSize = state.auth.textSize === 'large' ? 'normal' : 'large';
     applyTextSize(); saveStorage(); updateOptionsDisplay(); return;
   }
-  if (action === 'subcolor') {
-    var curColorId = state.auth.subColor || 'yellow';
-    var curColorIdx = 0;
-    for (var ci = 0; ci < OPT_SUB_COLORS.length; ci++) {
-      if (OPT_SUB_COLORS[ci].id === curColorId) { curColorIdx = ci; break; }
-    }
-    var nextColorIdx = (curColorIdx + d + OPT_SUB_COLORS.length) % OPT_SUB_COLORS.length;
-    state.auth.subColor = OPT_SUB_COLORS[nextColorIdx].id;
-    if (typeof applySubtitleStyles === 'function') applySubtitleStyles();
-    saveStorage(); updateOptionsDisplay();
-    showToast('Subtítulos color: ' + OPT_SUB_COLORS[nextColorIdx].label);
-    return;
-  }
-  if (action === 'subsize') {
-    var curSizeId = state.auth.subSize || 'normal';
-    var curSizeIdx = 1;
-    for (var si = 0; si < OPT_SUB_SIZES.length; si++) {
-      if (OPT_SUB_SIZES[si].id === curSizeId) { curSizeIdx = si; break; }
-    }
-    var nextSizeIdx = (curSizeIdx + d + OPT_SUB_SIZES.length) % OPT_SUB_SIZES.length;
-    state.auth.subSize = OPT_SUB_SIZES[nextSizeIdx].id;
-    if (typeof applySubtitleStyles === 'function') applySubtitleStyles();
-    saveStorage(); updateOptionsDisplay();
-    showToast('Subtítulos tamaño: ' + OPT_SUB_SIZES[nextSizeIdx].label);
-    return;
-  }
-  if (action === 'resetprefs' || action === 'reloadapp' || (!action && (idx === 9 || idx === 10))) return;
+  if (idx === 9 || idx === 10) return;
 
   var mappedIdx = idx;
-  if (!action && mappedIdx >= 3) mappedIdx++;
+  if (mappedIdx >= 3) mappedIdx++;
 
-  if (action === 'login' || mappedIdx === 0) {
+  if (mappedIdx === 0) {
     openKeyboard('Usuario o correo', state.auth.login, 'login');
-  } else if (action === 'password' || mappedIdx === 1) {
+  } else if (mappedIdx === 1) {
     openKeyboard('Contraseña', state.auth.password, 'password');
-  } else if (action === 'device' || mappedIdx === 2) {
+  } else if (mappedIdx === 2) {
     var curDevIdx = OPT_DEVICES.indexOf(state.auth.deviceName || 'LG NetCast TV');
     if (curDevIdx < 0) curDevIdx = 0;
     var nextDevIdx = (curDevIdx + d + OPT_DEVICES.length) % OPT_DEVICES.length;
@@ -2879,7 +2981,7 @@ function cycleOption(idx, dir) {
     saveStorage();
     updateOptionsDisplay();
     showToast('Dispositivo: ' + state.auth.deviceName);
-  } else if (action === 'language' || mappedIdx === 4) {
+  } else if (mappedIdx === 4) {
     var curLangIdx = OPT_LANGUAGES.indexOf(state.auth.lang || 'Español');
     if (curLangIdx < 0) curLangIdx = 0;
     var nextLangIdx = (curLangIdx + d + OPT_LANGUAGES.length) % OPT_LANGUAGES.length;
@@ -2887,7 +2989,7 @@ function cycleOption(idx, dir) {
     saveStorage();
     updateOptionsDisplay();
     showToast('Idioma: ' + state.auth.lang);
-  } else if (action === 'videoplayer' || mappedIdx === 5) {
+  } else if (mappedIdx === 5) {
     OPT_VIDEO_ENGINES = availableVideoEngines();
     var curEngIdx = 0;
     for (var ve = 0; ve < OPT_VIDEO_ENGINES.length; ve++) {
@@ -2898,7 +3000,7 @@ function cycleOption(idx, dir) {
     saveStorage();
     updateOptionsDisplay();
     showToast('Motor: ' + OPT_VIDEO_ENGINES[nextEngIdx].label);
-  } else if (action === 'iptvplayer' || mappedIdx === 6) {
+  } else if (mappedIdx === 6) {
     OPT_IPTV_ENGINES = availableIptvEngines();
     var curIptvIdx = OPT_IPTV_ENGINES.indexOf(state.auth.iptvPlayer || 'HTML5 player');
     if (curIptvIdx < 0) curIptvIdx = 0;
@@ -2907,7 +3009,7 @@ function cycleOption(idx, dir) {
     saveStorage();
     updateOptionsDisplay();
     showToast('Reproductor de canales: ' + playerOptionLabel(state.auth.iptvPlayer));
-  } else if (action === 'hlsplayer' || mappedIdx === 7) {
+  } else if (mappedIdx === 7) {
     OPT_HLS_ENGINES = availableHlsEngines();
     var curHlsIdx = OPT_HLS_ENGINES.indexOf(state.auth.hlsPlayer || 'JS player');
     if (curHlsIdx < 0) curHlsIdx = 0;
@@ -2916,7 +3018,7 @@ function cycleOption(idx, dir) {
     saveStorage();
     updateOptionsDisplay();
     showToast('HLS: ' + playerOptionLabel(state.auth.hlsPlayer));
-  } else if (action === 'theme' || mappedIdx === 8) {
+  } else if (mappedIdx === 8) {
     var curThIdx = 0;
     for (var th = 0; th < OPT_THEMES.length; th++) {
       if (OPT_THEMES[th].id === (state.auth.theme || 'wine')) { curThIdx = th; break; }
@@ -2927,7 +3029,7 @@ function cycleOption(idx, dir) {
     saveStorage();
     updateOptionsDisplay();
     showToast('Tema: ' + OPT_THEMES[nextThIdx].label);
-  } else if (action === 'save' || mappedIdx === 9) {
+  } else if (mappedIdx === 9) {
     doSaveAndLogin();
   }
 }
@@ -10032,11 +10134,12 @@ for (var or = 0; or < optRows.length; or++) {
       var ev = e || window.event;
       state.optIdx = idx;
       updateOptionsFocus();
-      if (idx === 9) { resetPlaybackPreferences(); return; }
-      if (idx === 10) { reloadAppForce(); return; }
-      if (idx === 0) {
+      var act = (optRows[idx] && optRows[idx].getAttribute) ? optRows[idx].getAttribute('data-action') : '';
+      if (act === 'resetprefs' || (!act && idx === 11)) { resetPlaybackPreferences(); return; }
+      if (act === 'reloadapp' || (!act && idx === 12)) { reloadAppForce(); return; }
+      if (act === 'login' || (!act && idx === 0)) {
         openKeyboard('Usuario o correo', state.auth.login, 'login');
-      } else if (idx === 1) {
+      } else if (act === 'password' || (!act && idx === 1)) {
         openKeyboard('Contraseña', state.auth.password, 'password');
       } else {
         var rect = optRows[idx].getBoundingClientRect();
