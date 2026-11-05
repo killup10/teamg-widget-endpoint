@@ -73,6 +73,21 @@ const { handle } = require('../ott-api');
   assert.ok(html.includes('Último contenido abierto'), 'Home must retain recent content');
   assert.ok(html.includes("homeTabs.push({ id: '__fav', name: 'Favoritos' });"), 'getHomeTabsList must place Favoritos after assigned playlists');
 
+  // 8. If the same client re-registers after a TV storage reset (new deviceId), it inherits assigned playlists instead of wiping them.
+  await handle({ method: 'POST', headers: {} }, { writeHead(s) { status = s; }, end(raw) { resData = JSON.parse(raw); } }, '/api/ott/device', {}, { token: token1, deviceId: 'tv_tizen_reloaded', name: 'Samsung Smart TV (Tizen)' });
+  assert.equal(status, 200);
+  assert.equal(resData.ok, true);
+  assert.equal(resData.playlists.length, 3, 'Re-registered device for same user must inherit assigned playlists');
+
+  // 9. If admin reassigns the device to another fake-user, /api/ott/feed seamlessly returns the new token and keeps playlists instead of 401 wiping them.
+  await cols.devices.updateOne({ _id: 'tv_living_room' }, { $set: { userId: u2._id, reassignedFrom: u1._id, playlists: ['pl_vip', 'pl_docs'] } });
+  await handle({ method: 'GET', headers: {} }, { writeHead(s) { status = s; }, end(raw) { resData = JSON.parse(raw); } }, '/api/ott/feed', { token: token1, deviceId: 'tv_living_room' }, {});
+  assert.equal(status, 200);
+  assert.equal(resData.ok, true);
+  assert.equal(resData.playlists.length, 2);
+  assert.ok(resData.token, 'Feed must return updated token when admin reassigned device');
+  assert.equal(resData.userLogin, 'cliente2');
+
   console.log('Client playlists assignment and visibility unit tests pass successfully.');
 })().catch(err => {
   console.error(err);

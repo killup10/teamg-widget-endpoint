@@ -434,6 +434,12 @@ async function authedDevice(body, query) {
   const dev = await findById(cols.devices, devId);
   if (!dev) return { err: 'no-device' };
   if (String(dev.userId) !== String(uid)) {
+    if (dev.reassignedFrom && String(dev.reassignedFrom) === String(uid)) {
+      const newOwner = await findById(cols.users, dev.userId);
+      if (newOwner && !expired(newOwner)) {
+        return { cols, user: newOwner, dev, reassignedToken: sign(newOwner._id), reassignedLogin: newOwner.login };
+      }
+    }
     return { err: 'no-device' };
   }
   return { cols, user, dev };
@@ -639,8 +645,51 @@ async function handle(req, res, pathname, query, body) {
     const platform = String(body.platform || '').slice(0, 60);
     const prev = await findById(cols.devices, devId);
     if (prev && String(prev.userId) !== String(uid)) return json(res, 403, { ok: false, error: 'Dispositivo de otro usuario. Contacta a tu proveedor para reasignarlo.' });
-    if (prev) await cols.devices.updateOne({ _id: prev._id }, { $set: { name, platform, lastSeen: store.nowIso() } });
-    else await cols.devices.insertOne({ _id: devId, userId: uid, name, platform, playlists: [], created: store.nowIso(), lastSeen: store.nowIso() });
+
+    // Si este usuario ya tenía otro registro de dispositivo con listas asignadas (por ej. al regenerarse deviceId en Tizen/MSX), heredar sus listas
+    let inheritedPlaylists = [];
+    let inheritedDueDate = '';
+    if (!prev || !Array.isArray(prev.playlists) || prev.playlists.length === 0) {
+      const allDevs = await cols.devices.find({});
+      const sibling = allDevs
+        .filter((d) => d && String(d.userId) === String(uid) && String(d._id) !== devId && Array.isArray(d.playlists) && d.playlists.length > 0)
+        .sort((a, b) => String(b.lastSeen || '').localeCompare(String(a.lastSeen || '')))[0];
+      if (sibling) {
+        inheritedPlaylists = sibling.playlists.map(String);
+        if (!prev?.paymentDueDate && sibling.paymentDueDate) inheritedDueDate = sibling.paymentDueDate;
+      }
+    }
+
+    if (prev) {
+      const updSet = { name, platform, lastSeen: store.nowIso() };
+      if ((!prev.playlists || prev.playlists.length === 0) && inheritedPlaylists.length > 0) {
+        updSet.playlists = inheritedPlaylists;
+      }
+      if (!prev.paymentDueDate && inheritedDueDate) {
+        updSet.paymentDueDate = inheritedDueDate;
+      }
+      await cols.devices.updateOne({ _id: prev._id }, { $set: updSet });
+    } else {
+      await cols.devices.insertOne({
+        _id: devId,
+        userId: uid,
+        name,
+        platform,
+        playlists: inheritedPlaylists,
+        ...(inheritedDueDate ? { paymentDueDate: inheritedDueDate } : {}),
+        created: store.nowIso(),
+        lastSeen: store.nowIso()
+      });
+    }
+
+    // Etiquetar cualquier código pendiente de esta TV con el usuario que acaba de iniciar sesión
+    const allCodes = await cols.codes.find({});
+    for (const c of allCodes) {
+      if (c && c.deviceId === devId && !c.activated) {
+        await cols.codes.updateOne({ _id: c._id }, { $set: { userId: user._id, user: { id: user._id, login: user.login } } });
+      }
+    }
+
     const dev = await findById(cols.devices, devId);
     const pls = await cols.playlists.find({}, PLAYLIST_METADATA_PROJECTION);
     const devPls = (dev && dev.playlists ? dev.playlists : []).map(String);
@@ -653,12 +702,36 @@ async function handle(req, res, pathname, query, body) {
   if (pathname === '/api/ott/feed' && req.method === 'GET') {
     const a = await authedDevice(body, query);
     if (a.err) return json(res, 401, { ok: false, error: a.err });
-    await a.cols.devices.updateOne({ _id: a.dev._id }, { $set: { lastSeen: store.nowIso() } });
+    let devPls = (a.dev.playlists || []).map(String);
+    if (devPls.length === 0) {
+      const allDevs = await a.cols.devices.find({});
+      const sibling = allDevs
+        .filter((d) => d && String(d.userId) === String(a.user._id) && String(d._id) !== String(a.dev._id) && Array.isArray(d.playlists) && d.playlists.length > 0)
+        .sort((x, y) => String(y.lastSeen || '').localeCompare(String(x.lastSeen || '')))[0];
+      if (sibling) {
+        devPls = sibling.playlists.map(String);
+        a.dev.playlists = devPls;
+        const syncSet = { playlists: devPls, lastSeen: store.nowIso() };
+        if (!a.dev.paymentDueDate && sibling.paymentDueDate) {
+          a.dev.paymentDueDate = sibling.paymentDueDate;
+          syncSet.paymentDueDate = sibling.paymentDueDate;
+        }
+        await a.cols.devices.updateOne({ _id: a.dev._id }, { $set: syncSet });
+      } else {
+        await a.cols.devices.updateOne({ _id: a.dev._id }, { $set: { lastSeen: store.nowIso() } });
+      }
+    } else {
+      await a.cols.devices.updateOne({ _id: a.dev._id }, { $set: { lastSeen: store.nowIso() } });
+    }
     const pls = await a.cols.playlists.find({}, PLAYLIST_METADATA_PROJECTION);
-    const devPls = (a.dev.playlists || []).map(String);
     const mine = buildAssignedPlaylists(pls, devPls);
-    return json(res, 200, { ok: true, playlists: mine, paymentDueDate: a.dev.paymentDueDate || '', subscription: await deviceSubscription(a.cols, a.dev, a.user),
-      serverDate: require('./payment-ledger').limaDate() });
+    const resp = { ok: true, playlists: mine, paymentDueDate: a.dev.paymentDueDate || '', subscription: await deviceSubscription(a.cols, a.dev, a.user),
+      serverDate: require('./payment-ledger').limaDate() };
+    if (a.reassignedToken) {
+      resp.token = a.reassignedToken;
+      resp.userLogin = a.reassignedLogin || '';
+    }
+    return json(res, 200, resp);
   }
 
   // ---- TV: descargar M3U / EPG asignados (proxy, evita CORS) ----
@@ -962,7 +1035,7 @@ function fetchWithRedirects(targetUrl, options, maxRedirects, callback) {
         const playlistList = Array.isArray(playlists) ? playlists : [];
         if (res.setHeader) res.setHeader('Server-Timing', 'auth;dur=' + (readStarted - requestStarted) + ', db;dur=' + (Date.now() - readStarted) + ', ' + readTimings.join(', '));
         return json(res, 200, {
-          ok: true, mode: cols.mode,
+          ok: true, mode: cols.mode, serverDate: require('./payment-ledger').limaDate(),
           users: userList.filter((u) => u && u.role !== 'admin').map((u) => ({ id: u._id, login: u.login, active: u.active !== false, expires: u.expires || '', created: u.created })),
           devices: deviceList.filter(Boolean).map((d) => ({ id: d._id, userId: d.userId, name: d.name, note: d.note || '', paymentDueDate: d.paymentDueDate || '', platform: d.platform, playlists: d.playlists || [], lastSeen: d.lastSeen })),
           playlists: playlistList.filter(Boolean).map((p) => {
@@ -1104,6 +1177,9 @@ function fetchWithRedirects(targetUrl, options, maxRedirects, callback) {
       if (typeof body.userId === 'string') {
         const nu = await findById(cols.users, body.userId);
         if (!nu) return json(res, 404, { ok: false, error: 'usuario' });
+        if (dev.userId && String(dev.userId) !== String(body.userId)) {
+          upd.reassignedFrom = String(dev.userId);
+        }
         upd.userId = body.userId;
       }
       await cols.devices.updateOne({ _id: dev._id }, { $set: upd });
@@ -1142,15 +1218,19 @@ function fetchWithRedirects(targetUrl, options, maxRedirects, callback) {
       const platform = record.platform || (prevDev ? prevDev.platform : '');
 
       if (prevDev) {
+        const setFields = {
+          userId: user._id,
+          name: devName,
+          platform: platform,
+          note: note,
+          playlists: playlistIds,
+          lastSeen: store.nowIso()
+        };
+        if (prevDev.userId && String(prevDev.userId) !== String(user._id)) {
+          setFields.reassignedFrom = String(prevDev.userId);
+        }
         await cols.devices.updateOne({ _id: prevDev._id }, {
-          $set: {
-            userId: user._id,
-            name: devName,
-            platform: platform,
-            note: note,
-            playlists: playlistIds,
-            lastSeen: store.nowIso()
-          }
+          $set: setFields
         });
       } else {
         await cols.devices.insertOne({
@@ -1207,6 +1287,7 @@ function fetchWithRedirects(targetUrl, options, maxRedirects, callback) {
           expired: c.expiresAt < now,
           activated: !!c.activated,
           activatedAt: c.activatedAt || null,
+          userId: c.userId ? String(c.userId) : '',
           user: c.user || null
         }))
       });

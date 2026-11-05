@@ -2081,7 +2081,7 @@ body.smart-tv #player-music-yt-container { display:none !important; }
         <p id="optDescText">También puedes ingresar manualmente tu usuario y contraseña con el teclado en pantalla.</p>
         <div id="themePreview" aria-label="Paleta de colores actual" style="margin-top:18px;"></div>
         <div style="margin-top:16px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.5.70
+          VERSIÓN: v2.5.71
         </div>
       </div>
     </div>
@@ -2283,7 +2283,7 @@ body.smart-tv #player-music-yt-container { display:none !important; }
 
 <!-- Script HLS Vendor -->
 <script src="/ott/vendor/hls.min.js"></script>
-<script src="/ott/native-player.js?v=2.5.64.1"></script>
+<script src="/ott/native-player.js?v=2.5.71"></script>
 <script src="/ott/hls-variant.js?v=2.5.61"></script>
 <script src="/ott/catalog-images.js?v=1"></script>
 <script>
@@ -2292,6 +2292,7 @@ body.smart-tv #player-music-yt-container { display:none !important; }
 
 window.onerror = function(msg, url, line) {
   try {
+    if (/_type|webapis/i.test(String(msg || '')) || /webapis/i.test(String(url || ''))) return true;
     var t = document.getElementById('toast');
     if (t) {
       t.textContent = 'JS Error L' + line + ': ' + msg;
@@ -3740,6 +3741,15 @@ function startActivationPolling() {
         saveStorage();
         var statusExpired = $('tvActivationStatus');
         if (statusExpired) statusExpired.innerHTML = '<span style="color:#ff5555;">Código expirado (12h). Reabre opciones para renovar.</span>';
+      } else if (st === 401 || st === 404) {
+        stopActivationPolling();
+        state.activationCode = '';
+        delete state.auth.pendingActivationCode;
+        delete state.auth.pendingActivationExpires;
+        saveStorage();
+        if (state.screen === 'options' && typeof requestActivationCode === 'function') {
+          requestActivationCode();
+        }
       }
     });
   }, 3500);
@@ -3769,6 +3779,48 @@ function openOptions() {
   $('groupBtnSearch').style.display = 'none';
   updateOptionsFocus();
   requestActivationCode();
+  if (state.auth && state.auth.token && typeof apiCall === 'function') {
+    var chkToken = state.auth.token;
+    var chkDev = state.auth.deviceId || '';
+    apiCall('GET', '/api/ott/feed?token=' + encodeURIComponent(chkToken) + '&deviceId=' + encodeURIComponent(chkDev) + '&_opt=' + (new Date()).getTime(), null, function(st, res) {
+      if (!state.auth || state.auth.token !== chkToken || state.auth.deviceId !== chkDev) return;
+      if (st === 401 && (!res || res.ok === false)) {
+        state.playlists = [];
+        state.channels = [];
+        state.groups = [];
+        state._playlistCache = {};
+        state.currentPlaylist = null;
+        state.homeLastPlaylist = null;
+        state.pendingRecentContent = null;
+        state.subscription = null;
+        state.paymentDueDate = '';
+        state.paymentServerDate = '';
+        state.auth.token = '';
+        state.auth.login = '';
+        state.auth.password = '';
+        state.activationCode = '';
+        delete state.auth.pendingActivationCode;
+        delete state.auth.pendingActivationExpires;
+        saveStorage();
+        if (typeof clearChannelGridViewCache === 'function') clearChannelGridViewCache();
+        renderPlaylistsView();
+        updateOptionsDisplay();
+        if (state.screen === 'options') {
+          $('view-playlists').style.display = 'none';
+          $('view-options').style.display = 'block';
+          $('screenTitle').textContent = 'Opciones';
+          updateTopBar();
+          requestActivationCode();
+        }
+        showToast('Dispositivo desvinculado. Actívalo con el código en pantalla.');
+      } else if (st === 200 && res && res.ok) {
+        state.paymentDueDate = res.paymentDueDate || '';
+        state.paymentServerDate = res.serverDate || '';
+        state.subscription = res.subscription || null;
+        updateAccountCard();
+      }
+    });
+  }
 }
 
 function closeOptions() {
@@ -3859,13 +3911,22 @@ function doSaveAndLogin() {
     }, function(st2, res2) {
       state.loginBusy = false;
       if (st2 !== 200 || !res2 || res2.ok === false) {
+        if (st2 === 401 || st2 === 403) {
+          state.auth.token = '';
+          saveStorage();
+          if (typeof updateAccountCard === 'function') updateAccountCard();
+        }
         showToast((res2 && res2.error) || 'No se pudo vincular la TV. Intenta nuevamente.');
         return;
       }
+      state.activationCode = '';
+      delete state.auth.pendingActivationCode;
+      delete state.auth.pendingActivationExpires;
+      state.paymentDueDate = res2.paymentDueDate || '';
+      state.paymentServerDate = res2.serverDate || '';
+      state.subscription = res2.subscription || null;
+      saveStorage();
       if (res2 && res2.playlists && res2.playlists.length > 0) {
-        state.paymentDueDate = res2.paymentDueDate || '';
-        state.paymentServerDate = res2.serverDate || '';
-        state.subscription = res2.subscription || null;
         state.playlists = res2.playlists;
         closeOptions();
         if (state.playlists.length === 1) {
@@ -3899,6 +3960,9 @@ function fetchFeed(forceFresh) {
     if (state.feedLoadId !== feedId) return;
     if (st === 200 && res && res.ok) {
       state._feedRetries = 0;
+      if (res.token) state.auth.token = res.token;
+      if (res.userLogin) state.auth.login = res.userLogin;
+      if (res.token || res.userLogin) saveStorage();
       state.paymentDueDate = res.paymentDueDate || '';
       state.paymentServerDate = res.serverDate || '';
         state.subscription = res.subscription || null;
@@ -3923,12 +3987,32 @@ function fetchFeed(forceFresh) {
         showToast(state.playlists.length + ' categorías disponibles.');
       }
     } else if (st === 401) {
-      if (state.auth.login && state.auth.password) {
+      var errCode = (res && res.error) || '';
+      if (errCode === 'no-auth' && state.auth.login && state.auth.password) {
         showToast('Renovando sesión...');
         doSaveAndLogin();
       } else {
-        showToast('Sesión vencida. Ingresa a Ajustes.');
+        state.playlists = [];
+        state.channels = [];
+        state.groups = [];
+        state._playlistCache = {};
+        state.currentPlaylist = null;
+        state.homeLastPlaylist = null;
+        state.pendingRecentContent = null;
+        state.subscription = null;
+        state.paymentDueDate = '';
+        state.paymentServerDate = '';
+        state.auth.token = '';
+        state.auth.login = '';
+        state.auth.password = '';
+        state.activationCode = '';
+        delete state.auth.pendingActivationCode;
+        delete state.auth.pendingActivationExpires;
+        saveStorage();
+        if (typeof clearChannelGridViewCache === 'function') clearChannelGridViewCache();
+        renderPlaylistsView();
         openOptions();
+        showToast('Dispositivo desvinculado. Actívalo con el código en pantalla.');
       }
     } else if (st >= 500 || st === 0) {
       if (!state._feedRetries) state._feedRetries = 0;
@@ -5073,9 +5157,34 @@ function loadPlaylistContent(pl, forceFresh, onReady) {
       } catch (parseError) {
         showLoadError('Error al mostrar títulos: ' + (parseError.message || 'contenido no disponible'));
       }
-    } else if (status === 401 && state.auth.login && state.auth.password) {
-      showToast('Renovando acceso...');
-      doSaveAndLogin();
+    } else if (status === 401) {
+      var isRevoked = /"(no-device|blocked|no-user)"/.test(text || '');
+      if (!isRevoked && state.auth.login && state.auth.password) {
+        showToast('Renovando acceso...');
+        doSaveAndLogin();
+      } else {
+        state.playlists = [];
+        state.channels = [];
+        state.groups = [];
+        state._playlistCache = {};
+        state.currentPlaylist = null;
+        state.homeLastPlaylist = null;
+        state.pendingRecentContent = null;
+        state.subscription = null;
+        state.paymentDueDate = '';
+        state.paymentServerDate = '';
+        state.auth.token = '';
+        state.auth.login = '';
+        state.auth.password = '';
+        state.activationCode = '';
+        delete state.auth.pendingActivationCode;
+        delete state.auth.pendingActivationExpires;
+        if (typeof saveStorage === 'function') saveStorage();
+        if (typeof clearChannelGridViewCache === 'function') clearChannelGridViewCache();
+        if (typeof renderPlaylistsView === 'function') renderPlaylistsView();
+        if (typeof openOptions === 'function') openOptions();
+        showToast('Dispositivo desvinculado. Actívalo con el código en pantalla.');
+      }
     } else if (status >= 500 || status === 0) {
       if (!state._m3uRetries) state._m3uRetries = 0;
       if (state._m3uRetries < 3) {
@@ -7492,12 +7601,17 @@ function revokePlayerAccess() {
   state.currentPlaylist = null;
   state.homeLastPlaylist = null;
   state.pendingRecentContent = null;
+  state.subscription = null;
+  state.paymentDueDate = '';
+  state.paymentServerDate = '';
+  state.activationCode = '';
   state.auth.token = '';
   state.auth.login = '';
   state.auth.password = '';
   delete state.auth.pendingActivationCode;
   delete state.auth.pendingActivationExpires;
   saveStorage();
+  if (typeof clearChannelGridViewCache === 'function') clearChannelGridViewCache();
   renderPlaylistsView();
   openOptions();
   showToast('Este dispositivo ya no tiene acceso. Contacta con nosotros.');

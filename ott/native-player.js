@@ -106,13 +106,15 @@
     }
     // The host may expose webapis after startup, even if script loading fails.
     // Keep checking for five seconds and allow another attempt on Options entry.
-    try {
-      script = root.document.createElement('script');
-      script.src = '$WEBAPIS/webapis/webapis.js';
-      script.onload = function() { if (available()) finish(); };
-      script.onerror = function() { if (available()) finish(); };
-      root.document.head.appendChild(script);
-    } catch (loadError) {}
+    if (!root.webapis) {
+      try {
+        script = root.document.createElement('script');
+        script.src = '$WEBAPIS/webapis/webapis.js';
+        script.onload = function() { if (available()) finish(); };
+        script.onerror = function() { if (available()) finish(); };
+        root.document.head.appendChild(script);
+      } catch (loadError) {}
+    }
     if (!finished) check();
   }
   root.TeamGNative = {available:available, active:function(){return active;}, start:start, stop:stop,

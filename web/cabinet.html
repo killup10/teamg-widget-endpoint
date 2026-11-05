@@ -162,6 +162,25 @@ html[data-theme="dark"],html[data-theme="dark"] body{background:#101713;color:#e
 [data-theme="dark"] [style*="color:#555"]{color:#c1d0c6!important}
 [data-theme="dark"] [style*="color:#166534"],[data-theme="dark"] [style*="color:#15803d"]{color:#86efac!important}
 [data-theme="dark"] [style*="background:#fee2e2"]{background:#482424!important;color:#fecaca!important;border-color:#925151!important}
+.exp-alert-banner{background:#fff8f6;border:1px solid #fca5a5;border-left:5px solid #dc2626;border-radius:8px;padding:14px 18px;margin-bottom:18px;box-shadow:0 2px 8px rgba(220,38,38,0.08)}
+.exp-alert-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.exp-alert-title{font-size:15px;font-weight:bold;color:#991b1b;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.exp-alert-list{margin-top:12px;display:flex;flex-direction:column;gap:8px;max-height:300px;overflow-y:auto}
+.exp-alert-row{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:9px 12px;background:#fff;border:1px solid #fecaca;border-radius:6px;font-size:13.5px}
+.exp-alert-row.warn{border-color:#fde68a;background:#fffdf5}
+.exp-badge{display:inline-block;padding:3px 9px;border-radius:12px;font-size:11.5px;font-weight:bold;letter-spacing:0.2px}
+.exp-badge.overdue{background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5}
+.exp-badge.today{background:#ffedd5;color:#c2410c;border:1px solid #fdba74}
+.exp-badge.soon{background:#fef3c7;color:#92400e;border:1px solid #fcd34d}
+.tab-alert-pill{display:inline-block;background:#dc2626;color:#fff;font-size:11px;font-weight:bold;padding:1px 6px;border-radius:10px;margin-left:5px;vertical-align:middle}
+.dev.dev-highlight{outline:2px solid #dc2626;box-shadow:0 0 0 4px rgba(220,38,38,0.18)}
+[data-theme="dark"] .exp-alert-banner{background:#28191b;border-color:#7f1d1d;border-left-color:#ef4444}
+[data-theme="dark"] .exp-alert-title{color:#fca5a5}
+[data-theme="dark"] .exp-alert-row{background:#1f2922;border-color:#5c2b2b;color:#e5ede8}
+[data-theme="dark"] .exp-alert-row.warn{background:#23271e;border-color:#6b5320}
+[data-theme="dark"] .exp-badge.overdue{background:#451a1a;color:#fca5a5;border-color:#7f1d1d}
+[data-theme="dark"] .exp-badge.today{background:#432010;color:#fdba74;border-color:#7c2d12}
+[data-theme="dark"] .exp-badge.soon{background:#3f3012;color:#fde68a;border-color:#78350f}
 button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid #22c55e;outline-offset:3px}
 @media(max-width:700px){nav.top{padding:12px 16px;gap:12px;flex-wrap:wrap}.tabs{order:4;width:100%;margin-left:0}.theme-toggle{margin-left:auto}}
 </style>
@@ -192,6 +211,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 })();
 </script>
 
+<div class="wrap" id="expiryAlertWrap" style="display:none;margin-bottom:0;padding-bottom:0;"></div>
 <div class="wrap" id="app"><p>Cargando...</p></div>
 
 <!-- Modal Crear Fake-User -->
@@ -372,13 +392,179 @@ setInterval(function() {
 }, 3 * 60 * 1000);
 
 var TABS = ["Home", "Activar TV", "Playlists", "Devices", "Dinero", "Cabinet", "Fake-users", "Logout"];
+var EXPIRY_ALERT_COLLAPSED = false;
+var FOCUS_DEVICE_ID = null;
+
+function isValidIsoDate(val) {
+  return typeof val === "string" && /^\d{4}-\d{2}-\d{2}$/.test(val) && val.slice(0, 4) !== "0000" && !isNaN(Date.parse(val + "T00:00:00Z"));
+}
+
+function getCabinetToday() {
+  if (DATA && isValidIsoDate(DATA.serverDate)) return DATA.serverDate;
+  if (typeof paymentToday === "function") return paymentToday();
+  return new Date(Date.now() - 5 * 3600000).toISOString().slice(0, 10);
+}
+
+function formatDateDMY(isoDate) {
+  if (!isValidIsoDate(isoDate)) return isoDate || "";
+  var p = isoDate.split("-");
+  return p[2] + "/" + p[1] + "/" + p[0];
+}
+
+function getDeviceEffectiveDueDate(d, userObjMap) {
+  var dates = [];
+  if (d && isValidIsoDate(d.paymentDueDate)) dates.push(d.paymentDueDate);
+  var u = (userObjMap && d) ? userObjMap[d.userId] : null;
+  if (u && isValidIsoDate(u.expires)) dates.push(u.expires);
+  dates.sort();
+  return dates[0] || "";
+}
+
+function getDaysUntilDue(dueDate, todayStr) {
+  if (!isValidIsoDate(dueDate) || !isValidIsoDate(todayStr)) return null;
+  var dueMs = Date.parse(dueDate + "T00:00:00Z");
+  var todayMs = Date.parse(todayStr + "T00:00:00Z");
+  return Math.round((dueMs - todayMs) / 86400000);
+}
+
+function describeDueStatus(diffDays) {
+  if (diffDays === null) return null;
+  if (diffDays < 0) {
+    var daysAgo = Math.abs(diffDays);
+    return {
+      kind: "overdue",
+      label: daysAgo === 1 ? "Venció ayer" : ("Venció hace " + daysAgo + " días")
+    };
+  }
+  if (diffDays === 0) return { kind: "today", label: "Vence hoy" };
+  if (diffDays === 1) return { kind: "soon", label: "Vence mañana (falta 1 día)" };
+  if (diffDays === 2) return { kind: "soon", label: "Vence en 2 días" };
+  return null;
+}
+
+function getExpiringDevicesList() {
+  if (!DATA || !Array.isArray(DATA.devices)) return [];
+  var today = getCabinetToday();
+  var userObjMap = {};
+  if (Array.isArray(DATA.users)) {
+    DATA.users.forEach(function(u) { if (u) userObjMap[u.id] = u; });
+  }
+  var list = [];
+  DATA.devices.forEach(function(d) {
+    if (!d) return;
+    var dueDate = getDeviceEffectiveDueDate(d, userObjMap);
+    if (!dueDate) return;
+    var diffDays = getDaysUntilDue(dueDate, today);
+    if (diffDays !== null && diffDays <= 2) {
+      var st = describeDueStatus(diffDays);
+      var owner = userObjMap[d.userId];
+      list.push({
+        device: d,
+        dueDate: dueDate,
+        diffDays: diffDays,
+        status: st,
+        userLogin: (owner && owner.login) ? owner.login : (d.userId || "—")
+      });
+    }
+  });
+  list.sort(function(a, b) {
+    if (a.diffDays !== b.diffDays) return a.diffDays - b.diffDays;
+    return String(a.device.note || a.device.name || "").localeCompare(String(b.device.note || b.device.name || ""));
+  });
+  return list;
+}
+
+function renderExpiryNotification(expiringList) {
+  var wrap = document.getElementById("expiryAlertWrap");
+  if (!wrap) return;
+  if (!expiringList || !expiringList.length) {
+    wrap.style.display = "none";
+    wrap.innerHTML = "";
+    return;
+  }
+  var overdueCount = expiringList.filter(function(x) { return x.diffDays < 0; }).length;
+  var upcomingCount = expiringList.length - overdueCount;
+  var summaryParts = [];
+  if (overdueCount > 0) summaryParts.push(overdueCount + (overdueCount === 1 ? " dispositivo vencido" : " dispositivos vencidos"));
+  if (upcomingCount > 0) summaryParts.push(upcomingCount + (upcomingCount === 1 ? " por vencer (≤ 2 días)" : " por vencer (≤ 2 días)"));
+
+  var html = "<div class='exp-alert-banner' role='region' aria-label='Notificación de vencimientos'>" +
+    "<div class='exp-alert-header'>" +
+      "<div class='exp-alert-title'>🔔 <span>Aviso de vencimiento: " + esc(summaryParts.join(" · ")) + "</span></div>" +
+      "<div>" +
+        "<button type='button' class='plain small' id='btnToggleExpAlert'>" + (EXPIRY_ALERT_COLLAPSED ? "Mostrar dispositivos (" + expiringList.length + ")" : "Ocultar lista") + "</button>" +
+      "</div>" +
+    "</div>";
+
+  if (!EXPIRY_ALERT_COLLAPSED) {
+    html += "<div class='exp-alert-list'>";
+    expiringList.forEach(function(item) {
+      var d = item.device;
+      var displayName = d.note || d.name || d.id;
+      var rowClass = item.diffDays > 0 ? "exp-alert-row warn" : "exp-alert-row";
+      html += "<div class='" + rowClass + "'>" +
+        "<div>" +
+          "<span class='exp-badge " + item.status.kind + "'>" + esc(item.status.label) + "</span> " +
+          "<b style='margin-left:6px;'>" + esc(displayName) + "</b> " +
+          "<span class='small'>· Usuario: <b>" + esc(item.userLogin) + "</b> · TV: " + esc(d.name || "-") + " · Fecha límite: <b>" + esc(formatDateDMY(item.dueDate)) + "</b></span>" +
+        "</div>" +
+        "<div style='display:flex;gap:6px;flex-wrap:wrap;'>" +
+          "<button type='button' class='plain small' data-exp-goto='" + esc(d.id) + "'>✎ Ver dispositivo</button>" +
+          "<button type='button' class='act green' style='padding:5px 12px;margin:0;font-size:12px;' data-exp-pay='" + esc(d.id) + "'>Registrar pago</button>" +
+        "</div>" +
+      "</div>";
+    });
+    html += "</div>";
+  }
+
+  html += "</div>";
+  wrap.style.display = "block";
+  wrap.innerHTML = html;
+
+  var btnToggle = document.getElementById("btnToggleExpAlert");
+  if (btnToggle) {
+    btnToggle.onclick = function() {
+      EXPIRY_ALERT_COLLAPSED = !EXPIRY_ALERT_COLLAPSED;
+      renderExpiryNotification(expiringList);
+    };
+  }
+  var gotoBtns = wrap.querySelectorAll("[data-exp-goto]");
+  for (var i = 0; i < gotoBtns.length; i++) {
+    gotoBtns[i].onclick = function() {
+      FOCUS_DEVICE_ID = this.getAttribute("data-exp-goto");
+      TAB = "Devices";
+      CURRENT_PL = null;
+      OPENFU = null;
+      render();
+    };
+  }
+  var payBtns = wrap.querySelectorAll("[data-exp-pay]");
+  for (var j = 0; j < payBtns.length; j++) {
+    payBtns[j].onclick = function() {
+      paymentDevice = this.getAttribute("data-exp-pay");
+      TAB = "Dinero";
+      CURRENT_PL = null;
+      OPENFU = null;
+      render();
+    };
+  }
+}
 
 function render() {
+  var expiringList = getExpiringDevicesList();
+  var expiringByDevId = {};
+  expiringList.forEach(function(item) { expiringByDevId[item.device.id] = item; });
+  renderExpiryNotification(expiringList);
+
   var t = document.getElementById("tabs");
   t.innerHTML = "";
   TABS.forEach(function(x) {
     var b = document.createElement("button");
-    b.textContent = x;
+    if (x === "Devices" && expiringList.length > 0) {
+      b.innerHTML = esc(x) + " <span class='tab-alert-pill' title='Dispositivos vencidos o por vencer en ≤ 2 días'>" + expiringList.length + "</span>";
+    } else {
+      b.textContent = x;
+    }
     if (x === TAB) b.className = "sel";
     b.onclick = function() {
       if (x === "Logout") { sessionStorage.removeItem("ottkey"); location.href = "/web/"; return; }
@@ -423,11 +609,17 @@ function render() {
       "<h2>Devices</h2>";
     if (!DATA.devices.length) h += "<p class='small'>Sin dispositivos. Aparecen cuando el cliente se loguea y registra su TV o se activa por código.</p>";
     DATA.devices.forEach(function(d) {
-      h += "<div class='dev'><b>" + esc(d.note || d.name) + "</b> <span class='small'>TV: " + esc(d.name) + " · fake-user: " + esc(un[d.userId] || d.userId) + " · " + esc(d.platform || "") + " · visto: " + esc(d.lastSeen || "-") + "</span> <button class='danger' data-dd='" + d.id + "'>Borrar</button><br/>";
+      var expItem = expiringByDevId[d.id];
+      var expBadgeHtml = expItem ? (" <span class='exp-badge " + expItem.status.kind + "'>🔔 " + esc(expItem.status.label) + " (" + esc(formatDateDMY(expItem.dueDate)) + ")</span>") : "";
+      h += "<div class='dev' data-dev-card='" + esc(d.id) + "'><b>" + esc(d.note || d.name) + "</b>" + expBadgeHtml + " <span class='small'>TV: " + esc(d.name) + " · fake-user: " + esc(un[d.userId] || d.userId) + " · " + esc(d.platform || "") + " · visto: " + esc(d.lastSeen || "-") + "</span> <button class='danger' data-dd='" + d.id + "'>Borrar</button><br/>";
       h += "<span class='small'>Nombre/nota:</span> <input data-note='" + d.id + "' value='" + esc(d.note || "") + "' placeholder='Ej. TV Sala' style='width:320px'/>";
       h += "<label class='small'>Fecha de vencimiento: <input type='date' min='0001-01-01' max='9999-12-31' data-due='" + d.id + "' value='" + esc(d.paymentDueDate || "") + "'/></label> <span class='small'>Opcional · para recordatorios, sin bloqueo automático.</span><br/>";
       h += "<button class='act green' data-payment='" + d.id + "'>Registrar pago</button><br/>";
-      h += "<span class='small'>Fake-user:</span> <select data-fu='" + d.id + "'>" + DATA.users.map(function(u) { return "<option value='" + u.id + "'" + (u.id === d.userId ? " selected" : "") + ">" + esc(u.login) + "</option>"; }).join("") + "</select><br/>";
+      var hasMatchingUser = DATA.users.some(function(u) { return String(u.id) === String(d.userId); });
+      h += "<span class='small'>Fake-user:</span> <select data-fu='" + d.id + "'>" +
+        (!hasMatchingUser && d.userId ? "<option value='" + esc(d.userId) + "' selected>" + esc(un[d.userId] || d.userId) + "</option>" : "") +
+        DATA.users.map(function(u) { return "<option value='" + u.id + "'" + (String(u.id) === String(d.userId) ? " selected" : "") + ">" + esc(u.login) + "</option>"; }).join("") +
+        "</select><br/>";
       h += "<span class='small'>connected playlists:</span><br/>";
       DATA.playlists.forEach(function(p) {
         var on = (d.playlists || []).map(String).indexOf(String(p.id)) > -1;
@@ -445,6 +637,15 @@ function render() {
     Array.from(document.querySelectorAll('[data-payment]')).forEach(function(button) {
       button.onclick = function() { paymentDevice = this.getAttribute('data-payment'); TAB = 'Dinero'; render(); };
     });
+    if (FOCUS_DEVICE_ID) {
+      var targetCard = document.querySelector("[data-dev-card='" + FOCUS_DEVICE_ID + "']");
+      FOCUS_DEVICE_ID = null;
+      if (targetCard) {
+        targetCard.classList.add("dev-highlight");
+        if (targetCard.scrollIntoView) targetCard.scrollIntoView({ behavior: "smooth", block: "center" });
+        setTimeout(function() { targetCard.classList.remove("dev-highlight"); }, 3500);
+      }
+    }
     for (var i = 0; i < s.length; i++) s[i].onclick = function() {
       var button = this;
       if (button.disabled) return;
@@ -587,12 +788,15 @@ function loadRecentCodes() {
 
     var th = "<table><tr><th>Código</th><th>Dispositivo</th><th>Plataforma</th><th>Generado</th><th>Estado</th><th>Acción</th></tr>";
     codes.forEach(function(c) {
+      var pendingUserLogin = (c.user && c.user.login) ? c.user.login : "";
+      var pendingUserId = c.userId || (c.user && c.user.id) || "";
       var statusBadge = c.activated ?
-        "<span class='on' style='font-size:11px;'>✔ Activado (" + esc((c.user && c.user.login) || "") + ")</span>" :
-        (c.expired ? "<span class='off' style='font-size:11px;'>Expirado</span>" : "<span class='pill' style='background:#ffcc00;color:#000;font-size:11px;'>⏳ Esperando activación</span>");
+        "<span class='on' style='font-size:11px;'>✔ Activado (" + esc(pendingUserLogin) + ")</span>" :
+        (c.expired ? "<span class='off' style='font-size:11px;'>Expirado</span>" :
+          "<span class='pill' style='background:#ffcc00;color:#000;font-size:11px;'>⏳ Esperando activación" + (pendingUserLogin ? " · " + esc(pendingUserLogin) : "") + "</span>");
 
       var actionBtn = (!c.activated && !c.expired) ?
-        ("<button class='act green small' data-fill-code='" + esc(c.code) + "' data-dev-name='" + esc(c.deviceName || "") + "'>⚡ Activar este TV</button>") :
+        ("<button class='act green small' data-fill-code='" + esc(c.code) + "' data-dev-name='" + esc(c.deviceName || "") + "' data-user-id='" + esc(pendingUserId) + "'>⚡ Activar este TV</button>") :
         "<span class='small'>-</span>";
 
       th += "<tr>" +
@@ -611,12 +815,16 @@ function loadRecentCodes() {
       fillBtns[i].onclick = function() {
         var codeVal = this.getAttribute("data-fill-code");
         var devName = this.getAttribute("data-dev-name");
+        var preUserId = this.getAttribute("data-user-id");
         var inpCode = document.getElementById("actCode");
         var inpNote = document.getElementById("actNote");
         if (inpCode) { inpCode.value = codeVal; inpCode.focus(); }
         if (inpNote && devName) inpNote.value = devName;
         var actUser = document.getElementById("actUser");
-        if (actUser) actUser.focus();
+        if (actUser) {
+          if (preUserId) actUser.value = preUserId;
+          actUser.focus();
+        }
         window.scrollTo({ top: 0, behavior: 'smooth' });
       };
     }

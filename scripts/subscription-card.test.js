@@ -19,6 +19,47 @@ assert.match(elements.subscriptionExpires.textContent,/Por confirmar/);
 ctx.state.auth.token='';ctx.updateAccountCard();
 assert.equal(elements.activationPending.style.display,'');assert.equal(elements.subscriptionCard.style.display,'none');
 
+// Deleted device on fetchFeed (401 no-device) must wipe token/playlists/subscription and request a new activation code
+let generatedCodeCalls = 0;
+const feedCtx = {
+  state: {
+    auth: { token: 'old-token', deviceId: 'tv-1', login: 'client', password: '123' },
+    playlists: [{ id: 'pl1' }],
+    channels: [{ id: 'ch1' }],
+    groups: ['Cine'],
+    subscription: { planName: 'Premium VIP', months: 1, expiresOn: '2026-12-01' },
+    paymentDueDate: '2026-12-01'
+  },
+  encodeURIComponent,
+  showToast() {},
+  saveStorage() {},
+  renderPlaylistsView() {},
+  clearChannelGridViewCache() {},
+  doSaveAndLogin() { throw new Error('Deleted device must not auto-relogin'); },
+  openOptions() {
+    ctx.state.auth.token = feedCtx.state.auth.token;
+    ctx.state.subscription = feedCtx.state.subscription;
+    ctx.state.paymentDueDate = feedCtx.state.paymentDueDate;
+    ctx.updateAccountCard();
+    if (!feedCtx.state.auth.token) generatedCodeCalls++;
+  },
+  apiCall(method, url, body, cb) {
+    cb(401, { ok: false, error: 'no-device' });
+  }
+};
+vm.createContext(feedCtx);
+vm.runInContext(html.slice(html.indexOf('function fetchFeed('), html.indexOf('function strHash(')), feedCtx);
+feedCtx.fetchFeed();
+assert.equal(feedCtx.state.auth.token, '');
+assert.equal(feedCtx.state.auth.login, '');
+assert.equal(feedCtx.state.auth.password, '');
+assert.equal(feedCtx.state.playlists.length, 0);
+assert.equal(feedCtx.state.channels.length, 0);
+assert.equal(feedCtx.state.subscription, null);
+assert.equal(elements.activationPending.style.display, '');
+assert.equal(elements.subscriptionCard.style.display, 'none');
+assert.equal(generatedCodeCalls, 1);
+
 const ledger = require('../payment-ledger');
 const backend = {require:()=>ledger};vm.createContext(backend);
 vm.runInContext(api.slice(api.indexOf('async function deviceSubscription('),api.indexOf('const pub =')),backend);
