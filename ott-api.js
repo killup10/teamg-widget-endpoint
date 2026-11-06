@@ -1684,7 +1684,10 @@ function handleStream(req, res, query) {
                 absChunk = redirParam;
               }
             } catch (eRedir) {}
-            const hostHeader = (req && req.headers && req.headers.host) ? req.headers.host : 'ott.teamg.store';
+            const rawHost = (req && req.headers && (req.headers['x-forwarded-host'] || req.headers.host))
+              ? String(req.headers['x-forwarded-host'] || req.headers.host).split(',')[0].trim()
+              : 'ott.teamg.store';
+            const hostHeader = rawHost || 'ott.teamg.store';
             // Read only the playlist through our origin; video remains direct.
             if (query.manifestOnly === '1') {
               if (isNetcastHttpSegments) {
