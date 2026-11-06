@@ -2081,7 +2081,7 @@ body.smart-tv #player-music-yt-container { display:none !important; }
         <p id="optDescText">También puedes ingresar manualmente tu usuario y contraseña con el teclado en pantalla.</p>
         <div id="themePreview" aria-label="Paleta de colores actual" style="margin-top:18px;"></div>
         <div style="margin-top:16px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.5.73
+          VERSIÓN: v2.5.74
         </div>
       </div>
     </div>
@@ -8765,7 +8765,7 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c, androidFallbackEngine) 
   if (useJsHls) {
     // Only legacy NetCast needs fixed 1080p startup; webOS/Tizen keep ABR, including 4K.
     var stableLgHls = isLegacyNetcast;
-    state.hlsInstance = new Hls({ maxBufferLength: 15, enableWorker: false, autoStartLoad: !stableLgHls });
+    state.hlsInstance = new Hls({ maxBufferLength: 15, enableWorker: false, lowLatencyMode: false, liveSyncDurationCount: 2, autoStartLoad: !stableLgHls });
     state.hlsInstance.loadSource(playUrl);
     state.hlsInstance.attachMedia(v);
     // Iniciar durante el gesto del mando, sin esperar la descarga del manifiesto.
