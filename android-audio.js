@@ -228,12 +228,12 @@ function streamAudioTrack(req, res, rawUrl, query = {}) {
     try { res.end(); } catch {}
   });
 }
-const MAX_SESSIONS = Math.max(1, Math.min(4, Number(process.env.ANDROID_AUDIO_MAX_SESSIONS) || 2));
+const MAX_SESSIONS = Math.max(1, Math.min(6, Number(process.env.ANDROID_AUDIO_MAX_SESSIONS) || 4));
 const IDLE_MS = 45000, MAX_AGE_MS = 30 * 60 * 1000;
 let runtimeReady;
 const bin = () => process.env.FFMPEG_PATH || require('ffmpeg-static');
 const inputArgs = url => ['-hide_banner', '-nostdin', '-loglevel', 'info', '-rw_timeout', '8000000',
-  '-protocol_whitelist', 'http,https,tcp,tls,crypto', '-analyzeduration', '2000000', '-probesize', '2000000', '-i', url];
+  '-protocol_whitelist', 'http,https,tcp,tls,crypto', ...(/(?:\.m3u8|\/playlist|\/chunks)/i.test(url) ? ['-live_start_index', '-2'] : []), '-analyzeduration', '2000000', '-probesize', '2000000', '-i', url];
 function validUrl(url) {
   const parsed = new URL(url);
   if (!/^https?:$/.test(parsed.protocol)) throw new Error('Formato de señal no permitido');
@@ -314,8 +314,8 @@ async function prepare(owner, url, forceHls = false) {
   const args = relay ? ['-hide_banner', '-nostdin', '-loglevel', 'info', '-analyzeduration', '6000000', '-probesize', '6000000', '-f', 'mpegts', '-i', 'pipe:0'] : inputArgs(url);
   const child = spawn(bin(), args.concat(['-map', '0:v:0', '-map', '0:a:0?', '-c:v', 'copy',
     ...(convertAudio ? ['-c:a', 'aac', '-profile:a', 'aac_low', '-b:a', '128k', '-ac', '2', '-ar', '48000'] : ['-c:a', 'copy']),
-    '-max_muxing_queue_size', '1024', '-f', 'hls', '-hls_time', '2', '-hls_list_size', '5',
-    '-hls_flags', 'delete_segments+omit_endlist', '-hls_delete_threshold', '2',
+    '-max_muxing_queue_size', '1024', '-f', 'hls', '-hls_time', '2', '-hls_list_size', '6',
+    '-hls_flags', 'delete_segments+omit_endlist', '-hls_delete_threshold', '4',
     '-hls_segment_filename', path.join(dir, 'segment-%06d.ts'), path.join(dir, 'index.m3u8')]),
   { windowsHide: true, stdio: [relay ? 'pipe' : 'ignore', 'ignore', 'pipe'] });
   let stderrTail = '';
