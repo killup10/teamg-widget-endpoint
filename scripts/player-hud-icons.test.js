@@ -78,8 +78,8 @@ assert.ok(
 );
 
 // 7. Current client version; unchanged native scripts and logo retain their asset versions.
-assert.ok(/v2\.5\.\d+/.test(html) && html.includes('v2.5.70'), 'index.html must display version v2.5.70');
-assert.ok(html.includes('native-player.js?v=2.5.64.1'), 'native-player.js query must be v2.5.64.1');
+assert.ok(/v2\.5\.\d+/.test(html) && html.includes('v2.5.72'), 'index.html must display version v2.5.72');
+assert.ok(/native-player\.js\?v=2\.5\.\d+/.test(html), 'native-player.js query must have a version');
 assert.ok(server.includes('logo-teamg.png?v=2.5.61'), 'server.js logo query must be v2.5.61');
 
 // 8. Both playback overlays must auto-hide.

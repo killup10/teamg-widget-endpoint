@@ -987,6 +987,7 @@ function isSeriesGroup(channels, groupName, playlist) {
   // 4. Analizar títulos de canales/episodios (soporta T1 E1, EP. 1, Ep 1, Cap. 1, 1x01, 01 - ..., etc.)
   for (var j = 0; j < channels.length; j++) {
     var name = channels[j].name || '';
+    if (!/\d/.test(name)) continue;
     if (
       /(?:^|[^a-z0-9])(?:s|t)\s*\d{1,3}\s*[-_:/xX\s.]?\s*(?:e|ep|episodio|cap|capitulo|capítulo)\s*\d{1,4}(?:[^0-9]|$)/i.test(name) ||
       /(?:^|[^0-9])\d{1,3}\s*x\s*\d{1,4}(?:[^0-9]|$)/i.test(name) ||
@@ -1003,12 +1004,11 @@ function renderPlaylistEditor(a) {
   var selectedChannels = [];
   var groupCounts = {};
   CURRENT_PL.groups.forEach(function(g) { groupCounts[g] = 0; });
-  CURRENT_PL.channels.forEach(function(c) {
+  var filteredChannels = [];
+  CURRENT_PL.channels.forEach(function(c, cIdx) {
+    c._globalIdx = cIdx;
     groupCounts[c.group] = (groupCounts[c.group] || 0) + 1;
-  });
-
-  var filteredChannels = CURRENT_PL.channels.filter(function(c) {
-    return c.group === CURRENT_GROUP;
+    if (c.group === CURRENT_GROUP) filteredChannels.push(c);
   });
 
   var showSeriesCover = isSeriesGroup(filteredChannels, CURRENT_GROUP, CURRENT_PL) || !!FORCE_SERIES_COVER_GROUPS[CURRENT_GROUP];
@@ -1076,7 +1076,7 @@ function renderPlaylistEditor(a) {
     h += "<p style='text-align:center;color:#888;margin-top:40px;'>No hay canales en el grupo <b>" + esc(CURRENT_GROUP) + "</b>.<br>Haz clic en <b>+ create channel</b> para añadir uno.</p>";
   } else {
     filteredChannels.forEach(function(c, idx) {
-      var globalIdx = CURRENT_PL.channels.indexOf(c);
+      var globalIdx = typeof c._globalIdx === 'number' ? c._globalIdx : CURRENT_PL.channels.indexOf(c);
       var thumbUrl = c.logo || c.seriesLogo || c.seriesPoster;
       var thumb = thumbUrl ? "<img class='channel-thumb' src='" + esc(thumbUrl) + "' onerror=\"this.style.display='none'\" />" : "<div class='channel-thumb' style='color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;'>SIN LOGO</div>";
       h += "<div class='channel-row' draggable='true' data-ch-row='" + globalIdx + "'>" +

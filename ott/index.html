@@ -2081,7 +2081,7 @@ body.smart-tv #player-music-yt-container { display:none !important; }
         <p id="optDescText">También puedes ingresar manualmente tu usuario y contraseña con el teclado en pantalla.</p>
         <div id="themePreview" aria-label="Paleta de colores actual" style="margin-top:18px;"></div>
         <div style="margin-top:16px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.5.71
+          VERSIÓN: v2.5.72
         </div>
       </div>
     </div>
@@ -2283,7 +2283,7 @@ body.smart-tv #player-music-yt-container { display:none !important; }
 
 <!-- Script HLS Vendor -->
 <script src="/ott/vendor/hls.min.js"></script>
-<script src="/ott/native-player.js?v=2.5.71"></script>
+<script src="/ott/native-player.js?v=2.5.72"></script>
 <script src="/ott/hls-variant.js?v=2.5.61"></script>
 <script src="/ott/catalog-images.js?v=1"></script>
 <script>
@@ -2381,17 +2381,34 @@ function fitTvImage(img) {
 window.fitTvImage = fitTvImage;
 
 // NetCast antiguo ignora object-fit: dimensionar los logos dentro de su caja.
-var _lastTileThumbW = 0, _lastTileThumbH = 0;
+var _lastTileThumbW = 0, _lastTileThumbH = 0, _lastTileWinW = 0, _lastTileWinH = 0;
 function fitChannelImage(img) {
   if (!img || !img.parentNode) return;
   if (img.removeAttribute && img.getAttribute && img.getAttribute('data-music-src') && (img.getAttribute('src') || img.src)) {
     img.removeAttribute('data-music-src');
   }
   var box = img.parentNode;
-  var w = box.clientWidth || _lastTileThumbW, h = box.clientHeight || _lastTileThumbH;
-  if (box.clientWidth && box.clientHeight) {
-    _lastTileThumbW = box.clientWidth;
-    _lastTileThumbH = box.clientHeight;
+  var isTileThumb = box.className === 'tile-thumb' && (!box.parentNode || !box.parentNode.className || box.parentNode.className === 'tile-item');
+  var winW = (typeof window !== 'undefined' && window.innerWidth) || 0;
+  var winH = (typeof window !== 'undefined' && window.innerHeight) || 0;
+  if (winW !== _lastTileWinW || winH !== _lastTileWinH) {
+    _lastTileThumbW = 0;
+    _lastTileThumbH = 0;
+    _lastTileWinW = winW;
+    _lastTileWinH = winH;
+  }
+  var w = 0, h = 0;
+  if (isTileThumb && _lastTileThumbW > 0 && _lastTileThumbH > 0) {
+    w = _lastTileThumbW;
+    h = _lastTileThumbH;
+  } else {
+    var cw = box.clientWidth, ch = box.clientHeight;
+    w = cw || _lastTileThumbW;
+    h = ch || _lastTileThumbH;
+    if (cw && ch && (isTileThumb || !_lastTileThumbW)) {
+      _lastTileThumbW = cw;
+      _lastTileThumbH = ch;
+    }
   }
   var iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
   if (!w || !h || !iw || !ih) return;
@@ -3985,6 +4002,7 @@ function fetchFeed(forceFresh) {
       } else {
         renderPlaylistsView();
         showToast(state.playlists.length + ' categorías disponibles.');
+        if (typeof schedulePlaylistPrefetch === 'function') schedulePlaylistPrefetch();
       }
     } else if (st === 401) {
       var errCode = (res && res.error) || '';
@@ -4091,10 +4109,7 @@ function parseSeriesInfo(c, optGroup) {
     name = c || '';
     group = optGroup || '';
   }
-  if (!name) return null;
-
-  var isSeriesGrp = (group && /serie|anime|novela|dorama|drama|kdrama|temporada/i.test(group)) ||
-                    (extgrp && /serie|anime|novela|dorama|drama|kdrama|temporada/i.test(extgrp));
+  if (!name || !/\d/.test(name)) return null;
 
   var seriesTitle = '';
   var season = 1;
@@ -4103,12 +4118,12 @@ function parseSeriesInfo(c, optGroup) {
 
   // 1. Patron T1 E1 / S1 E1 / S01E02 / T1E02 / T1:E2 / T1-E2 / T01xE02 / S1.E1
   // Ej: "T1 E1 - Éxodo", "ThunderCats T1 E1 - Éxodo", "S01E05 - Piloto"
-  var m1 = name.match(/^(.*?)(?:^|[\s\-_:\[\(])([sStT])\s*(\d{1,3})\s*[-_:/xX\s]?\s*(?:[eE]|cap|capitulo|capítulo|ep|episodio)\s*(\d{1,4})\]?\s*[-_:]?\s*(.*)$/i);
+  var m1 = /(?:^|[\s\-_:\[\(])([sStT])\s*(\d{1,3})\s*[-_:/xX\s]?\s*(?:[eE]|cap|capitulo|capítulo|ep|episodio)\s*(\d{1,4})\]?\s*[-_:]?\s*(.*)$/i.exec(name);
   if (m1) {
-    var rawPrefix = (m1[1] || '').trim();
-    season = parseInt(m1[3], 10);
-    episode = parseInt(m1[4], 10);
-    var epRaw = (m1[5] || '').trim();
+    var rawPrefix = name.slice(0, m1.index).trim();
+    season = parseInt(m1[2], 10);
+    episode = parseInt(m1[3], 10);
+    var epRaw = (m1[4] || '').trim();
     episodeTitle = epRaw ? epRaw.replace(/^[-_:]+\s*/, '').trim() : ('Episodio ' + episode);
     
     rawPrefix = rawPrefix.replace(/^\[SERIE\]\s*/i, '').replace(/[-_:\s]+$/, '').trim();
@@ -4132,12 +4147,12 @@ function parseSeriesInfo(c, optGroup) {
   }
 
   // 2. Patron Season 1 Episode 2 / Temporada 1 Capitulo 2
-  var m2 = name.match(/^(.*?)(?:^|[\s\-_:\[\(])(?:Temporada|Season|Temp)\s*(\d{1,3})\s*[-_:/xX\s]?\s*(?:Episodio|Capitulo|Capítulo|Episode|Cap|Ep)\s*(\d{1,4})\s*[-_:]?\s*(.*)$/i);
+  var m2 = /(?:^|[\s\-_:\[\(])(?:Temporada|Season|Temp)\s*(\d{1,3})\s*[-_:/xX\s]?\s*(?:Episodio|Capitulo|Capítulo|Episode|Cap|Ep)\s*(\d{1,4})\s*[-_:]?\s*(.*)$/i.exec(name);
   if (m2) {
-    var rawPrefix = (m2[1] || '').trim();
-    season = parseInt(m2[2], 10);
-    episode = parseInt(m2[3], 10);
-    var epRaw = (m2[4] || '').trim();
+    var rawPrefix = name.slice(0, m2.index).trim();
+    season = parseInt(m2[1], 10);
+    episode = parseInt(m2[2], 10);
+    var epRaw = (m2[3] || '').trim();
     episodeTitle = epRaw ? epRaw.replace(/^[-_:]+\s*/, '').trim() : ('Episodio ' + episode);
 
     rawPrefix = rawPrefix.replace(/^\[SERIE\]\s*/i, '').replace(/[-_:\s]+$/, '').trim();
@@ -4161,12 +4176,12 @@ function parseSeriesInfo(c, optGroup) {
   }
 
   // 3. Patron 1x02 / 01x09
-  var m3 = name.match(/^(.*?)(?:^|[\s\-_:\[\(])(\d{1,2})[xX](\d{1,4})\]?\s*[-_:]?\s*(.*)$/);
-  if (m3 && parseInt(m3[2], 10) < 60) {
-    var rawPrefix = (m3[1] || '').trim();
-    season = parseInt(m3[2], 10);
-    episode = parseInt(m3[3], 10);
-    var epRaw = (m3[4] || '').trim();
+  var m3 = /(?:^|[\s\-_:\[\(])(\d{1,2})[xX](\d{1,4})\]?\s*[-_:]?\s*(.*)$/.exec(name);
+  if (m3 && parseInt(m3[1], 10) < 60) {
+    var rawPrefix = name.slice(0, m3.index).trim();
+    season = parseInt(m3[1], 10);
+    episode = parseInt(m3[2], 10);
+    var epRaw = (m3[3] || '').trim();
     episodeTitle = epRaw ? epRaw.replace(/^[-_:]+\s*/, '').trim() : ('Episodio ' + episode);
 
     rawPrefix = rawPrefix.replace(/^\[SERIE\]\s*/i, '').replace(/[-_:\s]+$/, '').trim();
@@ -4190,12 +4205,12 @@ function parseSeriesInfo(c, optGroup) {
   }
 
   // 4. Patron Capitulo 12 / Capitulo 12 / Ep. 12 / Cap 12
-  var m4 = name.match(/^(.*?)(?:^|[\s\-_:\[\(])(?:Capitulo|Capítulo|Cap\.|Cap|Episodio|Ep\.|Ep)\s*(\d{1,4})\s*[-_:]?\s*(.*)$/i);
+  var m4 = /(?:^|[\s\-_:\[\(])(?:Capitulo|Capítulo|Cap\.|Cap|Episodio|Ep\.|Ep)\s*(\d{1,4})\s*[-_:]?\s*(.*)$/i.exec(name);
   if (m4) {
-    var rawPrefix = (m4[1] || '').trim();
+    var rawPrefix = name.slice(0, m4.index).trim();
     season = 1;
-    episode = parseInt(m4[2], 10);
-    var epRaw = (m4[3] || '').trim();
+    episode = parseInt(m4[1], 10);
+    var epRaw = (m4[2] || '').trim();
     episodeTitle = epRaw ? epRaw.replace(/^[-_:]+\s*/, '').trim() : ('Capítulo ' + episode);
 
     rawPrefix = rawPrefix.replace(/^\[SERIE\]\s*/i, '').replace(/[-_:\s]+$/, '').trim();
@@ -4219,12 +4234,12 @@ function parseSeriesInfo(c, optGroup) {
   }
 
   // 5. Patron E01 - Éxodo / E1 - Éxodo
-  var m5 = name.match(/^(.*?)(?:^|[\s\-_:\[\(])E\s*(\d{1,4})\s*[-_:]?\s*(.*)$/i);
+  var m5 = /(?:^|[\s\-_:\[\(])E\s*(\d{1,4})\s*[-_:]?\s*(.*)$/i.exec(name);
   if (m5) {
-    var rawPrefix = (m5[1] || '').trim();
+    var rawPrefix = name.slice(0, m5.index).trim();
     season = 1;
-    episode = parseInt(m5[2], 10);
-    var epRaw = (m5[3] || '').trim();
+    episode = parseInt(m5[1], 10);
+    var epRaw = (m5[2] || '').trim();
     episodeTitle = epRaw ? epRaw.replace(/^[-_:]+\s*/, '').trim() : ('Episodio ' + episode);
 
     rawPrefix = rawPrefix.replace(/^\[SERIE\]\s*/i, '').replace(/[-_:\s]+$/, '').trim();
@@ -4249,25 +4264,29 @@ function parseSeriesInfo(c, optGroup) {
 
   // 6. Si el grupo o extgrp es Serie/Anime o el grupo no es generico, y el nombre es "01 - Éxodo" o "01. Éxodo"
   var sGroup = (!isGenericCategory(extgrp) ? extgrp : (!isGenericCategory(group) ? group : ''));
-  if (sGroup && (isSeriesGrp || extgrp)) {
-    var m6 = name.match(/^(\d{1,4})\s*[-_.:]\s*(.+)$/);
-    if (m6) {
-      return {
-        seriesTitle: sGroup,
-        season: 1,
-        episode: parseInt(m6[1], 10),
-        episodeTitle: m6[2].trim()
-      };
-    }
-    // 7. Especiales de serie (ej: "T5 ESPECIAL GARY")
-    var m7 = name.match(/^([sStT])\s*(\d{1,3})\s*[-_:\s]+(.*)$/i);
-    if (m7) {
-      return {
-        seriesTitle: sGroup,
-        season: parseInt(m7[2], 10),
-        episode: 99,
-        episodeTitle: m7[3].trim()
-      };
+  if (sGroup) {
+    var isSeriesGrp = (group && /serie|anime|novela|dorama|drama|kdrama|temporada/i.test(group)) ||
+                      (extgrp && /serie|anime|novela|dorama|drama|kdrama|temporada/i.test(extgrp));
+    if (isSeriesGrp || extgrp) {
+      var m6 = name.match(/^(\d{1,4})\s*[-_.:]\s*(.+)$/);
+      if (m6) {
+        return {
+          seriesTitle: sGroup,
+          season: 1,
+          episode: parseInt(m6[1], 10),
+          episodeTitle: m6[2].trim()
+        };
+      }
+      // 7. Especiales de serie (ej: "T5 ESPECIAL GARY")
+      var m7 = name.match(/^([sStT])\s*(\d{1,3})\s*[-_:\s]+(.*)$/i);
+      if (m7) {
+        return {
+          seriesTitle: sGroup,
+          season: parseInt(m7[2], 10),
+          episode: 99,
+          episodeTitle: m7[3].trim()
+        };
+      }
     }
   }
 
@@ -4290,7 +4309,9 @@ function cleanTitleKey(str) {
 
 function extractTrailerInfo(c) {
   if (!c || !c.name) return null;
-  var name = c.name.trim();
+  var rawName = c.name;
+  if (!/tr[aá]iler/i.test(rawName)) return null;
+  var name = rawName.trim();
   var group = (c.group || '').trim();
   var extgrp = (c.extgrp || '').trim();
 
@@ -4299,7 +4320,7 @@ function extractTrailerInfo(c) {
 
   var m1 = name.match(/^(?:tr[aá]iler|trailer)\s*[:\-_]?\s*(.*)$/i);
   var m2 = name.match(/^\[(?:tr[aá]iler|trailer)\]\s*(.*)$/i);
-  var m3 = name.match(/^(.*?)\s*[-_:(]\s*(?:tr[aá]iler|trailer|official trailer)\s*\)?$/i);
+  var m3 = !m1 && !m2 ? name.match(/^(.*?)\s*[-_:(]\s*(?:tr[aá]iler(?:\s+oficial)?|trailer(?:\s+oficial)?|official\s+trailer)\s*\)?$/i) : null;
 
   if (m1) {
     isTrailer = true;
@@ -4334,8 +4355,9 @@ function extractTrailerInfo(c) {
   };
 }
 
-function aggregateSeriesList(channels) {
+function aggregateSeriesList(channels, optPl) {
   if (!channels || channels.length === 0) return [];
+  var activePl = optPl || state.currentPlaylist;
   // Optimización de alto rendimiento: Si la lista o sus elementos son canales en vivo puros, omitir agregación de series
   var hasSeriesMarkers = false;
   for (var checkIdx = 0; checkIdx < Math.min(channels.length, 30); checkIdx++) {
@@ -4358,11 +4380,12 @@ function aggregateSeriesList(channels) {
       }
     }
   }
-  if (!hasSeriesMarkers && state.currentPlaylist && /gplay|premium|sports|en vivo|tv en vivo|canales|deportes/i.test(state.currentPlaylist.name || '')) {
+  if (!hasSeriesMarkers && activePl && /gplay|premium|sports|en vivo|tv en vivo|canales|deportes/i.test(activePl.name || '')) {
     return channels;
   }
   var result = [];
   var seriesMap = {};
+  var hasAnySeries = false;
   var trailersList = [];
 
   // Paso 1: Separar trailers para que NUNCA aparezcan como tarjetas sueltas
@@ -4377,6 +4400,7 @@ function aggregateSeriesList(channels) {
 
     var sInfo = parseSeriesInfo(c);
     if (sInfo) {
+      hasAnySeries = true;
       var sKey = cleanTitleKey(sInfo.seriesTitle);
       if (!seriesMap[sKey]) {
         var sObj = {
@@ -4426,13 +4450,12 @@ function aggregateSeriesList(channels) {
     }
   }
 
-  // Paso 2: Asociar trailers a sus respectivas series o películas (con búsqueda acelerada por hash map)
-  var movieKeyMap = Object.create(null);
-  for (var rIdx = 0; rIdx < result.length; rIdx++) {
-    if (!result[rIdx].isSeries && result[rIdx].name) {
-      movieKeyMap[cleanTitleKey(result[rIdx].name)] = result[rIdx];
-    }
+  if (!hasAnySeries && trailersList.length === 0) {
+    return result;
   }
+
+  // Paso 2: Asociar trailers a sus respectivas series o películas (con búsqueda acelerada por hash map bajo demanda)
+  var movieKeyMap = null;
 
   for (var t = 0; t < trailersList.length; t++) {
     var tr = trailersList[t];
@@ -4458,12 +4481,21 @@ function aggregateSeriesList(channels) {
       if (tr.item.seriesLogo) matchedSeries.logo = tr.item.seriesLogo;
       if (!matchedSeries.logo && tr.item.logo) matchedSeries.logo = tr.item.logo;
     } else {
+      if (!movieKeyMap) {
+        movieKeyMap = Object.create(null);
+        for (var rIdx = 0; rIdx < result.length; rIdx++) {
+          if (!result[rIdx].isSeries && result[rIdx].name) {
+            var ck = result[rIdx]._cleanKey || (result[rIdx]._cleanKey = cleanTitleKey(result[rIdx].name));
+            movieKeyMap[ck] = result[rIdx];
+          }
+        }
+      }
       // Buscar si pertenece a una película en result (directo por hash o substring)
       var matchedMovie = movieKeyMap[trKey];
       if (!matchedMovie) {
         for (var r = 0; r < result.length; r++) {
           if (!result[r].isSeries && result[r].name) {
-            var mKey = cleanTitleKey(result[r].name);
+            var mKey = result[r]._cleanKey || (result[r]._cleanKey = cleanTitleKey(result[r].name));
             if (mKey === trKey || (mKey.length >= 3 && trKey.length >= 3 && (mKey.indexOf(trKey) > -1 || trKey.indexOf(mKey) > -1))) {
               matchedMovie = result[r];
               break;
@@ -4997,19 +5029,24 @@ function parseM3U(text) {
     var ln = lines[i].trim();
     if (!ln) continue;
     if (ln.indexOf('#EXTINF') === 0) {
-      var parts = ln.split(',');
-      var fallbackName = ln.replace(/^#EXTINF:\s*/i, '').replace(/^-?\d+(?:\.\d+)?(?:\s+|$)/, '').trim();
-      var name = (parts.length > 1 ? parts.slice(1).join(',') : fallbackName || 'Canal').trim();
-      var logo = '', group = 'General', subs = '';
-      var mLogo = ln.match(/tvg-logo="([^"]*)"/i); if (mLogo) logo = resolveIconUrl(mLogo[1]);
-      var mGroup = ln.match(/group-title="([^"]*)"/i); if (mGroup && mGroup[1].trim()) group = mGroup[1].trim();
-      var mSubs = ln.match(/sub-tracks="([^"]*)"/i); if (mSubs) subs = mSubs[1];
-      var mSeriesLogo = ln.match(/series-logo="([^"]*)"/i);
-      var seriesLogo = mSeriesLogo ? resolveIconUrl(mSeriesLogo[1]) : '';
-      var mPoster = ln.match(/(?:series-poster|tvg-poster|poster|tvg-cover)="([^"]*)"/i);
-      var seriesPoster = mPoster ? resolveIconUrl(mPoster[1]) : '';
-      var mAdded = ln.match(/added-at="([^"]*)"/i);
-      meta = { addedAt: mAdded ? mAdded[1] : '', name: name, seriesPoster: seriesPoster, seriesLogo: seriesLogo, logo: logo, group: group, subs: subs, extgrp: '', id: 'ch-' + i };
+      var commaIdx = ln.indexOf(',');
+      var name = (commaIdx !== -1
+        ? ln.slice(commaIdx + 1)
+        : (ln.replace(/^#EXTINF:\s*/i, '').replace(/^-?\d+(?:\.\d+)?(?:\s+|$)/, '').trim() || 'Canal')).trim();
+      var logo = '', group = 'General', subs = '', seriesLogo = '', seriesPoster = '', addedAt = '';
+      if (ln.indexOf('=') !== -1) {
+        var mLogo = ln.match(/tvg-logo="([^"]*)"/i); if (mLogo) logo = resolveIconUrl(mLogo[1]);
+        var mGroup = ln.match(/group-title="([^"]*)"/i); if (mGroup && mGroup[1].trim()) group = mGroup[1].trim();
+        var mSubs = (ln.indexOf('sub-tracks=') !== -1 || ln.indexOf('SUB-TRACKS=') !== -1) ? ln.match(/sub-tracks="([^"]*)"/i) : null;
+        if (mSubs) subs = mSubs[1];
+        var mSeriesLogo = (ln.indexOf('series-logo=') !== -1 || ln.indexOf('SERIES-LOGO=') !== -1) ? ln.match(/series-logo="([^"]*)"/i) : null;
+        if (mSeriesLogo) seriesLogo = resolveIconUrl(mSeriesLogo[1]);
+        var mPoster = ln.match(/(?:series-poster|tvg-poster|poster|tvg-cover)="([^"]*)"/i);
+        if (mPoster) seriesPoster = resolveIconUrl(mPoster[1]);
+        var mAdded = (ln.indexOf('added-at=') !== -1 || ln.indexOf('ADDED-AT=') !== -1) ? ln.match(/added-at="([^"]*)"/i) : null;
+        if (mAdded) addedAt = mAdded[1];
+      }
+      meta = { addedAt: addedAt, name: name, seriesPoster: seriesPoster, seriesLogo: seriesLogo, logo: logo, group: group, subs: subs, extgrp: '', id: 'ch-' + i };
     } else if (ln.indexOf('#EXTGRP:') === 0) {
       if (meta) {
         var grp = ln.replace('#EXTGRP:', '').trim();
@@ -5029,7 +5066,7 @@ function parseM3U(text) {
         if (s) meta.subs = s;
       }
     } else if (ln.charAt(0) !== '#') {
-      if (meta) { meta.url = ln; var mYt = ln.match(/[?&]v=([a-zA-Z0-9_-]{11})/); if (mYt) meta.youtubeId = mYt[1]; list.push(meta); meta = null; }
+      if (meta) { meta.url = ln; if (ln.indexOf('v=') !== -1) { var mYt = ln.match(/[?&]v=([a-zA-Z0-9_-]{11})/); if (mYt) meta.youtubeId = mYt[1]; } list.push(meta); meta = null; }
     }
   }
   return list;
@@ -5070,6 +5107,7 @@ function loadPlaylistContent(pl, forceFresh, onReady) {
     forceFresh = true;
     delete state._forceFreshPlaylists[pl.id];
   }
+  if (typeof cancelBackgroundPrefetch === 'function') cancelBackgroundPrefetch(forceFresh ? null : (pl && pl.id));
   if (typeof stashCurrentChannelGridView === 'function') stashCurrentChannelGridView();
   if (forceFresh && typeof clearChannelGridViewCache === 'function') clearChannelGridViewCache(pl && pl.id);
   state.currentPlaylist = pl;
@@ -5080,6 +5118,7 @@ function loadPlaylistContent(pl, forceFresh, onReady) {
   if (!forceFresh && state._playlistCache[pl.id]) {
     var cached = state._playlistCache[pl.id];
     if (cached.time && (nowTime - cached.time < 21600000)) {
+      if (typeof cancelBackgroundPrefetch === 'function') cancelBackgroundPrefetch();
       state.channels = cached.channels;
       state.groups = cached.groups;
       state.currentGroup = cached.lastGroup || '__all';
@@ -5114,7 +5153,13 @@ function loadPlaylistContent(pl, forceFresh, onReady) {
   showToast('Cargando ' + pl.name + '…');
   var cbParam = forceFresh ? ('&_cb=' + (new Date()).getTime()) : '';
   var murl = (API_BASE || '') + '/api/ott/m3u?token=' + encodeURIComponent(state.auth.token) + '&deviceId=' + encodeURIComponent(state.auth.deviceId) + '&pid=' + encodeURIComponent(pl.id) + cbParam;
-  var xhr = new XMLHttpRequest();
+  var adoptedPrefetch = (!forceFresh && state._prefetchXhr && state._prefetchPlId === pl.id && state._prefetchXhr.readyState !== 4);
+  var xhr = adoptedPrefetch ? state._prefetchXhr : new XMLHttpRequest();
+  if (adoptedPrefetch) {
+    state._prefetchHandedOff = true;
+    state._prefetchXhr = null;
+    state._prefetchPlId = null;
+  }
   state.playlistRequest = xhr;
   var called = false;
   var loadTimer = null;
@@ -5199,7 +5244,9 @@ function loadPlaylistContent(pl, forceFresh, onReady) {
       showLoadError('No se pudo cargar esta categoría (' + status + ')');
     }
   }
-  xhr.open('GET', murl, true);
+  if (!adoptedPrefetch) {
+    xhr.open('GET', murl, true);
+  }
   xhr.onreadystatechange = function() {
     if (xhr.readyState === 4) {
       handleResult(xhr.status, xhr.responseText);
@@ -5214,25 +5261,155 @@ function loadPlaylistContent(pl, forceFresh, onReady) {
     try { xhr.abort(); } catch (abortError) {}
   }, 45000);
   state.playlistRequestTimer = loadTimer;
-  try {
-    xhr.send();
-  } catch (err) {
-    handleResult(0, null);
+  if (!adoptedPrefetch) {
+    try {
+      xhr.send();
+    } catch (err) {
+      handleResult(0, null);
+    }
   }
 }
 
 function buildGroups() {
+  state.groups = extractGroupsFromChannels(state.channels);
+}
+
+function extractGroupsFromChannels(channels) {
   var map = {};
   var groups = [];
-  for (var i = 0; i < state.channels.length; i++) {
-    var g = state.channels[i].group || 'General';
+  if (!channels) return groups;
+  for (var i = 0; i < channels.length; i++) {
+    var g = channels[i].group || 'General';
     if (!map[g]) {
       map[g] = true;
       groups.push(g);
     }
   }
   // Conserva el orden exacto de categorías definido en la playlist
-  state.groups = groups;
+  return groups;
+}
+
+function cancelBackgroundPrefetch(keepPlaylistId) {
+  if (state._prefetchTimer && typeof clearTimeout === 'function') {
+    clearTimeout(state._prefetchTimer);
+    state._prefetchTimer = null;
+  }
+  if (state._prefetchXhr) {
+    if (!keepPlaylistId || state._prefetchPlId !== keepPlaylistId) {
+      try { state._prefetchXhr.abort(); } catch (ePfAbort) {}
+      state._prefetchXhr = null;
+      state._prefetchPlId = null;
+      state._prefetchHandedOff = false;
+    }
+  }
+}
+
+function prefetchPlaylistInBackground(pl, isPrimary, onDone) {
+  if (!pl || !pl.id || pl.id === '__music' || pl.isMusic) {
+    if (typeof onDone === 'function') onDone();
+    return;
+  }
+  if (typeof isPlExpired === 'function' && isPlExpired(pl)) {
+    if (typeof onDone === 'function') onDone();
+    return;
+  }
+  if (!state._playlistCache) state._playlistCache = {};
+  var nowTime = (new Date()).getTime();
+  var existing = state._playlistCache[pl.id];
+  if (existing && existing.time && (nowTime - existing.time < 21600000) && !(state._forceFreshPlaylists && state._forceFreshPlaylists[pl.id])) {
+    if (typeof onDone === 'function') onDone();
+    return;
+  }
+  if ((state.screen && state.screen !== 'playlists') || state.playlistRequest || state._prefetchXhr || !state.auth || !state.auth.token || !state.auth.deviceId || typeof XMLHttpRequest !== 'function') {
+    return;
+  }
+  var murl = (API_BASE || '') + '/api/ott/m3u?token=' + encodeURIComponent(state.auth.token) + '&deviceId=' + encodeURIComponent(state.auth.deviceId) + '&pid=' + encodeURIComponent(pl.id);
+  var xhr = new XMLHttpRequest();
+  state._prefetchXhr = xhr;
+  state._prefetchPlId = pl.id;
+  state._prefetchHandedOff = false;
+  var finished = false;
+  function completePrefetch(status, text) {
+    if (finished || state._prefetchHandedOff) return;
+    finished = true;
+    if (state._prefetchXhr === xhr) {
+      state._prefetchXhr = null;
+      state._prefetchPlId = null;
+    }
+    if (status === 200 && text && (!state.screen || state.screen === 'playlists') && (!state.currentPlaylist || state.currentPlaylist.id !== pl.id)) {
+      try {
+        var parsedChs = aggregateSeriesList(parseM3U(text), pl);
+        var parsedGrps = extractGroupsFromChannels(parsedChs);
+        if (!state._playlistCache) state._playlistCache = {};
+        state._playlistCache[pl.id] = {
+          channels: parsedChs,
+          groups: parsedGrps,
+          time: (new Date()).getTime()
+        };
+        if (isPrimary && typeof preloadUpcomingCardImages === 'function') {
+          preloadUpcomingCardImages(parsedChs, 0, PAGE_SIZE);
+        }
+      } catch (ePfParse) {}
+    }
+    if (typeof onDone === 'function') onDone();
+  }
+  xhr.open('GET', murl, true);
+  xhr.onreadystatechange = function() {
+    if (xhr.readyState === 4) {
+      completePrefetch(xhr.status, xhr.responseText);
+    }
+  };
+  xhr.onerror = function() {
+    completePrefetch(0, null);
+  };
+  try {
+    xhr.send();
+  } catch (ePfSend) {
+    completePrefetch(0, null);
+  }
+}
+
+function schedulePlaylistPrefetch(priorityPl) {
+  if (typeof XMLHttpRequest !== 'function' || typeof setTimeout !== 'function') return;
+  if (!state.auth || !state.auth.token || !state.auth.deviceId) return;
+  if ((state.screen && state.screen !== 'playlists') || state.currentPlaylist || state.playlistRequest) return;
+  var pls = typeof visiblePlaylists === 'function' ? visiblePlaylists() : (state.playlists || []);
+  if (!pls || !pls.length) return;
+  var targetPrimary = priorityPl || null;
+  if (!targetPrimary && typeof getHomeTabsList === 'function') {
+    var hTabs = getHomeTabsList();
+    var activeTab = hTabs[state.tabIdx || 0];
+    if (activeTab && activeTab.pl) targetPrimary = activeTab.pl;
+  }
+  if (!targetPrimary) targetPrimary = pls[0];
+  var queue = [];
+  if (targetPrimary && targetPrimary.id && targetPrimary.id !== '__music' && !targetPrimary.isMusic) {
+    queue.push(targetPrimary);
+  }
+  for (var i = 0; i < pls.length; i++) {
+    var candidate = pls[i];
+    if (!candidate || !candidate.id || candidate.id === '__music' || candidate.isMusic) continue;
+    if (targetPrimary && candidate.id === targetPrimary.id) continue;
+    queue.push(candidate);
+  }
+  if (!queue.length) return;
+  if (state._prefetchTimer) clearTimeout(state._prefetchTimer);
+  var qIdx = 0;
+  function runNext() {
+    state._prefetchTimer = null;
+    if ((state.screen && state.screen !== 'playlists') || state.currentPlaylist || state.playlistRequest || qIdx >= queue.length) return;
+    var nextPl = queue[qIdx++];
+    if (state._prefetchXhr) {
+      if (state._prefetchPlId === nextPl.id) return;
+      cancelBackgroundPrefetch();
+    }
+    prefetchPlaylistInBackground(nextPl, qIdx === 1, function() {
+      if ((!state.screen || state.screen === 'playlists') && !state.currentPlaylist && !state.playlistRequest && qIdx < queue.length) {
+        state._prefetchTimer = setTimeout(runNext, 120);
+      }
+    });
+  }
+  state._prefetchTimer = setTimeout(runNext, 40);
 }
 
 function normalizePlaylistSearch(value) {
@@ -5249,7 +5426,7 @@ function getFilteredChannels() {
   // Una sola vista en caché: banner y paginación comparten el resultado.
   // Favoritos se consulta de nuevo porque cambia sin reemplazar el catálogo.
   if (state.currentGroup !== '__fav' && cached && cached.channels === state.channels &&
-      cached.group === state.currentGroup && cached.query === q) return cached.items;
+      cached.len === state.channels.length && cached.group === state.currentGroup && cached.query === q) return cached.items;
   var res = [];
   for (var i = 0; i < state.channels.length; i++) {
     var c = state.channels[i];
@@ -5261,8 +5438,9 @@ function getFilteredChannels() {
     if (q.length > 0 && !state._musicSearchActive) {
       // Se prepara cada título solo al buscar; no se procesa en cada tecla.
       if (typeof c._searchName !== 'string') c._searchName = normalizePlaylistSearch(c.name);
+      if (typeof c._searchGroup !== 'string') c._searchGroup = normalizePlaylistSearch(c.group);
       var nMatch = c._searchName.indexOf(q) !== -1;
-      var gMatch = normalizePlaylistSearch(c.group).indexOf(q) !== -1;
+      var gMatch = c._searchGroup.indexOf(q) !== -1;
       if (!nMatch && !gMatch && c.group !== '🔍 Resultados de Búsqueda') continue;
     }
     res.push(c);
@@ -5271,12 +5449,16 @@ function getFilteredChannels() {
   if (state.currentGroup === '__all' && /^cine\s*(2026|4\s*k|por\s+generos?)\b/.test(playlistName)) {
     // Explicit indices keep equal/unknown dates stable on legacy NetCast engines.
     var ranked = [];
-    for (var r = 0; r < res.length; r++) ranked.push({item: res[r], index: r, time: Date.parse(res[r].addedAt || '') || 0});
+    for (var r = 0; r < res.length; r++) {
+      var rItem = res[r];
+      var rTime = typeof rItem._addedAtMs === 'number' ? rItem._addedAtMs : (rItem._addedAtMs = rItem.addedAt ? (Date.parse(rItem.addedAt) || 0) : 0);
+      ranked.push({item: rItem, index: r, time: rTime});
+    }
     ranked.sort(function(a, b) { return b.time - a.time || a.index - b.index; });
     res = [];
     for (var r2 = 0; r2 < ranked.length; r2++) res.push(ranked[r2].item);
   }
-  state._filteredChannels = {channels: state.channels, group: state.currentGroup, query: q, items: res};
+  state._filteredChannels = {channels: state.channels, len: state.channels.length, group: state.currentGroup, query: q, items: res};
   return res;
 }
 
@@ -5653,9 +5835,19 @@ function getHomeTabsList() {
 function getTabsList() {
   var allTabs = [];
   var hasFavs = false;
-  if (state.favorites) {
-    for (var i = 0; i < state.channels.length; i++) {
-      if (state.favorites[state.channels[i].id]) { hasFavs = true; break; }
+  if (state.favorites && state.channels && state.channels.length > 0) {
+    var favKeys = Object.keys(state.favorites);
+    if (favKeys.length > 0) {
+      if (state._favCheckChannels === state.channels && state._favCheckCount === favKeys.length && typeof state._favCheckResult === 'boolean') {
+        hasFavs = state._favCheckResult;
+      } else {
+        for (var i = 0; i < state.channels.length; i++) {
+          if (state.favorites[state.channels[i].id]) { hasFavs = true; break; }
+        }
+        state._favCheckChannels = state.channels;
+        state._favCheckCount = favKeys.length;
+        state._favCheckResult = hasFavs;
+      }
     }
   }
   if (hasFavs) {
@@ -6333,6 +6525,7 @@ function goBackAction() {
       state.homeReturnNavigation = null;
       renderTabs();
       updateMainFocus(false);
+      if (typeof schedulePlaylistPrefetch === 'function') schedulePlaylistPrefetch();
       return;
     }
     
@@ -6568,6 +6761,7 @@ function handleMainNav(kc, eObj) {
       var cid = list[favTargetIdx].id;
       if (state.favorites[cid]) delete state.favorites[cid];
       else state.favorites[cid] = true;
+      state._favCheckChannels = null;
       saveStorage();
       if (typeof clearChannelGridViewCache === 'function') {
         clearChannelGridViewCache(state.currentPlaylist && state.currentPlaylist.id);
@@ -6592,6 +6786,9 @@ function switchCategoryTab(dir) {
     var nextH = (curH + dir + hTabs.length) % hTabs.length;
     state.tabIdx = nextH;
     renderTabs();
+    if (hTabs[nextH] && hTabs[nextH].pl && typeof schedulePlaylistPrefetch === 'function') {
+      schedulePlaylistPrefetch(hTabs[nextH].pl);
+    }
   } else {
     var allTabs = getTabsList();
     if (!allTabs.length) return;
@@ -6606,11 +6803,20 @@ function switchCategoryTab(dir) {
     if (state._catDebounceTimer) {
       clearTimeout(state._catDebounceTimer);
     }
-    state._catDebounceTimer = setTimeout(function() {
+    var targetViewKey = String(state.currentPlaylist ? state.currentPlaylist.id : '__default') + '|' +
+      String(state.currentGroup || '__all') + '|' +
+      normalizePlaylistSearch(state.searchQuery) + '|0';
+    if (typeof channelGridViewCache !== 'undefined' && channelGridViewCache && channelGridViewCache[targetViewKey]) {
       state._catDebounceTimer = null;
       renderChannels();
       updateMainFocus(false);
-    }, 220);
+    } else {
+      state._catDebounceTimer = setTimeout(function() {
+        state._catDebounceTimer = null;
+        renderChannels();
+        updateMainFocus(false);
+      }, 90);
+    }
   }
 }
 
@@ -7638,6 +7844,7 @@ function playChannelAt(idx) {
 }
 
 function playItem(c, recovering) {
+  if (typeof cancelBackgroundPrefetch === 'function') cancelBackgroundPrefetch();
   if (typeof window !== 'undefined' && window.TeamGCatalogImages) window.TeamGCatalogImages.stop();
   var nowTime = (new Date()).getTime();
   if (nowTime - lastChannelChangeTime < 350) return;

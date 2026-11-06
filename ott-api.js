@@ -342,14 +342,19 @@ function cachePlaylistContent(id, revision, text) {
   const old = playlistContentCache.get(id);
   if (old) { contentCacheBytes -= old.bytes; playlistContentCache.delete(id); }
   const bytes = Buffer.byteLength(text);
-  if (bytes > CONTENT_CACHE_LIMIT) return;
+  if (bytes > CONTENT_CACHE_LIMIT) return null;
   while (contentCacheBytes + bytes > CONTENT_CACHE_LIMIT && playlistContentCache.size) {
     const oldest = playlistContentCache.keys().next().value;
     contentCacheBytes -= playlistContentCache.get(oldest).bytes;
     playlistContentCache.delete(oldest);
   }
-  playlistContentCache.set(id, { revision, text, bytes, ts: Date.now() });
+  const entry = { revision, text, bytes, ts: Date.now(), gzip: null, parsed: null };
+  playlistContentCache.set(id, entry);
   contentCacheBytes += bytes;
+  require('node:zlib').gzip(text, (err, data) => {
+    if (!err && playlistContentCache.get(id) === entry) entry.gzip = data;
+  });
+  return entry;
 }
 
 async function deviceSubscription(cols, dev, user) {
@@ -767,15 +772,15 @@ async function handle(req, res, pathname, query, body) {
       const id = String(pl._id), revision = String(pl.updatedAt || pl.created || '');
       let cached = playlistContentCache.get(id);
       let text = null;
-      if (!isFresh && cached && cached.revision === revision && Date.now() - cached.ts < CACHE_TTL_MS) {
+      if (!isFresh && cached && cached.revision === revision) {
+        cached.ts = Date.now();
         text = cached.text;
       } else {
         const content = await findById(a.cols.playlists, query.pid, { _id: 1, url: 1, customM3u: 1, updatedAt: 1, created: 1 });
         if (content && content.customM3u) {
           text = content.customM3u;
           const rev = String(content.updatedAt || content.created || '');
-          cachePlaylistContent(id, rev, text);
-          cached = playlistContentCache.get(id);
+          cached = cachePlaylistContent(id, rev, text);
         }
       }
       if (text) {
@@ -807,11 +812,22 @@ async function handle(req, res, pathname, query, body) {
     if (!target) return json(res, 404, { ok: false, error: 'Sin URL' });
     try {
       const text = await getCachedOrFetchText(target, isFresh);
-      res.writeHead(200, {
+      if (pathname === '/api/ott/m3u' && text) {
+        prewarmPlaylistIcons(a.cols, text);
+      }
+      const headers = {
         'Content-Type': pathname === '/api/ott/m3u' ? 'text/plain; charset=utf-8' : 'application/xml; charset=utf-8',
-        'Cache-Control': pathname === '/api/ott/m3u' ? 'no-cache, no-store, must-revalidate' : 'public, max-age=300'
-      });
-      res.end(text);
+        'Cache-Control': pathname === '/api/ott/m3u' ? 'no-cache, no-store, must-revalidate' : 'public, max-age=300',
+        'Vary': 'Accept-Encoding'
+      };
+      let payload = text;
+      const encoding = (req.headers && req.headers['accept-encoding']) || '';
+      if (pathname === '/api/ott/m3u' && /\bgzip\b/i.test(encoding) && !/gzip\s*;\s*q=0(?:\.0*)?(?:\s*[,;]|\s*$)/i.test(encoding)) {
+        payload = await new Promise((resolve, reject) => require('node:zlib').gzip(text, (err, data) => err ? reject(err) : resolve(data)));
+        headers['Content-Encoding'] = 'gzip';
+      }
+      res.writeHead(200, headers);
+      res.end(payload);
     } catch (e) { return json(res, 502, { ok: false, error: 'No se pudo descargar: ' + e.message }); }
     return;
   }
@@ -1293,17 +1309,34 @@ function fetchWithRedirects(targetUrl, options, maxRedirects, callback) {
       });
     }
     if (sub === 'playlist/channels' && req.method === 'GET') {
-      const pl = await cols.playlists.findOne({ _id: String(query.id || '') });
+      const pl = await findById(cols.playlists, query.id, { _id: 1, name: 1, url: 1, customM3u: 1, updatedAt: 1, created: 1 });
       if (!pl) return json(res, 404, { ok: false, error: 'Lista no encontrada' });
+      const id = String(pl._id), revision = String(pl.updatedAt || pl.created || '');
+      const isFresh = query.refresh === '1';
+      let cached = !isFresh && pl.customM3u ? playlistContentCache.get(id) : null;
+      if (cached && cached.revision === revision && cached.parsed) {
+        cached.ts = Date.now();
+        return json(res, 200, {
+          ok: true,
+          playlist: { id: pl._id, name: pl.name, url: pl.url },
+          channels: cached.parsed.channels,
+          groups: cached.parsed.groups
+        });
+      }
       let text = pl.customM3u || '';
-      if (!text && pl.url) {
+      if (text) {
+        if (!cached || cached.revision !== revision) {
+          cached = cachePlaylistContent(id, revision, text);
+        }
+      } else if (pl.url) {
         try {
-          text = await getCachedOrFetchText(pl.url, query.refresh === '1');
+          text = await getCachedOrFetchText(pl.url, isFresh);
         } catch (e) {
           return json(res, 502, { ok: false, error: 'No se pudo descargar la lista original: ' + e.message });
         }
       }
       const parsed = parseM3uText(text || '');
+      if (cached && cached.revision === revision) cached.parsed = parsed;
       return json(res, 200, {
         ok: true,
         playlist: { id: pl._id, name: pl.name, url: pl.url },
