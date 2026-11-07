@@ -2081,7 +2081,7 @@ body.smart-tv #player-music-yt-container { display:none !important; }
         <p id="optDescText">También puedes ingresar manualmente tu usuario y contraseña con el teclado en pantalla.</p>
         <div id="themePreview" aria-label="Paleta de colores actual" style="margin-top:18px;"></div>
         <div style="margin-top:16px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.5.76
+          VERSIÓN: v2.5.77
         </div>
       </div>
     </div>
@@ -2284,12 +2284,9 @@ body.smart-tv #player-music-yt-container { display:none !important; }
 <!-- Script HLS Vendor -->
 <script src="/ott/vendor/hls.min.js"></script>
 <script src="/ott/native-player.js?v=2.5.72"></script>
-<script src="/ott/hls-variant.js?v=2.5.76"></script>
+<script src="/ott/hls-variant.js?v=2.5.77"></script>
 <script src="/ott/catalog-images.js?v=1"></script>
 <script>
-(function() {
-'use strict';
-
 window.onerror = function(msg, url, line) {
   try {
     if (/_type|webapis/i.test(String(msg || '')) || /webapis/i.test(String(url || ''))) return true;
@@ -2302,6 +2299,10 @@ window.onerror = function(msg, url, line) {
   } catch (e) {}
   return false;
 };
+</script>
+<script>
+(function() {
+'use strict';
 
 var API_BASE = (window.location && window.location.protocol && window.location.host)
   ? (window.location.protocol + '//' + window.location.host)
@@ -4482,16 +4483,16 @@ function aggregateSeriesList(channels, optPl) {
       if (!matchedSeries.logo && tr.item.logo) matchedSeries.logo = tr.item.logo;
     } else {
       if (!movieKeyMap) {
-        movieKeyMap = Object.create(null);
+        movieKeyMap = {};
         for (var rIdx = 0; rIdx < result.length; rIdx++) {
           if (!result[rIdx].isSeries && result[rIdx].name) {
             var ck = result[rIdx]._cleanKey || (result[rIdx]._cleanKey = cleanTitleKey(result[rIdx].name));
-            movieKeyMap[ck] = result[rIdx];
+            movieKeyMap['$' + ck] = result[rIdx];
           }
         }
       }
       // Buscar si pertenece a una película en result (directo por hash o substring)
-      var matchedMovie = movieKeyMap[trKey];
+      var matchedMovie = movieKeyMap['$' + trKey];
       if (!matchedMovie) {
         for (var r = 0; r < result.length; r++) {
           if (!result[r].isSeries && result[r].name) {
@@ -8102,7 +8103,7 @@ function playItem(c, recovering) {
     var rawStreamUrl = (streamUrl.indexOf('/api/ott/stream') !== -1)
       ? (streamUrl.match(/[?&]url=([^&]+)/) ? decodeURIComponent(streamUrl.match(/[?&]url=([^&]+)/)[1]) : streamUrl)
       : streamUrl;
-    function applyNetcastVariant(variant) {
+    var applyNetcastVariant = function(variant) {
       if (state.screen !== 'player' || state.playerGeneration !== variantGeneration) return;
       if (variant) $('player-res').textContent = variant.width + 'x' + variant.height;
       var targetHls = (variant && variant.url && variant.url.length <= 320) ? variant.url : rawStreamUrl;
@@ -8114,7 +8115,7 @@ function playItem(c, recovering) {
         ? ('http://' + netcastHost + '/api/ott/stream.m3u8?manifestOnly=1&httpSegments=1&url=' + encodeURIComponent(targetHls))
         : (variant ? variant.url : playUrl);
       startSelectedPlayer(resolvedPlayUrl);
-    }
+    };
     if (!state._hlsVariantCache) state._hlsVariantCache = {};
     if (/\/play\/[^\/?#]+\/(?:index|playlist)\.m3u8|(?:chunklist|mono)\.m3u8/i.test(rawStreamUrl)) {
       applyNetcastVariant(null);

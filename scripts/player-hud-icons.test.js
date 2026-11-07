@@ -78,7 +78,7 @@ assert.ok(
 );
 
 // 7. Current client version; unchanged native scripts and logo retain their asset versions.
-assert.ok(/v2\.5\.\d+/.test(html) && html.includes('v2.5.76'), 'index.html must display version v2.5.76');
+assert.ok(/v2\.5\.\d+/.test(html) && html.includes('v2.5.77'), 'index.html must display version v2.5.77');
 assert.ok(/native-player\.js\?v=2\.5\.\d+/.test(html), 'native-player.js query must have a version');
 assert.ok(server.includes('logo-teamg.png?v=2.5.61'), 'server.js logo query must be v2.5.61');
 
