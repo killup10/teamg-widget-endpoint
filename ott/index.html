@@ -2081,7 +2081,7 @@ body.smart-tv #player-music-yt-container { display:none !important; }
         <p id="optDescText">También puedes ingresar manualmente tu usuario y contraseña con el teclado en pantalla.</p>
         <div id="themePreview" aria-label="Paleta de colores actual" style="margin-top:18px;"></div>
         <div style="margin-top:16px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.5.77
+          VERSIÓN: v2.5.78
         </div>
       </div>
     </div>
@@ -9665,6 +9665,12 @@ var ASPECT_MODES = [
       if (netcast && typeof netcast.setAspectRatio === 'function') {
         try { netcast.setAspectRatio('auto'); } catch (e) {}
       }
+      if (window.TeamGNative && TeamGNative.active() && window.webapis && window.webapis.avplay) {
+        try {
+          window.webapis.avplay.setDisplayRect(0, 0, 1920, 1080);
+          window.webapis.avplay.setDisplayMethod('PLAYER_DISPLAY_MODE_LETTER_BOX');
+        } catch (eAv1) {}
+      }
     }
   },
   {
@@ -9682,6 +9688,12 @@ var ASPECT_MODES = [
       }
       if (netcast && typeof netcast.setAspectRatio === 'function') {
         try { netcast.setAspectRatio('16:9'); } catch (e) {}
+      }
+      if (window.TeamGNative && TeamGNative.active() && window.webapis && window.webapis.avplay) {
+        try {
+          window.webapis.avplay.setDisplayRect(0, 0, 1920, 1080);
+          window.webapis.avplay.setDisplayMethod('PLAYER_DISPLAY_MODE_FULL_SCREEN');
+        } catch (eAv2) {}
       }
     }
   },
@@ -9701,6 +9713,12 @@ var ASPECT_MODES = [
       if (netcast && typeof netcast.setAspectRatio === 'function') {
         try { netcast.setAspectRatio('zoom'); } catch (e) {}
       }
+      if (window.TeamGNative && TeamGNative.active() && window.webapis && window.webapis.avplay) {
+        try {
+          window.webapis.avplay.setDisplayRect(0, 0, 1920, 1080);
+          window.webapis.avplay.setDisplayMethod('PLAYER_DISPLAY_MODE_CROPPED_FULL');
+        } catch (eAv3) {}
+      }
     }
   },
   {
@@ -9719,6 +9737,12 @@ var ASPECT_MODES = [
       if (netcast && typeof netcast.setAspectRatio === 'function') {
         try { netcast.setAspectRatio('4:3'); } catch (e) {}
       }
+      if (window.TeamGNative && TeamGNative.active() && window.webapis && window.webapis.avplay) {
+        try {
+          window.webapis.avplay.setDisplayRect(240, 0, 1440, 1080);
+          window.webapis.avplay.setDisplayMethod('PLAYER_DISPLAY_MODE_FULL_SCREEN');
+        } catch (eAv4) {}
+      }
     }
   }
 ];
@@ -9729,10 +9753,6 @@ $('btnPlayerRatio').onclick = function(e) {
   if (ev && ev.stopPropagation) ev.stopPropagation();
   if (typeof window.NetCastLaunchRATIO === 'function') {
     try { window.NetCastLaunchRATIO(); return; } catch (nativeErr) {}
-  }
-  if (/NetCast|webOS|Web0S|Tizen|SMART-TV/i.test(navigator.userAgent || '')) {
-    showToast('Usa Ajustes de imagen del televisor para cambiar la proporción.');
-    return;
   }
   showPlayerOverlay();
   currentAspectIdx = (currentAspectIdx + 1) % ASPECT_MODES.length;
