@@ -1798,12 +1798,6 @@ function handleStream(req, res, query) {
         upRes.once('end', () => { if (!started) { start(); res.end(); } });
         return;
       }
-      if (outContentType === 'video/mp2t' && Number(upRes.headers['content-length']) === 188) {
-        delete outHeaders['Content-Length'];
-        res.writeHead(404, outHeaders);
-        upRes.resume();
-        return res.end();
-      }
       res.writeHead(upRes.statusCode || 200, outHeaders);
       upRes.pipe(res);
     }

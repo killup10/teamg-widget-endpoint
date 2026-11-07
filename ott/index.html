@@ -2081,7 +2081,7 @@ body.smart-tv #player-music-yt-container { display:none !important; }
         <p id="optDescText">También puedes ingresar manualmente tu usuario y contraseña con el teclado en pantalla.</p>
         <div id="themePreview" aria-label="Paleta de colores actual" style="margin-top:18px;"></div>
         <div style="margin-top:16px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.5.74
+          VERSIÓN: v2.5.75
         </div>
       </div>
     </div>
@@ -7914,7 +7914,6 @@ function playItem(c, recovering) {
   c._triedHtml5Proxy = false;
   c._triedHtml5Http = false;
   c._triedMusicProxy = false;
-  c._triedAudioTranscode = false;
   state.musicPlaybackFailed = false;
 
   // 1. Resolver URL de reproducción
@@ -8050,23 +8049,20 @@ function playItem(c, recovering) {
     }
   }
   var androidLiveAudio = /Android/i.test(ua) && !/NetCast|webOS|Web0S|Tizen/i.test(ua) && !state.recoveryVod && !isDirectCdn;
-  var isAstraBroadcastHls = /\/play\/[^\/?#]+\/(?:index|playlist)\.m3u8(?:[?#]|$)/i.test(streamUrl);
-  // A continuous TS response or Astra broadcast HLS carrying MP2/AC-3 audio needs
-  // packaging for HTML5/TV playback and conversion of broadcast audio to AAC.
+  // A continuous TS response is not playable in a browser/TV <video src>;
+  // package it as HLS and convert broadcast audio to AAC on the server.
   // Native TV decoders accept TS directly. Do not intercept their startup
   // with the HTML5 packaging service (which also changes transport to HTTPS).
-  var rawLiveTransport = !preferNetcast && !useNative && !state.recoveryVod && (!isHls || isAstraBroadcastHls) && !isDirectCdn &&
+  var rawLiveTransport = !preferNetcast && !useNative && !state.recoveryVod && !isHls && !isDirectCdn &&
     !/\.(?:mp4|m4v|mkv|webm|avi|mov|mp3|aac)(?:[?#]|$)/i.test(streamUrl);
   if ((androidLiveAudio || rawLiveTransport) && state.currentPlaylist && state.auth.token) {
     var audioGeneration = state.playerGeneration;
-    state.androidAudioPreparing = !rawLiveTransport;
-    // HLS can start while checking audio; raw TS / Astra MP2 HLS must wait for packaging.
+    // HLS can start while checking audio; raw TS must not open a failing <video src> first.
     if (!rawLiveTransport) startSelectedPlayer(playUrl);
     apiCall('POST', '/api/ott/android-audio/prepare', {
       token: state.auth.token, deviceId: state.auth.deviceId,
       playlistId: state.currentPlaylist.id, url: streamUrl, forceHls: rawLiveTransport
     }, function(status, result) {
-      if (state.playerGeneration === audioGeneration) state.androidAudioPreparing = false;
       if (state.screen !== 'player' || state.playerGeneration !== audioGeneration) {
         if (result && result.sessionId) apiCall('POST', '/api/ott/android-audio/stop', { token: state.auth.token, deviceId: state.auth.deviceId, sessionId: result.sessionId }, function() {});
         return;
@@ -8081,8 +8077,6 @@ function playItem(c, recovering) {
         } else if (rawLiveTransport) startSelectedPlayer(playUrl);
       } else {
         if (rawLiveTransport) startSelectedPlayer(playUrl);
-        hideTuning();
-        showToast((result && result.error) || 'No se pudo preparar la señal compatible. Intentando señal original.');
       }
     });
     return;
@@ -8686,7 +8680,6 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c, androidFallbackEngine) 
         }
       }, 300);
     } else {
-      if (tryLiveAudioTranscodeFallback()) return;
       hideTuning();
       showToast('La reproducción se interrumpió.');
       recoverPlayback();
@@ -8711,51 +8704,6 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c, androidFallbackEngine) 
     playHtml5(v, netcastObj, playUrl, streamUrl, c, useJsHls ? 'native' : 'js');
     return true;
   }
-  function tryLiveAudioTranscodeFallback() {
-    var isMusic = (streamUrl && streamUrl.indexOf('/api/ott/music/') !== -1) || (c && c.url && c.url.indexOf('/api/ott/music/') !== -1);
-    if (state.recoveryVod || isMusic) return false;
-    if (state.androidAudioPreparing) {
-      v.onerror = null;
-      if (state.hlsInstance) { try { state.hlsInstance.destroy(); } catch (prepDestroyErr) {} state.hlsInstance = null; }
-      try { v.pause(); v.removeAttribute('src'); v.load(); } catch (prepResetErr) {}
-      if (typeof showTuning === 'function' && c && c.name) showTuning(c.name);
-      return true;
-    }
-    if (!c || c._triedAudioTranscode || !state.currentPlaylist || !state.auth || !state.auth.token || typeof apiCall !== 'function') return false;
-    if (playUrl && playUrl.indexOf('/api/ott/android-audio/') !== -1) return false;
-    c._triedAudioTranscode = true;
-    state.androidAudioPreparing = true;
-    var fallbackGen = state.playerGeneration;
-    var rawTargetUrl = (streamUrl && streamUrl.indexOf('/api/ott/stream') !== -1 && streamUrl.match(/[?&]url=([^&]+)/))
-      ? decodeURIComponent(streamUrl.match(/[?&]url=([^&]+)/)[1])
-      : (streamUrl || playUrl);
-    v.onerror = null;
-    if (state.hlsInstance) { try { state.hlsInstance.destroy(); } catch (fbDestroyErr) {} state.hlsInstance = null; }
-    try { v.pause(); v.removeAttribute('src'); v.load(); } catch (fbResetErr) {}
-    if (typeof showTuning === 'function' && c.name) showTuning(c.name);
-    apiCall('POST', '/api/ott/android-audio/prepare', {
-      token: state.auth.token,
-      deviceId: state.auth.deviceId,
-      playlistId: state.currentPlaylist.id,
-      url: rawTargetUrl,
-      forceHls: true
-    }, function(status, result) {
-      if (state.playerGeneration === fallbackGen) state.androidAudioPreparing = false;
-      if (state.screen !== 'player' || state.playerGeneration !== fallbackGen) {
-        if (result && result.sessionId) apiCall('POST', '/api/ott/android-audio/stop', { token: state.auth.token, deviceId: state.auth.deviceId, sessionId: result.sessionId }, function() {});
-        return;
-      }
-      if (status === 200 && result && result.ok && result.url) {
-        state.androidAudioSession = result.sessionId || null;
-        playHtml5(v, netcastObj, (typeof API_BASE !== 'undefined' && API_BASE ? API_BASE : '') + result.url, streamUrl, c);
-      } else {
-        hideTuning();
-        showToast('La señal se interrumpió.');
-        recoverPlayback();
-      }
-    });
-    return true;
-  }
   function androidPlayError(err) {
     if (err && err.name === 'NotAllowedError') {
       hideTuning();
@@ -8765,7 +8713,7 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c, androidFallbackEngine) 
   if (useJsHls) {
     // Only legacy NetCast needs fixed 1080p startup; webOS/Tizen keep ABR, including 4K.
     var stableLgHls = isLegacyNetcast;
-    state.hlsInstance = new Hls({ maxBufferLength: 15, enableWorker: false, lowLatencyMode: false, liveSyncDurationCount: 2, autoStartLoad: !stableLgHls });
+    state.hlsInstance = new Hls({ maxBufferLength: 15, enableWorker: false, autoStartLoad: !stableLgHls });
     state.hlsInstance.loadSource(playUrl);
     state.hlsInstance.attachMedia(v);
     // Iniciar durante el gesto del mando, sin esperar la descarga del manifiesto.
@@ -8818,8 +8766,6 @@ function playHtml5(v, netcastObj, playUrl, streamUrl, c, androidFallbackEngine) 
         if (isLegacyNetcast && netcastObj && (!c || !c._triedNetcast)) {
           startNetcastPlayer(v, netcastObj, playUrl, streamUrl, c);
         } else {
-          if (tryLiveAudioTranscodeFallback()) return;
-          if (state.hlsInstance) { try { state.hlsInstance.destroy(); } catch (fatalDestroyErr) {} state.hlsInstance = null; }
           hideTuning();
           showToast('La señal se interrumpió.');
           recoverPlayback();
