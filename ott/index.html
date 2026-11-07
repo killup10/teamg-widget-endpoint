@@ -2081,7 +2081,7 @@ body.smart-tv #player-music-yt-container { display:none !important; }
         <p id="optDescText">También puedes ingresar manualmente tu usuario y contraseña con el teclado en pantalla.</p>
         <div id="themePreview" aria-label="Paleta de colores actual" style="margin-top:18px;"></div>
         <div style="margin-top:16px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.18); font-size:13px; color:#ffcc00; font-weight:bold;">
-          VERSIÓN: v2.5.75
+          VERSIÓN: v2.5.76
         </div>
       </div>
     </div>
@@ -2284,7 +2284,7 @@ body.smart-tv #player-music-yt-container { display:none !important; }
 <!-- Script HLS Vendor -->
 <script src="/ott/vendor/hls.min.js"></script>
 <script src="/ott/native-player.js?v=2.5.72"></script>
-<script src="/ott/hls-variant.js?v=2.5.61"></script>
+<script src="/ott/hls-variant.js?v=2.5.76"></script>
 <script src="/ott/catalog-images.js?v=1"></script>
 <script>
 (function() {
@@ -5558,12 +5558,23 @@ function rememberRecentContent(c) {
     next.push(old);
   }
   state.recentContent = next;
-  try {
-    var jsonNext = JSON.stringify(next);
-    localStorage.setItem('ott_recent_' + (state.auth.login || state.auth.deviceId || 'tv'), jsonNext);
-    if (state.auth && state.auth.login) localStorage.setItem('ott_recent_' + state.auth.login, jsonNext);
-    if (state.auth && state.auth.deviceId) localStorage.setItem('ott_recent_' + state.auth.deviceId, jsonNext);
-  } catch (e) {}
+  function persistRecent() {
+    try {
+      var jsonNext = JSON.stringify(state.recentContent || next);
+      localStorage.setItem('ott_recent_' + (state.auth.login || state.auth.deviceId || 'tv'), jsonNext);
+      if (state.auth && state.auth.login) localStorage.setItem('ott_recent_' + state.auth.login, jsonNext);
+      if (state.auth && state.auth.deviceId) localStorage.setItem('ott_recent_' + state.auth.deviceId, jsonNext);
+    } catch (e) {}
+  }
+  if (state.screen === 'player' && typeof setTimeout === 'function') {
+    if (state._recentSaveTimer && typeof clearTimeout === 'function') clearTimeout(state._recentSaveTimer);
+    state._recentSaveTimer = setTimeout(function() {
+      state._recentSaveTimer = null;
+      persistRecent();
+    }, 600);
+  } else {
+    persistRecent();
+  }
 }
 
 function openRecentContent(idx) {
@@ -7064,6 +7075,7 @@ function cleanPlayerEngines() {
     }
   }
 
+  var hadHlsInstance = !!state.hlsInstance;
   if (state.hlsInstance) {
     try {
       state.hlsInstance.stopLoad();
@@ -7079,7 +7091,7 @@ function cleanPlayerEngines() {
       v.removeAttribute('src');
       var isNetcastTv = typeof navigator !== 'undefined' && navigator.userAgent && navigator.userAgent.indexOf('NetCast') !== -1;
       // load() with no source releases the decoder on modern engines; on NetCast WebKit it causes errors.
-      if (hadVideoSource && typeof v.load === 'function' && !isNetcastTv) v.load();
+      if (hadVideoSource && !hadHlsInstance && typeof v.load === 'function' && !isNetcastTv) v.load();
     } catch (eV) {}
   }
 
@@ -7087,7 +7099,9 @@ function cleanPlayerEngines() {
   if (netcastObj) {
     try { netcastObj.onPlayStateChange = null; } catch (eN1) {}
     try { netcastObj.stop(); } catch (eN2) {}
-    try { if (netcastObj.parentNode) netcastObj.parentNode.removeChild(netcastObj); } catch (eN3) {}
+    if (state.screen === 'stopping-player') {
+      try { if (netcastObj.parentNode) netcastObj.parentNode.removeChild(netcastObj); } catch (eN3) {}
+    }
   }
 
   stopPlaybackTicker();
@@ -7848,7 +7862,7 @@ function playItem(c, recovering) {
   if (typeof cancelBackgroundPrefetch === 'function') cancelBackgroundPrefetch();
   if (typeof window !== 'undefined' && window.TeamGCatalogImages) window.TeamGCatalogImages.stop();
   var nowTime = (new Date()).getTime();
-  if (nowTime - lastChannelChangeTime < 350) return;
+  if (nowTime - lastChannelChangeTime < 45) return;
   lastChannelChangeTime = nowTime;
   if (!c) return;
   if (!recovering && state.screen === 'playlists') state.playerReturnNavigation = captureCatalogNavigation();
@@ -7861,23 +7875,11 @@ function playItem(c, recovering) {
     state.recoveryVod = !!state.currentSeries || /\.(mp4|mkv|avi|mov|webm)(?:[?#]|$)/i.test(c.url || '');
   }
   state.recoveryItem = c;
-  state.recoveryLastTime = (new Date()).getTime();
-  state.recoveryStarted = state.recoveryLastTime;
+  state.recoveryLastTime = nowTime;
+  state.recoveryStarted = nowTime;
   state.recoveryLastPosition = -1;
-  rememberRecentContent(c);
-  
-  // Limpiar completamente cualquier motor previo antes de iniciar nuevo canal
-  cleanPlayerEngines();
-  startPlayerHeartbeat();
 
-  state.activeDuration = 0;
-  state.progressSeekActive = false;
-  if ($('playerProgressWrap')) $('playerProgressWrap').classList.remove('seeking');
-  state.activeSubTracks = [];
-  state.selectedSubTrack = -1;
-  stopPlaybackTicker();
-  startPlaybackTicker();
-
+  // Actualizar HUD e indicador de carga de inmediato (0ms) antes de detener/iniciar motores
   if (state.currentSeries) {
     $('player-title').textContent = state.currentSeries.name + ' - ' + (c.episodeTitle || c.name);
     $('player-epg-now').textContent = 'T' + (c.season || 1) + ' : E' + (c.episode || 1) + ' (' + (c.group || 'Serie') + ')';
@@ -7899,13 +7901,25 @@ function playItem(c, recovering) {
   } else {
     $('player-logo').style.display = 'none';
   }
-  
   $('player-container').classList.add('open');
   state.screen = 'player';
   state.playerArea = 'bottom';
   state.playerBotIdx = 2; // Foco inicial en Play/Pausa
-  showTuning(c.name);
   showPlayerOverlay();
+
+  // Limpiar completamente cualquier motor previo antes de iniciar nuevo canal
+  cleanPlayerEngines();
+  showTuning(c.name);
+  rememberRecentContent(c);
+  startPlayerHeartbeat();
+
+  state.activeDuration = 0;
+  state.progressSeekActive = false;
+  if ($('playerProgressWrap')) $('playerProgressWrap').classList.remove('seeking');
+  state.activeSubTracks = [];
+  state.selectedSubTrack = -1;
+  stopPlaybackTicker();
+  startPlaybackTicker();
   
   // Limpiar marcas de reintento para este canal
   c._triedNetcast = false;
@@ -8088,8 +8102,7 @@ function playItem(c, recovering) {
     var rawStreamUrl = (streamUrl.indexOf('/api/ott/stream') !== -1)
       ? (streamUrl.match(/[?&]url=([^&]+)/) ? decodeURIComponent(streamUrl.match(/[?&]url=([^&]+)/)[1]) : streamUrl)
       : streamUrl;
-    var manifestUrl = (API_BASE || '') + '/api/ott/stream.m3u8?manifestOnly=1&url=' + encodeURIComponent(rawStreamUrl);
-    state.cancelHlsVariant = TeamGHlsVariant.resolve(rawStreamUrl, function(variant) {
+    function applyNetcastVariant(variant) {
       if (state.screen !== 'player' || state.playerGeneration !== variantGeneration) return;
       if (variant) $('player-res').textContent = variant.width + 'x' + variant.height;
       var targetHls = (variant && variant.url && variant.url.length <= 320) ? variant.url : rawStreamUrl;
@@ -8101,7 +8114,20 @@ function playItem(c, recovering) {
         ? ('http://' + netcastHost + '/api/ott/stream.m3u8?manifestOnly=1&httpSegments=1&url=' + encodeURIComponent(targetHls))
         : (variant ? variant.url : playUrl);
       startSelectedPlayer(resolvedPlayUrl);
-    }, manifestUrl);
+    }
+    if (!state._hlsVariantCache) state._hlsVariantCache = {};
+    if (/\/play\/[^\/?#]+\/(?:index|playlist)\.m3u8|(?:chunklist|mono)\.m3u8/i.test(rawStreamUrl)) {
+      applyNetcastVariant(null);
+    } else if (Object.prototype.hasOwnProperty.call(state._hlsVariantCache, rawStreamUrl)) {
+      applyNetcastVariant(state._hlsVariantCache[rawStreamUrl]);
+    } else {
+      var manifestUrl = (API_BASE || '') + '/api/ott/stream.m3u8?manifestOnly=1&url=' + encodeURIComponent(rawStreamUrl);
+      state.cancelHlsVariant = TeamGHlsVariant.resolve(rawStreamUrl, function(variant) {
+        if (state.screen !== 'player' || state.playerGeneration !== variantGeneration) return;
+        state._hlsVariantCache[rawStreamUrl] = variant || null;
+        applyNetcastVariant(variant);
+      }, manifestUrl);
+    }
   } else {
     startSelectedPlayer(playUrl);
   }
@@ -8949,11 +8975,13 @@ function handlePlayerNav(kc, eObj) {
   var isNextTrack = (kc === 424 || kc === 176 || (eObj && (eObj.key === 'MediaTrackNext' || eObj.code === 'MediaTrackNext')));
   var isPrevTrack = (kc === 425 || kc === 177 || (eObj && (eObj.key === 'MediaTrackPrevious' || eObj.code === 'MediaTrackPrevious')));
   if (isChUp || isNextTrack) {
+    if (eObj && eObj.preventDefault) { try { eObj.preventDefault(); } catch (eChU) {} }
     var next = (state.currentChannelIdx + 1) % list.length;
     playChannelAt(next);
     return;
   }
   if (isChDown || isPrevTrack) {
+    if (eObj && eObj.preventDefault) { try { eObj.preventDefault(); } catch (eChD) {} }
     var prev = (state.currentChannelIdx - 1 + list.length) % list.length;
     playChannelAt(prev);
     return;
