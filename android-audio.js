@@ -127,16 +127,19 @@ function probeTracks(rawUrl) {
     const timer = setTimeout(() => { timedOut = true; child.kill('SIGKILL'); }, 8000);
     child.stderr.on('data', chunk => { stderr = (stderr + chunk).slice(-65536); });
     child.on('error', () => { clearTimeout(timer); reject(new Error('Motor de análisis de audio no disponible')); });
-    child.on('close', () => {
+    child.on('close', code => {
       clearTimeout(timer);
       const parsed = parseAudioTracksFromStderr(stderr);
-      if (!parsed.audioTracks.length && timedOut) {
-        return reject(new Error('Tiempo agotado al consultar pistas de audio'));
+      if (!parsed.audioTracks.length) {
+        const diagnosticLines = stderr.split(/\r?\n/).filter(line =>
+          /(?:error|failed|denied|HTTP error|invalid data|not found|timed out|TLS|SSL|protocol)/i.test(line)
+        );
+        const diagnostic = diagnosticLines.join(' ').replace(/https?:\/\/[^\s'"<>]+/gi, '[fuente]').slice(-500);
+        if (timedOut) return reject(new Error('Tiempo agotado al consultar pistas de audio'));
+        return reject(new Error(diagnostic || ('FFmpeg no encontró pistas de audio (código ' + code + ')')));
       }
-      if (parsed.audioTracks.length > 0) {
-        if (trackLists.size >= 500) trackLists.delete(trackLists.keys().next().value);
-        trackLists.set(url, { audioTracks: parsed.audioTracks, duration: parsed.duration, ts: Date.now() });
-      }
+      if (trackLists.size >= 500) trackLists.delete(trackLists.keys().next().value);
+      trackLists.set(url, { audioTracks: parsed.audioTracks, duration: parsed.duration, ts: Date.now() });
       resolve(parsed);
     });
   }).finally(() => trackProbes.delete(url));
