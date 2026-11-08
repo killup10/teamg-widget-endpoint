@@ -186,7 +186,10 @@ function streamAudioTrack(req, res, rawUrl, query = {}) {
     '-analyzeduration', '3000000', '-probesize', '3000000'
   ];
   if (startSec > 0) {
-    ffArgs.push('-ss', String(startSec));
+    // Video is stream-copied, so input seeking lands on the previous keyframe.
+    // Keep the same pre-roll for the re-encoded audio instead of trimming it to
+    // startSec; otherwise audio starts later than the copied video and drifts.
+    ffArgs.push('-ss', String(startSec), '-noaccurate_seek');
   }
   ffArgs.push(
     '-i', url,
