@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 const crypto = require('node:crypto');
-const { spawn } = require('node:child_process');
+const { spawn, spawnSync } = require('node:child_process');
 const sessions = new Map(), codecs = new Map(), probes = new Map();
 const trackLists = new Map(), trackProbes = new Map(), remuxProcs = new Map();
 const LANG_LABELS = {
@@ -236,7 +236,23 @@ function streamAudioTrack(req, res, rawUrl, query = {}) {
 const MAX_SESSIONS = Math.max(1, Math.min(4, Number(process.env.ANDROID_AUDIO_MAX_SESSIONS) || 2));
 const IDLE_MS = 45000, MAX_AGE_MS = 30 * 60 * 1000;
 let runtimeReady;
-const bin = () => process.env.FFMPEG_PATH || require('ffmpeg-static');
+let systemFfmpegAvailable;
+const bin = () => {
+  if (process.env.FFMPEG_PATH) return process.env.FFMPEG_PATH;
+  // Render's native Linux runtime includes FFmpeg. Prefer its distro build:
+  // ffmpeg-static's Linux network stack can segfault while resolving HTTPS hosts.
+  if (process.platform === 'linux') {
+    if (systemFfmpegAvailable == null) {
+      try {
+        systemFfmpegAvailable = spawnSync('ffmpeg', ['-version'], {
+          windowsHide: true, timeout: 3000, stdio: 'ignore'
+        }).status === 0;
+      } catch { systemFfmpegAvailable = false; }
+    }
+    if (systemFfmpegAvailable) return 'ffmpeg';
+  }
+  return require('ffmpeg-static');
+};
 const inputArgs = url => ['-hide_banner', '-nostdin', '-loglevel', 'info', '-rw_timeout', '8000000',
   '-protocol_whitelist', 'http,https,tcp,tls,crypto', '-analyzeduration', '2000000', '-probesize', '2000000', '-i', url];
 function validUrl(url) {
