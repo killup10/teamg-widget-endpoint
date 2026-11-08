@@ -117,6 +117,7 @@ function probeTracks(rawUrl) {
   if (trackProbes.has(url)) return trackProbes.get(url);
   const pending = new Promise((resolve, reject) => {
     let stderr = '', timedOut = false;
+    const startedAt = Date.now();
     const child = spawn(bin(), [
       '-hide_banner', '-nostdin', '-loglevel', 'info',
       '-rw_timeout', '8000000',
@@ -127,7 +128,7 @@ function probeTracks(rawUrl) {
     const timer = setTimeout(() => { timedOut = true; child.kill('SIGKILL'); }, 8000);
     child.stderr.on('data', chunk => { stderr = (stderr + chunk).slice(-65536); });
     child.on('error', () => { clearTimeout(timer); reject(new Error('Motor de análisis de audio no disponible')); });
-    child.on('close', code => {
+    child.on('close', (code, signal) => {
       clearTimeout(timer);
       const parsed = parseAudioTracksFromStderr(stderr);
       if (!parsed.audioTracks.length) {
@@ -136,7 +137,8 @@ function probeTracks(rawUrl) {
         );
         const diagnostic = diagnosticLines.join(' ').replace(/https?:\/\/[^\s'"<>]+/gi, '[fuente]').slice(-500);
         if (timedOut) return reject(new Error('Tiempo agotado al consultar pistas de audio'));
-        return reject(new Error(diagnostic || ('FFmpeg no encontró pistas de audio (código ' + code + ')')));
+        return reject(new Error(diagnostic || ('FFmpeg no encontró pistas de audio (código ' + code +
+          ', señal ' + (signal || 'ninguna') + ', ' + (Date.now() - startedAt) + ' ms)')));
       }
       if (trackLists.size >= 500) trackLists.delete(trackLists.keys().next().value);
       trackLists.set(url, { audioTracks: parsed.audioTracks, duration: parsed.duration, ts: Date.now() });
