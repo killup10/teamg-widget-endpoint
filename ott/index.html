@@ -9881,12 +9881,14 @@ function switchServerAudioTrack(trackIdx, explicitStartSec, isSeekOnly) {
 
   var netcastObj = $('netcast-player');
   var netcastActive = !!(netcastObj && netcastObj.style.display !== 'none');
-  var ext = '.mkv';
-  if (/\.mp4(?:[?#]|$)/i.test(rawUrl)) ext = '.mp4';
-  else if (netcastActive && !/\.(?:mkv|mp4|webm|avi|mov)(?:[?#]|$)/i.test(rawUrl)) ext = '.ts';
+  // Los motores modernos de webOS, Tizen y navegadores manejan mejor MP4
+  // fragmentado que Matroska al cambiar la pista en mitad de la reproducción.
+  // NetCast antiguo conserva Matroska, que suele ser el contenedor nativo.
+  var ext = isLegacyNetcast ? '.mkv' : '.mp4';
 
   var remuxUrl = base + '/api/ott/stream' + ext + '?url=' + encodeURIComponent(rawUrl) +
     '&audioTrack=' + trackIdx +
+    (isLegacyNetcast ? '' : '&format=mp4') +
     '&start=' + startSec +
     '&_t=' + (new Date()).getTime();
 
@@ -10039,15 +10041,17 @@ $('btnPlayerAudio').onclick = function(e) {
           var singleLabel = (data.audioTracks[0] && data.audioTracks[0].label) || 'Estéreo';
           showToast('Audio: ' + singleLabel + ' (Única pista en este título)');
         }
+      } else if (st === 200 && data && data.ok && data.audioTracks && data.audioTracks.length === 0) {
+        showToast('No se pudieron leer las pistas de audio. Inténtalo otra vez.');
       } else {
-        showToast('Audio: Estéreo (Única pista disponible)');
+        showToast('No se pudo consultar el audio. Inténtalo otra vez.');
       }
     });
     return;
   }
 
-  // 6. Si el contenido solo tiene 1 pista
-  showToast('Audio: Estéreo (Única pista disponible)');
+  // Solo afirmar que hay una pista cuando el análisis realmente lo confirmó.
+  showToast('No se detectaron pistas de audio disponibles para cambiar.');
 };
 
 $('btnPlayerSubs').onclick = function(e) {
