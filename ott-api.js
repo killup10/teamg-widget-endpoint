@@ -59,6 +59,91 @@ function prewarmPlaylistIcons(cols, m3uText) {
 const secret = () => process.env.TOKEN_SECRET || process.env.ADMIN_KEY || 'dev-secret';
 const ADMIN = () => process.env.ADMIN_KEY || '';
 
+function safeEqualStrings(a, b) {
+  const s1 = String(a || '');
+  const s2 = String(b || '');
+  if (!s1 || !s2 || s1.length !== s2.length) return false;
+  try {
+    return crypto.timingSafeEqual(Buffer.from(s1, 'utf8'), Buffer.from(s2, 'utf8'));
+  } catch (e) {
+    return false;
+  }
+}
+
+const loginFailures = new Map();
+const LOGIN_WINDOW_MS = 10 * 60 * 1000;
+const LOGIN_LOCK_MS = 15 * 60 * 1000;
+const LOGIN_MAX_FAILS = 10;
+
+function clientIpOf(req) {
+  if (!req || !req.headers) return 'local';
+  const cf = req.headers['cf-connecting-ip'];
+  if (cf) return String(Array.isArray(cf) ? cf[0] : cf).trim();
+  const xff = req.headers['x-forwarded-for'];
+  if (xff) return String(Array.isArray(xff) ? xff[0] : xff).split(',')[0].trim();
+  return (req.socket && req.socket.remoteAddress) || (req.connection && req.connection.remoteAddress) || 'local';
+}
+
+function isLoginRateLimited(req, scope) {
+  const key = scope + ':' + clientIpOf(req);
+  const entry = loginFailures.get(key);
+  if (!entry) return false;
+  const now = Date.now();
+  if (entry.lockedUntil && now < entry.lockedUntil) return true;
+  if (now - entry.firstAt > LOGIN_WINDOW_MS) {
+    loginFailures.delete(key);
+    return false;
+  }
+  return entry.count >= LOGIN_MAX_FAILS;
+}
+
+function recordLoginFailure(req, scope) {
+  const key = scope + ':' + clientIpOf(req);
+  const now = Date.now();
+  let entry = loginFailures.get(key);
+  if (!entry || (now - entry.firstAt > LOGIN_WINDOW_MS && (!entry.lockedUntil || now >= entry.lockedUntil))) {
+    entry = { count: 0, firstAt: now, lockedUntil: 0 };
+  }
+  entry.count += 1;
+  if (entry.count >= LOGIN_MAX_FAILS) {
+    entry.lockedUntil = now + LOGIN_LOCK_MS;
+  }
+  if (loginFailures.size > 4000) {
+    const oldest = loginFailures.keys().next().value;
+    if (oldest) loginFailures.delete(oldest);
+  }
+  loginFailures.set(key, entry);
+}
+
+function clearLoginFailures(req, scope) {
+  loginFailures.delete(scope + ':' + clientIpOf(req));
+}
+
+function isBlockedInternalUrl(rawUrl) {
+  try {
+    const parsed = new URL(String(rawUrl || '').trim());
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return true;
+    const host = String(parsed.hostname || '').toLowerCase().replace(/^\[|\]$/g, '');
+    if (!host) return true;
+    if (host === '0.0.0.0' || host === '::1' || host === '::' || /^fe80:/i.test(host) || /^fc00:/i.test(host) || /^fd00:/i.test(host)) return true;
+    const isProd = Boolean(process.env.RENDER || process.env.MONGODB_URI);
+    if (isProd && (host === 'localhost' || host.endsWith('.local') || host.endsWith('.internal') || /^127\./.test(host))) return true;
+    const m4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
+    if (m4) {
+      const a = Number(m4[1]), b = Number(m4[2]);
+      if (a === 10) return true;
+      if (a === 169 && b === 254) return true;
+      if (a === 172 && b >= 16 && b <= 31) return true;
+      if (a === 192 && b === 168) return true;
+      if (a === 100 && b >= 64 && b <= 127) return true;
+      if (isProd && a === 127) return true;
+    }
+    return false;
+  } catch (e) {
+    return true;
+  }
+}
+
 function sign(uid) {
   const exp = Date.now() + 1000 * 60 * 60 * 24 * 90; // 90 días
   const body = Buffer.from(JSON.stringify({ u: uid, e: exp })).toString('base64');
@@ -69,13 +154,8 @@ function verify(token) {
   try {
     const p = String(token || '').split('.');
     if (p.length !== 3 || p[0] !== 'v1') return null;
-    const candidates = [secret(), 'dev-secret'].filter(Boolean);
-    let okSig = false;
-    for (const sec of candidates) {
-      const sig = crypto.createHmac('sha256', sec).update(p[1]).digest('hex');
-      if (sig === p[2]) { okSig = true; break; }
-    }
-    if (!okSig) return null;
+    const sig = crypto.createHmac('sha256', secret()).update(p[1]).digest('hex');
+    if (!safeEqualStrings(sig, p[2])) return null;
     const d = JSON.parse(Buffer.from(p[1], 'base64').toString());
     if (!d.u || d.e < Date.now()) return null;
     return d.u;
@@ -111,13 +191,13 @@ const adminAuthCache = new Map();
 const ADMIN_CACHE_TTL = 30 * 1000; // 30s cache para evitar consultas DB continuas
 
 async function adminAuthed(cols, req) {
-  const h = req.headers['x-admin-key'] || '';
-  if (ADMIN() && h === ADMIN()) return true; // compatibilidad: ADMIN_KEY
+  const h = (req && req.headers && req.headers['x-admin-key']) || '';
+  if (ADMIN() && safeEqualStrings(h, ADMIN())) return true; // compatibilidad: ADMIN_KEY
   try {
     const p = String(h).split('.');
     if (p.length !== 3 || p[0] !== 'adm') return false;
     const sig = crypto.createHmac('sha256', secret()).update(p[1]).digest('hex');
-    if (sig !== p[2]) return false;
+    if (!safeEqualStrings(sig, p[2])) return false;
     const d = JSON.parse(Buffer.from(p[1], 'base64').toString());
     if (!d.u || !d.a || d.e < Date.now()) return false;
     const cached = adminAuthCache.get(d.u);
@@ -130,6 +210,15 @@ async function adminAuthed(cols, req) {
     }
     return !!(u && u.role === 'admin' && u.active !== false);
   } catch (e) { return false; }
+}
+
+async function isAdminRequest(req) {
+  try {
+    const cols = await store.init();
+    return await adminAuthed(cols, req);
+  } catch (e) {
+    return false;
+  }
 }
 function expired(u) {
   if (u.active === false) return 'desactivada';
@@ -627,10 +716,20 @@ async function handle(req, res, pathname, query, body) {
 
   // ---- TV: login con usuario/password que crea el admin ----
   if (pathname === '/api/ott/login' && req.method === 'POST') {
+    if (isLoginRateLimited(req, 'user')) {
+      return json(res, 429, { ok: false, error: 'Demasiados intentos fallidos. Espera unos minutos.' });
+    }
     const u = await cols.users.findOne({ login: String(body.login || '').trim() });
-    if (!u) return json(res, 401, { ok: false, error: 'Credenciales inválidas' });
+    if (!u) {
+      recordLoginFailure(req, 'user');
+      return json(res, 401, { ok: false, error: 'Credenciales inválidas' });
+    }
     const h = store.hashPass(body.password || '', u.salt);
-    if (h !== u.pass) return json(res, 401, { ok: false, error: 'Credenciales inválidas' });
+    if (!safeEqualStrings(h, u.pass)) {
+      recordLoginFailure(req, 'user');
+      return json(res, 401, { ok: false, error: 'Credenciales inválidas' });
+    }
+    clearLoginFailures(req, 'user');
     const block = expired(u);
     if (block) return json(res, 403, { ok: false, error: 'Cuenta ' + block + '. Contacta a tu proveedor.' });
     return json(res, 200, { ok: true, token: sign(u._id), name: u.login });
@@ -991,10 +1090,20 @@ function fetchWithRedirects(targetUrl, options, maxRedirects, callback) {
     await ensureAdmin(cols);
     const sub = pathname.replace('/api/ott/admin/', '');
     if (sub === 'login' && req.method === 'POST') {
+      if (isLoginRateLimited(req, 'admin')) {
+        return json(res, 429, { ok: false, error: 'Demasiados intentos fallidos. Espera unos minutos.' });
+      }
       const u = await cols.users.findOne({ login: String(body.login || '').trim() });
-      if (!u || u.role !== 'admin') return json(res, 401, { ok: false, error: 'Credenciales inválidas' });
+      if (!u || u.role !== 'admin') {
+        recordLoginFailure(req, 'admin');
+        return json(res, 401, { ok: false, error: 'Credenciales inválidas' });
+      }
       const h = store.hashPass(body.password || '', u.salt);
-      if (h !== u.pass) return json(res, 401, { ok: false, error: 'Credenciales inválidas' });
+      if (!safeEqualStrings(h, u.pass)) {
+        recordLoginFailure(req, 'admin');
+        return json(res, 401, { ok: false, error: 'Credenciales inválidas' });
+      }
+      clearLoginFailures(req, 'admin');
       if (u.active === false) return json(res, 403, { ok: false, error: 'Desactivado' });
       return json(res, 200, { ok: true, token: admSign(u._id), name: u.login });
     }
@@ -1526,7 +1635,7 @@ function handleStream(req, res, query) {
   }
 
   const targetUrl = String(query.url || '').trim();
-  if (!targetUrl || (targetUrl.indexOf('http://') !== 0 && targetUrl.indexOf('https://') !== 0)) {
+  if (!targetUrl || (targetUrl.indexOf('http://') !== 0 && targetUrl.indexOf('https://') !== 0) || isBlockedInternalUrl(targetUrl)) {
     res.writeHead(400, { 'Content-Type': 'text/plain', 'Access-Control-Allow-Origin': '*' });
     return res.end('Invalid URL');
   }
@@ -1823,4 +1932,4 @@ function handleStream(req, res, query) {
   clientReq.end();
 }
 
-module.exports = { handle, handleStream, normalizeColor, normalizeBadge, normalizeExpires, playlistExpired, HALLOWEEN_ORANGE };
+module.exports = { handle, handleStream, isAdminRequest, isBlockedInternalUrl, normalizeColor, normalizeBadge, normalizeExpires, playlistExpired, HALLOWEEN_ORANGE };

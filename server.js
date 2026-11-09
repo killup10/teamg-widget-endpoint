@@ -165,6 +165,10 @@ const server = http.createServer((req, res) => {
     const { execFile, execFileSync } = require('child_process');
     const { getYtDlpPath, ensureYtDlp } = require('./scripts/ensure-yt-dlp');
     return (async () => {
+      if (!(await ottApi.isAdminRequest(req))) {
+        res.writeHead(403, { 'Content-Type': 'application/json; charset=utf-8' });
+        return res.end('{"ok":false,"error":"admin"}');
+      }
       const logs = {};
       const bin = getYtDlpPath();
       logs.binPath = bin;
@@ -203,8 +207,7 @@ const server = http.createServer((req, res) => {
         logs.cookiesConfigured = cookieArgs.length > 0;
         if (fs.existsSync('/tmp/teamg-yt-cookies.txt')) {
           const stats = fs.statSync('/tmp/teamg-yt-cookies.txt');
-          const sample = fs.readFileSync('/tmp/teamg-yt-cookies.txt', 'utf8').substring(0, 150);
-          logs.cookieFile = { size: stats.size, sample: sample.replace(/\t/g, '[TAB]').replace(/\r?\n/g, '[NL]') };
+          logs.cookieFile = { size: stats.size };
         }
         logs.execTests = {};
         for (const client of clientList) {
@@ -249,7 +252,7 @@ const server = http.createServer((req, res) => {
   }
   if (pathname === '/api/ott/img') {
     const target = String(query.url || '').trim();
-    if (!/^https?:\/\//i.test(target)) {
+    if (!/^https?:\/\//i.test(target) || (typeof ottApi.isBlockedInternalUrl === 'function' && ottApi.isBlockedInternalUrl(target))) {
       res.writeHead(400); return res.end();
     }
     if (ottImgCache.has(target)) {
