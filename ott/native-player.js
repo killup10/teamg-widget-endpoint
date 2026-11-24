@@ -15,7 +15,7 @@
     var p = api();
     if (p) { try { p.stop(); } catch (e1) {} try { p.close(); } catch (e2) {} }
   }
-  function start(url, cb) {
+  function start(url, cb, options) {
     stop();
     if (!available()) { cb.failed(); return; }
     var p = api(), id = generation, ready = false, failed = false;
@@ -37,8 +37,9 @@
         onsubtitlechange: function(duration, text) { if (valid() && cb.subtitle) cb.subtitle(text || '', Number(duration) || 0); }
       });
       // Samsung uses 1920x1080 coordinates even for a 1280x720 app viewport.
+      var initialMethod = (options && options.aspectMethod) || (cb && cb.aspectMethod) || 'PLAYER_DISPLAY_MODE_LETTER_BOX';
       p.setDisplayRect(0, 0, 1920, 1080);
-      try { p.setDisplayMethod('PLAYER_DISPLAY_MODE_LETTER_BOX'); } catch (ratioError) {}
+      try { p.setDisplayMethod(initialMethod); } catch (ratioError) {}
       timer = root.setTimeout(fail, 20000);
       p.prepareAsync(function() {
         if (!valid()) return;
@@ -50,6 +51,60 @@
         } catch (playError) { fail(); }
       }, fail);
     } catch (openError) { fail(); }
+  }
+  function setDisplayMethod(method) {
+    var p = api();
+    if (!active || !p) return false;
+    try {
+      p.setDisplayRect(0, 0, 1920, 1080);
+      p.setDisplayMethod(method || 'PLAYER_DISPLAY_MODE_LETTER_BOX');
+      return true;
+    } catch (e) { return false; }
+  }
+  function resolution() {
+    var p = api();
+    if (!active || !p) return null;
+    try {
+      if (typeof p.getCurrentStreamInfo === 'function') {
+        var streams = p.getCurrentStreamInfo();
+        if (streams && streams.length) {
+          for (var i = 0; i < streams.length; i++) {
+            if (streams[i] && streams[i].type === 'VIDEO') {
+              var info = streams[i].extra_info;
+              if (typeof info === 'string') {
+                try { info = JSON.parse(info); } catch (eJson) {}
+              }
+              if (info) {
+                var w = Number(info.Width || info.width || 0);
+                var h = Number(info.Height || info.height || 0);
+                if (w > 0 && h > 0) return { width: w, height: h };
+              }
+            }
+          }
+        }
+      }
+    } catch (eStream) {}
+    try {
+      if (typeof p.getTotalTrackInfo === 'function') {
+        var all = p.getTotalTrackInfo();
+        if (all && all.length) {
+          for (var j = 0; j < all.length; j++) {
+            if (all[j] && all[j].type === 'VIDEO') {
+              var tInfo = all[j].extra_info;
+              if (typeof tInfo === 'string') {
+                try { tInfo = JSON.parse(tInfo); } catch (eJson2) {}
+              }
+              if (tInfo) {
+                var tw = Number(tInfo.Width || tInfo.width || 0);
+                var th = Number(tInfo.Height || tInfo.height || 0);
+                if (tw > 0 && th > 0) return { width: tw, height: th };
+              }
+            }
+          }
+        }
+      }
+    } catch (eTrack) {}
+    return null;
   }
   function info() {
     var p = api();
@@ -119,5 +174,6 @@
   }
   root.TeamGNative = {available:available, active:function(){return active;}, start:start, stop:stop,
     info:info, tracks:tracks, seek:seek, toggle:toggle, select:select, load:load,
-    status:function(){return available() ? 'available' : loadState;}};
+    status:function(){return available() ? 'available' : loadState;},
+    resolution:resolution, setDisplayMethod:setDisplayMethod};
 })(window);

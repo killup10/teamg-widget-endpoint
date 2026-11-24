@@ -223,7 +223,7 @@ function streamAudioTrack(req, res, rawUrl, query = {}) {
     }
   };
   remuxProcs.set(clientKey, cleanup);
-  const maxLifeTimer = setTimeout(cleanup, MAX_AGE_MS);
+  const maxLifeTimer = setTimeout(cleanup, MAX_VOD_REMUX_MS);
   if (maxLifeTimer.unref) maxLifeTimer.unref();
   req.on && req.on('close', () => { clearTimeout(maxLifeTimer); cleanup(); });
   res.on && res.on('close', () => { clearTimeout(maxLifeTimer); cleanup(); });
@@ -237,7 +237,7 @@ function streamAudioTrack(req, res, rawUrl, query = {}) {
   });
 }
 const MAX_SESSIONS = Math.max(1, Math.min(4, Number(process.env.ANDROID_AUDIO_MAX_SESSIONS) || 2));
-const IDLE_MS = 45000, MAX_AGE_MS = 30 * 60 * 1000;
+const IDLE_MS = 45000, MAX_AGE_MS = 30 * 60 * 1000, MAX_VOD_REMUX_MS = 4 * 60 * 60 * 1000;
 let runtimeReady;
 let systemFfmpegAvailable;
 const bin = () => {
