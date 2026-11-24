@@ -849,8 +849,8 @@ function renderPlaylistsList(a) {
     h += "<tr><td><b>" + dot + esc(p.name) + "</b>" + badge + exp + "</td><td class='small' style='max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'>" + esc(p.url) + "</td>" +
       "<td class='small'>" + esc(p.color || "-") + "</td>" +
       "<td><button class='act green' data-edit-pl='" + p.id + "'>✎ Editar Contenido</button> " +
+      "<button class='act' data-mark-pl='" + p.id + "'>✎ Renombrar</button> " +
       "<button class='act' data-source-pl='" + p.id + "'>Cambiar M3U</button> " +
-      "<button class='plain' data-mark-pl='" + p.id + "'>Marca</button> " +
       "<button class='danger' data-dp='" + p.id + "'>Borrar</button></td></tr>";
   });
   a.innerHTML = h + "</table></div>";
@@ -872,8 +872,14 @@ function renderPlaylistsList(a) {
         return;
       }
       payload = { id: id, url: payload.url, epgUrl: payload.epgUrl };
+    } else if (!payload.name) {
+      document.getElementById("pm").textContent = "Ingresa un nombre para la playlist.";
+      document.getElementById("pn").focus();
+      return;
     }
     api("/api/ott/admin/playlist", "POST", payload).then(function() {
+      document.getElementById("pid").removeAttribute("data-source");
+      document.getElementById("pn").disabled = false;
       document.getElementById("pid").value = "";
       document.getElementById("bp").textContent = "Agregar";
       document.getElementById("bc").style.display = "none";
@@ -939,10 +945,18 @@ function renderPlaylistsList(a) {
       document.getElementById("pc").value = /halloween/i.test(pl.name || "") ? "#ff6a00" : "";
       document.getElementById("pb").value = pl.badge || "";
       document.getElementById("px").value = pl.expiresAt || "";
-      document.getElementById("bp").textContent = sourceOnly ? "Guardar M3U" : "Guardar";
-      document.getElementById("pm").textContent = sourceOnly ? "Cambia el enlace M3U. Se conserva el contenido editado y las asignaciones; no se importan ni reemplazan canales al guardar." : "";
+      document.getElementById("bp").textContent = sourceOnly ? "Guardar M3U" : "Guardar nombre";
+      document.getElementById("pm").textContent = sourceOnly
+        ? "Cambia el enlace M3U. Se conserva el contenido editado y las asignaciones; no se importan ni reemplazan canales al guardar."
+        : "Edita el nombre (o URL/EPG) de la playlist y pulsa Guardar nombre.";
       document.getElementById("bc").style.display = "";
-      if (sourceOnly) document.getElementById("pu").focus();
+      if (sourceOnly) {
+        document.getElementById("pu").focus();
+      } else {
+        var pnEl = document.getElementById("pn");
+        pnEl.focus();
+        if (pnEl.select) pnEl.select();
+      }
       window.scrollTo(0, 0);
     };
   }
@@ -1013,7 +1027,7 @@ function renderPlaylistEditor(a) {
 
   var showSeriesCover = isSeriesGroup(filteredChannels, CURRENT_GROUP, CURRENT_PL) || !!FORCE_SERIES_COVER_GROUPS[CURRENT_GROUP];
   var h = "<div class='editor-top-nav'>" +
-    "<div class='breadcrumb'><a href='#' id='btnBackToPlaylists'>playlists</a> / <b>" + esc(CURRENT_PL.name) + "</b></div>" +
+    "<div class='breadcrumb'><a href='#' id='btnBackToPlaylists'>playlists</a> / <b id='editorPlName'>" + esc(CURRENT_PL.name) + "</b> <button class='plain' id='btnRenameCurrentPl' style='margin-left:8px;padding:3px 9px;font-size:12px;'>✎ Renombrar</button></div>" +
     "<div><button class='act' id='btnDownloadPlaylist'>Descargar M3U</button><button class='act' id='btnImportArtwork'>Completar carátulas locales</button><input type='file' accept='.json' id='artworkBundle' style='display:none'/><span id='artworkProgress' class='small' role='status'></span><button class='act' id='btnSyncSource'>Actualizar desde fuente</button><button class='act green' id='btnSaveWholePlaylist'>💾 Guardar Cambios en Servidor</button></div>" +
     "</div>";
 
@@ -1167,6 +1181,22 @@ function renderPlaylistEditor(a) {
     e.preventDefault();
     CURRENT_PL = null;
     render();
+  };
+  document.getElementById("btnRenameCurrentPl").onclick = function() {
+    var next = prompt("Nuevo nombre para la playlist:", CURRENT_PL.name || "");
+    if (next === null) return;
+    next = next.trim();
+    if (!next || next === CURRENT_PL.name) return;
+    api("/api/ott/admin/playlist", "POST", { id: CURRENT_PL.id, name: next }).then(function() {
+      CURRENT_PL.name = next;
+      if (DATA && Array.isArray(DATA.playlists)) {
+        for (var k = 0; k < DATA.playlists.length; k++) {
+          if (DATA.playlists[k].id === CURRENT_PL.id) DATA.playlists[k].name = next;
+        }
+      }
+      var el = document.getElementById("editorPlName");
+      if (el) el.textContent = next;
+    }).catch(function(err) { alert("No se pudo renombrar: " + err.message); });
   };
 
   document.getElementById("btnSaveWholePlaylist").onclick = function() {

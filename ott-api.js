@@ -267,9 +267,13 @@ function parseM3uText(text) {
     const ln = lines[i].trim();
     if (!ln) continue;
     if (ln.indexOf('#EXTINF') === 0) {
-      const parts = ln.split(',');
+      const mDelim = ln.match(/^#EXTINF:(?:[^",]|"[^"]*")*,/i);
       const fallbackName = ln.replace(/^#EXTINF:\s*/i, '').replace(/^-?\d+(?:\.\d+)?(?:\s+|$)/, '').trim();
-      const name = (parts.length > 1 ? parts.slice(1).join(',') : fallbackName || 'Canal').trim();
+      let name = (mDelim ? ln.slice(mDelim[0].length) : fallbackName || 'Canal').trim();
+      const leakedAttrRe = /^[^"]*"(?:\s+[a-z-]+="[^"]*")*,\s*/i;
+      while (leakedAttrRe.test(name)) {
+        name = name.replace(leakedAttrRe, '').trim();
+      }
       let logo = '';
       let group = 'General';
       let adult = false;
@@ -357,7 +361,12 @@ function mergePlaylistSource(existing, incoming) {
 
 function serializeChannelsToM3u(channels) {
   let m3u = '#EXTM3U\n';
+  const leakedAttrRe = /^[^"]*"(?:\s+[a-z-]+="[^"]*")*,\s*/i;
   for (const c of (channels || [])) {
+    let cleanName = String(c.name || 'Canal').trim();
+    while (leakedAttrRe.test(cleanName)) {
+      cleanName = cleanName.replace(leakedAttrRe, '').trim();
+    }
     const addedAttr = c.addedAt && Number.isFinite(Date.parse(c.addedAt)) ? ` added-at="${new Date(c.addedAt).toISOString()}"` : '';
     const logoAttr = c.logo ? ` tvg-logo="${c.logo}"` : '';
     const seriesLogoAttr = c.seriesLogo ? ` series-logo="${String(c.seriesLogo).replace(/"/g, '%22').replace(/[\r\n]/g, '')}"` : '';
@@ -365,7 +374,7 @@ function serializeChannelsToM3u(channels) {
     const groupAttr = c.group ? ` group-title="${c.group}"` : '';
     const adultAttr = c.adult ? ' adult="1"' : '';
     const subAttr = c.subs ? ` sub-tracks="${c.subs}"` : '';
-    m3u += `#EXTINF:-1${addedAttr}${logoAttr}${seriesLogoAttr}${seriesPosterAttr}${groupAttr}${adultAttr}${subAttr},${c.name}\n`;
+    m3u += `#EXTINF:-1${addedAttr}${logoAttr}${seriesLogoAttr}${seriesPosterAttr}${groupAttr}${adultAttr}${subAttr},${cleanName}\n`;
     if (c.group) m3u += `#EXTGRP:${c.group}\n`;
     if (c.logo) m3u += `#EXTIMG:${c.logo}\n`;
     if (c.subs) m3u += `#EXTSUB:${c.subs}\n`;
@@ -1224,8 +1233,8 @@ function fetchWithRedirects(targetUrl, options, maxRedirects, callback) {
       }
       const expiresAt = normalizeExpires(body.expiresAt || body.expires);
       if (body.id) {
-        const prev = await cols.playlists.findOne({ _id: String(body.id) });
-        if (!prev) return json(res, 404, { ok: false });
+        const prev = await findById(cols.playlists, body.id);
+        if (!prev) return json(res, 404, { ok: false, error: 'Playlist no encontrada' });
         const upd = { updatedAt: store.nowIso() };
         if (typeof body.name === 'string' && body.name.trim()) upd.name = String(body.name).trim().slice(0, 80);
         if (typeof body.url === 'string' && body.url.trim()) upd.url = String(body.url).trim();
@@ -1233,8 +1242,8 @@ function fetchWithRedirects(targetUrl, options, maxRedirects, callback) {
         if (body.color !== undefined) upd.color = color;
         if (body.badge !== undefined) upd.badge = badge;
         if (body.expiresAt !== undefined || body.expires !== undefined) upd.expiresAt = expiresAt;
-        await cols.playlists.updateOne({ _id: String(body.id) }, { $set: upd });
-        return json(res, 200, { ok: true, id: String(body.id) });
+        await cols.playlists.updateOne({ _id: prev._id }, { $set: upd });
+        return json(res, 200, { ok: true, id: String(prev._id), name: upd.name || prev.name });
       }
       if (!body.name || !body.url) return json(res, 400, { ok: false, error: 'name+url' });
       const p = { _id: store.uid(), name: String(body.name).trim().slice(0, 80), url: String(body.url), epgUrl: String(body.epgUrl || ''), color, badge, expiresAt, created: store.nowIso() };

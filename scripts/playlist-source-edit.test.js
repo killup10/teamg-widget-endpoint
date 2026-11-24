@@ -14,11 +14,13 @@ async function main() {
   };
   const sourceButton = element('sourceButton');
   sourceButton.setAttribute('data-source-pl', 'existing');
+  const renameButton = element('renameButton');
+  renameButton.setAttribute('data-mark-pl', 'existing');
   const playlist = { id: 'existing', name: 'Mi lista', url: 'https://old.example/list.m3u', epgUrl: 'https://example.com/epg', badge: 'Especial' };
   let payload;
   const context = {
     DATA: { playlists: [playlist] }, esc: s => s || '', bindDel() {},
-    document: { getElementById: element, querySelectorAll: selector => selector.includes('[data-source-pl]') ? [sourceButton] : [] },
+    document: { getElementById: element, querySelectorAll: selector => selector.includes('[data-source-pl]') ? [sourceButton, renameButton] : [] },
     window: { scrollTo() {} }, refresh() {},
     api: async (url, method, body) => { payload = body; }
   };
@@ -27,6 +29,7 @@ async function main() {
   const app = {};
   context.renderPlaylistsList(app);
   assert.ok(app.innerHTML.includes('Cambiar M3U'));
+  assert.ok(app.innerHTML.includes('Renombrar'));
   sourceButton.onclick();
   assert.equal(element('pid').value, 'existing');
   assert.equal(element('pu').value, playlist.url);
@@ -44,20 +47,39 @@ async function main() {
   const start = api.indexOf("if (sub === 'playlist' && req.method === 'POST')");
   const end = api.indexOf("if (sub === 'playlist/halloween'", start);
   const saved = { _id: 'existing', name: playlist.name, url: playlist.url, customM3u: '#EXTM3U\nSaved content', count: 7, badge: 'Especial' };
-  const route = new Function('cols', 'body', 'store', 'json', 'res', 'normalizeColor', 'normalizeBadge', 'normalizeExpires', 'HALLOWEEN_ORANGE', 'sub', 'req', 'return (async () => {' + api.slice(start, end) + '})()');
+  const route = new Function('cols', 'body', 'store', 'json', 'res', 'findById', 'normalizeColor', 'normalizeBadge', 'normalizeExpires', 'HALLOWEEN_ORANGE', 'sub', 'req', 'return (async () => {' + api.slice(start, end) + '})()');
+  const fakeFindById = async (col, id) => col.findOne({ _id: String(id) });
   await route({ playlists: {
     findOne: async () => saved,
     updateOne: async (filter, update) => { assert.equal(filter._id, 'existing'); Object.assign(saved, update.$set); },
     insertOne: async () => { throw new Error('Must update the existing list'); }
-  } }, payload, { nowIso: () => 'now' }, () => {}, {}, x => x || '', x => x || '', x => x || '', '#ff6a00', 'playlist', { method: 'POST' });
+  } }, payload, { nowIso: () => 'now' }, () => {}, {}, fakeFindById, x => x || '', x => x || '', x => x || '', '#ff6a00', 'playlist', { method: 'POST' });
   assert.equal(saved.url, payload.url);
   assert.equal(saved.customM3u, '#EXTM3U\nSaved content');
   assert.equal(saved.count, 7);
   assert.equal(saved.badge, 'Especial');
   assert.equal(saved.name, playlist.name);
+
+  // Renaming via Renombrar button updates name without losing saved content.
+  renameButton.onclick();
+  assert.equal(element('pn').disabled, false);
+  assert.equal(element('bp').textContent, 'Guardar nombre');
+  element('pn').value = 'Cine Estrenos HD';
+  element('bp').onclick();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(payload.id, 'existing');
+  assert.equal(payload.name, 'Cine Estrenos HD');
+  await route({ playlists: {
+    findOne: async () => saved,
+    updateOne: async (filter, update) => { assert.equal(filter._id, 'existing'); Object.assign(saved, update.$set); },
+    insertOne: async () => { throw new Error('Must update the existing list'); }
+  } }, { id: 'existing', name: 'Cine Estrenos HD' }, { nowIso: () => 'now' }, () => {}, {}, fakeFindById, x => x || '', x => x || '', x => x || '', '#ff6a00', 'playlist', { method: 'POST' });
+  assert.equal(saved.name, 'Cine Estrenos HD');
+  assert.equal(saved.customM3u, '#EXTM3U\nSaved content');
+
   element('bc').onclick();
   assert.equal(element('pid').getAttribute('data-source'), null);
   assert.equal(element('pn').disabled, false);
-  console.log('Changing M3U preserves playlist identity, saved content and metadata.');
+  console.log('Changing M3U and renaming preserve playlist identity, saved content and metadata.');
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });
