@@ -311,6 +311,58 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
   </div>
 </div>
 
+<!-- Modal Importar Episodios Masivo -->
+<div class="modal" id="modalBulkEpisodes">
+  <div class="modal-edit-channel" style="max-width:760px;width:94%;">
+    <div class="modal-ch-right" style="width:100%;">
+      <h2>Importar episodios en lote (30, 60 o más)</h2>
+      <div class="small" style="margin-bottom:12px;">
+        Pega <b>1 enlace por línea</b>, un <b>bloque M3U</b> (<code>#EXTINF</code> + URL), formato <code>Nombre | URL</code>, o una URL con patrón <code>{n}</code> / <code>{nn}</code> (ej: <code>https://.../ep-{nn}.mp4</code>).
+      </div>
+
+      <div class="form-field-row">
+        <div class="form-field-label">Título / Grupo</div>
+        <div class="form-field-input">
+          <input id="mBulkGroup" placeholder="Nombre de la serie (si no existe, se crea el grupo)" />
+        </div>
+      </div>
+
+      <div class="form-field-row">
+        <div class="form-field-label">Formato nombre</div>
+        <div class="form-field-input" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          <input id="mBulkPrefix" value="S01E" placeholder="Ej: S01E o Cap " style="flex:1;min-width:140px;" />
+          <label class="small">Inicio: <input id="mBulkStart" type="number" min="1" value="1" style="width:72px;" /></label>
+          <label class="small">Fin (solo patrón {n}): <input id="mBulkEnd" type="number" min="1" value="" placeholder="ej. 60" style="width:82px;" /></label>
+        </div>
+      </div>
+
+      <div class="form-field-row">
+        <div class="form-field-label">Logo (opcional)</div>
+        <div class="form-field-input">
+          <input id="mBulkLogo" placeholder="https://dominio.com/caratula.jpg (opcional, aplica a todos)" />
+        </div>
+      </div>
+
+      <div class="form-field-row" style="align-items:flex-start;">
+        <div class="form-field-label">Enlaces / M3U</div>
+        <div class="form-field-input">
+          <div style="margin-bottom:6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <button type="button" class="act" id="btnBulkLoadFile">📂 Cargar archivo .m3u / .txt</button>
+            <input type="file" id="mBulkFileInput" accept=".m3u,.m3u8,.txt" style="display:none;" />
+            <span class="small" id="mBulkPreviewCount">0 episodios detectados</span>
+          </div>
+          <textarea id="mBulkInput" rows="10" style="width:100%;box-sizing:border-box;font-family:monospace;font-size:12px;padding:8px;border-radius:6px;" placeholder="https://servidor.com/serie/cap01.mp4&#10;https://servidor.com/serie/cap02.mp4&#10;https://servidor.com/serie/cap03.mp4&#10;...&#10;&#10;O pega un bloque #EXTINF + URL&#10;O usa patrón: https://servidor.com/serie/cap-{nn}.mp4 (con Inicio=1 y Fin=60)"></textarea>
+        </div>
+      </div>
+
+      <div class="modal-ch-footer">
+        <button class="act" id="btnCancelBulkModal" style="margin-right:8px;">CANCELAR</button>
+        <button class="btn-save-channel" id="btnSaveBulkModal">AGREGAR Y GUARDAR</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="/web/payments.js?v=1"></script>
 <script>
 var KEY = sessionStorage.getItem("ottkey") || "";
@@ -1058,6 +1110,7 @@ function renderPlaylistEditor(a) {
   h += "<div class='editor-main'>" +
     "<div class='editor-main-header'>" +
       "<button class='btn-create-channel' id='btnCreateChannel'>+ create channel</button>" +
+      "<button class='act' id='btnBulkEpisodes' style='margin-left:6px;'>+ Importar episodios</button>" +
       "<div class='view-mode-btns'>" +
         "<button class='view-mode-btn " + (CURRENT_VIEW_MODE === "list" ? "sel" : "") + "' id='btnViewModeList' title='Vista Lista'>☰</button>" +
         "<button class='view-mode-btn " + (CURRENT_VIEW_MODE === "grid" ? "sel" : "") + "' id='btnViewModeGrid' title='Vista Cuadrícula'>☷</button>" +
@@ -1538,6 +1591,12 @@ function renderPlaylistEditor(a) {
   document.getElementById("btnCreateChannel").onclick = function() {
     openChannelSettingModal(-1);
   };
+  var bulkBtn = document.getElementById("btnBulkEpisodes");
+  if (bulkBtn) {
+    bulkBtn.onclick = function() {
+      openBulkEpisodesModal();
+    };
+  }
 
   var editBtns = document.querySelectorAll("[data-ch-edit]");
   for (var i = 0; i < editBtns.length; i++) {
@@ -1975,6 +2034,204 @@ document.getElementById("btnSaveChModal").onclick = async function() {
   }
 
   document.getElementById("modalChannelSetting").className = "modal";
+  savePlaylistToServer();
+};
+
+function parseBulkEpisodesInput(rawText, groupName, prefix, startNum, endNum, commonLogo) {
+  var items = [];
+  var text = String(rawText || "").trim();
+  if (!text) return items;
+  var grp = String(groupName || CURRENT_GROUP || "General").trim() || "General";
+  var pref = String(prefix == null ? "S01E" : prefix);
+  var start = Math.max(1, parseInt(startNum, 10) || 1);
+  var end = parseInt(endNum, 10) || 0;
+  var padNum = function(n, width) {
+    var s = String(n);
+    while (s.length < width) s = "0" + s;
+    return s;
+  };
+  var buildAutoName = function(num) {
+    var numStr = padNum(num, 2);
+    var p = pref.trim();
+    if (!p) return grp + " " + numStr;
+    if (/e$/i.test(p)) return grp + " " + p + numStr;
+    return grp + " " + pref + numStr;
+  };
+
+  var lines = text.split(/\r?\n/).map(function(l) { return l.trim(); }).filter(Boolean);
+
+  // Modo patrón numérico: 1 línea con {n}, {nn} o {nnn} + rango Inicio..Fin
+  if (lines.length === 1 && /\{n+\}/i.test(lines[0]) && end >= start) {
+    var tpl = lines[0];
+    var limit = Math.min(end, start + 499);
+    for (var n = start; n <= limit; n++) {
+      var u = tpl.replace(/\{(n+)\}/gi, function(_, ns) { return padNum(n, ns.length); });
+      if (/^https?:\/\//i.test(u)) {
+        items.push({ name: buildAutoName(n), url: u, logo: commonLogo || "" });
+      }
+    }
+    return items;
+  }
+
+  // Modo M3U (#EXTINF + URL) o lista de URLs / "Nombre | URL"
+  var pendingMeta = null;
+  var seq = start;
+  for (var i = 0; i < lines.length; i++) {
+    var ln = lines[i];
+    if (ln.indexOf("#EXTM3U") === 0) continue;
+    if (ln.indexOf("#EXTINF") === 0) {
+      var commaIdx = ln.indexOf(",");
+      var mName = commaIdx >= 0 ? ln.slice(commaIdx + 1).trim() : "";
+      var mLogo = ln.match(/tvg-logo="([^"]*)"/i);
+      var mGrp = ln.match(/group-title="([^"]*)"/i);
+      pendingMeta = {
+        name: mName,
+        logo: (mLogo && mLogo[1]) ? mLogo[1] : "",
+        group: (mGrp && mGrp[1]) ? mGrp[1].trim() : ""
+      };
+      continue;
+    }
+    if (ln.indexOf("#EXTGRP:") === 0) {
+      var extGrp = ln.slice(8).trim();
+      if (!pendingMeta) pendingMeta = { name: "", logo: "", group: "" };
+      if (extGrp) pendingMeta.group = extGrp;
+      continue;
+    }
+    if (ln.indexOf("#EXTIMG:") === 0) {
+      if (!pendingMeta) pendingMeta = { name: "", logo: "", group: "" };
+      pendingMeta.logo = ln.slice(8).trim();
+      continue;
+    }
+    if (ln.charAt(0) === "#") continue;
+
+    var epUrl = ln;
+    var epName = "";
+    var epLogo = commonLogo || "";
+    var epGroup = String(groupName || "").trim();
+    var pipeIdx = ln.indexOf("|");
+    if (pipeIdx > 0 && /^https?:\/\//i.test(ln.slice(pipeIdx + 1).trim())) {
+      epName = ln.slice(0, pipeIdx).trim();
+      epUrl = ln.slice(pipeIdx + 1).trim();
+    } else if (pendingMeta) {
+      epName = pendingMeta.name;
+      if (pendingMeta.logo) epLogo = pendingMeta.logo;
+      if (!epGroup && pendingMeta.group) epGroup = pendingMeta.group;
+    }
+    pendingMeta = null;
+
+    if (!/^https?:\/\//i.test(epUrl)) continue;
+    if (!epName) epName = buildAutoName(seq);
+    items.push({ name: epName, url: epUrl, logo: epLogo, group: epGroup || grp });
+    seq++;
+  }
+  return items;
+}
+
+function updateBulkPreview() {
+  var list = parseBulkEpisodesInput(
+    document.getElementById("mBulkInput").value,
+    document.getElementById("mBulkGroup").value,
+    document.getElementById("mBulkPrefix").value,
+    document.getElementById("mBulkStart").value,
+    document.getElementById("mBulkEnd").value,
+    document.getElementById("mBulkLogo").value.trim()
+  );
+  var el = document.getElementById("mBulkPreviewCount");
+  if (!el) return;
+  if (!list.length) {
+    el.textContent = "0 episodios detectados";
+  } else {
+    var first = list[0].name;
+    var last = list[list.length - 1].name;
+    var detectedGrp = list[0].group ? (" en «" + list[0].group + "»") : "";
+    el.textContent = list.length + " episodios listos" + detectedGrp + " (" + first + (list.length > 1 ? " … " + last : "") + ")";
+  }
+}
+
+function openBulkEpisodesModal() {
+  document.getElementById("mBulkGroup").value = (CURRENT_GROUP && CURRENT_GROUP !== "General") ? CURRENT_GROUP : "";
+  document.getElementById("mBulkPrefix").value = "S01E";
+  document.getElementById("mBulkStart").value = "1";
+  document.getElementById("mBulkEnd").value = "";
+  document.getElementById("mBulkLogo").value = getGroupSeriesCover(CURRENT_GROUP) || "";
+  document.getElementById("mBulkInput").value = "";
+  updateBulkPreview();
+  document.getElementById("modalBulkEpisodes").className = "modal open";
+  document.getElementById(document.getElementById("mBulkGroup").value ? "mBulkInput" : "mBulkGroup").focus();
+}
+
+document.getElementById("btnCancelBulkModal").onclick = function() {
+  document.getElementById("modalBulkEpisodes").className = "modal";
+};
+document.getElementById("btnBulkLoadFile").onclick = function() {
+  document.getElementById("mBulkFileInput").click();
+};
+document.getElementById("mBulkFileInput").onchange = function() {
+  var file = this.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function() {
+    document.getElementById("mBulkInput").value = String(reader.result || "");
+    updateBulkPreview();
+  };
+  reader.readAsText(file);
+  this.value = "";
+};
+["mBulkInput", "mBulkGroup", "mBulkPrefix", "mBulkStart", "mBulkEnd", "mBulkLogo"].forEach(function(id) {
+  document.getElementById(id).oninput = updateBulkPreview;
+});
+document.getElementById("btnSaveBulkModal").onclick = function() {
+  var typedGroup = document.getElementById("mBulkGroup").value.trim();
+  var commonLogo = document.getElementById("mBulkLogo").value.trim();
+  var items = parseBulkEpisodesInput(
+    document.getElementById("mBulkInput").value,
+    typedGroup,
+    document.getElementById("mBulkPrefix").value,
+    document.getElementById("mBulkStart").value,
+    document.getElementById("mBulkEnd").value,
+    commonLogo
+  );
+  if (!items.length) {
+    alert("No se detectaron enlaces válidos (http/https). Pega 1 URL por línea, un bloque M3U o usa un patrón con {nn} e Inicio/Fin.");
+    return;
+  }
+  var lastGroup = typedGroup || items[0].group || CURRENT_GROUP || "General";
+  var existingUrls = {};
+  for (var eIdx = 0; eIdx < CURRENT_PL.channels.length; eIdx++) {
+    var ex = CURRENT_PL.channels[eIdx];
+    if (ex && ex.url) existingUrls[(ex.group || "") + "\n" + ex.url] = true;
+  }
+  var added = 0;
+  for (var i = 0; i < items.length; i++) {
+    var epGroup = typedGroup || items[i].group || CURRENT_GROUP || "General";
+    lastGroup = epGroup;
+    if (CURRENT_PL.groups.indexOf(epGroup) === -1) {
+      CURRENT_PL.groups.push(epGroup);
+    }
+    var dupKey = epGroup + "\n" + items[i].url;
+    if (existingUrls[dupKey]) continue;
+    existingUrls[dupKey] = true;
+    var cover = getGroupSeriesCover(epGroup) || commonLogo;
+    var poster = getGroupSeriesPoster(epGroup);
+    CURRENT_PL.channels.push({
+      id: "c_" + (CURRENT_PL.channels.length + 1),
+      name: items[i].name,
+      url: items[i].url,
+      group: epGroup,
+      logo: items[i].logo || cover || "",
+      seriesLogo: cover || "",
+      seriesPoster: poster || "",
+      subs: "",
+      adult: false
+    });
+    added++;
+  }
+  CURRENT_GROUP = lastGroup;
+  document.getElementById("modalBulkEpisodes").className = "modal";
+  if (!added) {
+    alert("Todos esos episodios ya existían en «" + lastGroup + "».");
+    return;
+  }
   savePlaylistToServer();
 };
 
